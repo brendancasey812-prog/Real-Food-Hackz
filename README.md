@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🥗 PantryPlan
 
-## Getting Started
+A meal-planning web app + mobile-format companion where **everything stays in sync from one source of truth: your food quantities.**
 
-First, run the development server:
+Add a recipe → schedule it on the calendar → and the dashboard calories, grocery
+list, and fridge/pantry levels all update together.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Tabs
+
+| Tab | What it does |
+| --- | --- |
+| **Dashboard** | Weekly calorie tracker vs. your daily goal, plus live stats pulled from every other tab. |
+| **Cookbook** | Browse recipes (calories auto-calculated from ingredients) and add your own. |
+| **Planner** | Google-Calendar-style weekly grid — drop recipes onto breakfast/lunch/dinner/snack slots. |
+| **Groceries** | Auto-built list = what the week's plan needs − what's already in your kitchen. |
+| **Kitchen** | Visual fridge, freezer & pantry with live stock bars showing how much the week's plan will use. |
+
+## How it stays in sync
+
+```
+RECIPES ──▶ PLANNER ──▶ DASHBOARD (calories vs goal)
+                   ├──▶ GROCERIES (need − have)
+                   └──▶ KITCHEN   (stock depletion)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+One shared store ([`src/lib/store.ts`](src/lib/store.ts)) holds foods, inventory,
+recipes, the plan, and goals. Every tab is a live, reactive view of it.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tech
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Next.js (App Router) + React + TypeScript**
+- **Tailwind CSS** for the responsive UI — sidebar on desktop (website), bottom tab bar on phones (app)
+- **Zustand** for shared state, persisted to the browser (no login needed yet)
 
-## Learn More
+## Run it
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+npm run dev      # http://localhost:3000
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Data persists in your browser. There's a `resetToSeed()` action in the store to
+restore the sample kitchen.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Roadmap ideas
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- User accounts + cloud sync (multi-device)
+- Auto-deduct inventory when a meal is marked "cooked"
+- Nutrition beyond calories (protein/carbs/fat)
+- Barcode scanning to stock the pantry
+- Recipe import from a URL
