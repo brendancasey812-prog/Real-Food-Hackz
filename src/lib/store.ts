@@ -5,28 +5,26 @@ import { persist } from "zustand/middleware";
 import type {
   AppData,
   Food,
+  Macros,
   PlannedMeal,
   Recipe,
 } from "./types";
 import { seedData } from "./seed";
 
+interface Totals extends Macros {
+  calories: number;
+}
+
 interface AppState extends AppData {
-  // Inventory
   setInventory: (foodId: string, quantity: number) => void;
-  // Foods — adding a food makes it show up in the Kitchen and available to recipes.
   addFood: (food: Food, startQty?: number) => void;
-  // Recipes — new ingredient foods are created alongside the recipe.
   addRecipe: (recipe: Recipe, newFoods?: Food[]) => void;
   removeRecipe: (id: string) => void;
-  // Plan
   addPlannedMeal: (meal: PlannedMeal) => void;
   removePlannedMeal: (id: string) => void;
-  // Manual grocery items
   addManualGrocery: (foodId: string, quantity: number) => void;
   removeManualGrocery: (id: string) => void;
-  // Goals
-  setDailyCalorieTarget: (target: number) => void;
-  // Utilities
+  setGoals: (patch: Partial<AppData["goals"]>) => void;
   resetToSeed: () => void;
 }
 
@@ -98,12 +96,11 @@ export const useApp = create<AppState>()(
           manualGroceries: s.manualGroceries.filter((m) => m.id !== id),
         })),
 
-      setDailyCalorieTarget: (target) =>
-        set((s) => ({ goals: { ...s.goals, dailyCalorieTarget: target } })),
+      setGoals: (patch) => set((s) => ({ goals: { ...s.goals, ...patch } })),
 
       resetToSeed: () => set({ ...seedData }),
     }),
-    { name: "mealplan-store-v2" },
+    { name: "mealplan-store-v3" },
   ),
 );
 
@@ -133,6 +130,48 @@ export function recipeTotalCalories(recipe: Recipe, foods: Food[]): number {
 /** Calories for one serving of a recipe, derived from its ingredients. */
 export function recipeCaloriesPerServing(recipe: Recipe, foods: Food[]): number {
   return Math.round(recipeTotalCalories(recipe, foods) / recipe.servings);
+}
+
+/** Full macro + calorie totals for one serving of a recipe. */
+export function recipeTotalsPerServing(recipe: Recipe, foods: Food[]): Totals {
+  const t = recipe.ingredients.reduce(
+    (acc, ing) => {
+      const food = foodById(foods, ing.foodId);
+      if (!food) return acc;
+      acc.calories += food.caloriesPerUnit * ing.quantity;
+      acc.protein += food.protein * ing.quantity;
+      acc.carbs += food.carbs * ing.quantity;
+      acc.fat += food.fat * ing.quantity;
+      return acc;
+    },
+    { calories: 0, protein: 0, carbs: 0, fat: 0 },
+  );
+  const s = recipe.servings || 1;
+  return {
+    calories: Math.round(t.calories / s),
+    protein: Math.round(t.protein / s),
+    carbs: Math.round(t.carbs / s),
+    fat: Math.round(t.fat / s),
+  };
+}
+
+/** Combined calorie + macro totals for a set of planned meals. */
+export function plannedTotals(
+  meals: PlannedMeal[],
+  recipes: Recipe[],
+  foods: Food[],
+): Totals {
+  const acc = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+  for (const meal of meals) {
+    const recipe = recipes.find((r) => r.id === meal.recipeId);
+    if (!recipe) continue;
+    const per = recipeTotalsPerServing(recipe, foods);
+    acc.calories += per.calories * meal.servings;
+    acc.protein += per.protein * meal.servings;
+    acc.carbs += per.carbs * meal.servings;
+    acc.fat += per.fat * meal.servings;
+  }
+  return acc;
 }
 
 /** Total quantity of each food required by a set of planned meals. */

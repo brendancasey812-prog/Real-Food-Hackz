@@ -28,6 +28,13 @@ recipes, the plan, and goals. Every tab is a live, reactive view of it.
 
 ## Nutrition & calorie tracking
 
+Every food carries **calories + protein / carbs / fat per unit**, and it all rolls
+up live: recipes show per-serving macros, and the **Dashboard** shows a weekly
+calorie **bar chart with your daily-goal line** plus **Today**'s protein/carbs/fat
+vs target. The default plan is built for a **6'2", 200 lb, 25-year-old male at
+~2,900 cal/day** (180g protein / 330g carbs / 90g fat) and the full 7-day meal
+plan is loaded across the whole month — viewable in the planner's **Month** view.
+
 Calories are tracked at the **individual food-unit level** and roll up everywhere:
 
 - Every **food** stores `caloriesPerUnit` — calories in one US unit of it

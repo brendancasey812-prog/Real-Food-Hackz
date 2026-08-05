@@ -5,15 +5,26 @@ export type Location = "fridge" | "pantry" | "freezer";
 /** US cooking units. Each food uses whichever is most rational to cook with. */
 export type Unit = "each" | "cup" | "tbsp" | "tsp" | "oz";
 
-export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+export type MealType = "breakfast" | "lunch" | "snack" | "dinner" | "extra";
+
+/** Grams of each macronutrient — used on foods (per unit) and rolled up everywhere. */
+export interface Macros {
+  protein: number;
+  carbs: number;
+  fat: number;
+}
 
 /** A kind of food that can be stocked and used in recipes. */
 export interface Food {
   id: string;
   name: string;
   unit: Unit;
-  /** Calories in one `unit` of this food (the heart of the nutrition tracking). */
+  /** Calories in one `unit` of this food. */
   caloriesPerUnit: number;
+  /** Grams of protein / carbs / fat in one `unit`. */
+  protein: number;
+  carbs: number;
+  fat: number;
   location: Location;
   emoji: string;
 }
@@ -58,6 +69,18 @@ export interface ManualGrocery {
 
 export interface Goals {
   dailyCalorieTarget: number;
+  proteinTarget: number;
+  carbsTarget: number;
+  fatTarget: number;
+}
+
+/** Who the plan is built for — shown on the dashboard. */
+export interface Profile {
+  label: string;
+  heightIn: number;
+  weightLb: number;
+  age: number;
+  activity: string;
 }
 
 export interface AppData {
@@ -67,4 +90,5 @@ export interface AppData {
   plan: PlannedMeal[];
   manualGroceries: ManualGrocery[];
   goals: Goals;
+  profile: Profile;
 }

@@ -31,8 +31,11 @@ export function AddFoodModal({
   const [name, setName] = useState("");
   const [unit, setUnit] = useState<Unit>("each");
   const [calories, setCalories] = useState(100);
+  const [protein, setProtein] = useState(0);
+  const [carbs, setCarbs] = useState(0);
+  const [fat, setFat] = useState(0);
   const [location, setLocation] = useState<Location>(defaultLocation);
-  const [quantity, setQuantity] = useState(context === "grocery" ? 1 : 1);
+  const [quantity, setQuantity] = useState(1);
 
   const save = () => {
     if (!name.trim()) return;
@@ -43,6 +46,9 @@ export function AddFoodModal({
         name: name.trim(),
         unit,
         caloriesPerUnit: Math.max(0, calories),
+        protein: Math.max(0, protein),
+        carbs: Math.max(0, carbs),
+        fat: Math.max(0, fat),
         location,
         emoji: emoji || "🍽️",
       },
@@ -106,6 +112,15 @@ export function AddFoodModal({
                 className="w-full rounded-lg border border-zinc-300 bg-transparent px-2 py-2 dark:border-zinc-700"
               />
             </label>
+          </div>
+
+          <div>
+            <span className="mb-1 block text-sm text-zinc-500">Macros per {unit} (grams)</span>
+            <div className="grid grid-cols-3 gap-3">
+              <input type="number" value={protein} onChange={(e) => setProtein(Number(e.target.value))} placeholder="protein" className="w-full rounded-lg border border-zinc-300 bg-transparent px-2 py-2 text-sm dark:border-zinc-700" />
+              <input type="number" value={carbs} onChange={(e) => setCarbs(Number(e.target.value))} placeholder="carbs" className="w-full rounded-lg border border-zinc-300 bg-transparent px-2 py-2 text-sm dark:border-zinc-700" />
+              <input type="number" value={fat} onChange={(e) => setFat(Number(e.target.value))} placeholder="fat" className="w-full rounded-lg border border-zinc-300 bg-transparent px-2 py-2 text-sm dark:border-zinc-700" />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

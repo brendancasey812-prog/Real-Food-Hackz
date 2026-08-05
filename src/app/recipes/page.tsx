@@ -6,6 +6,7 @@ import {
   useApp,
   recipeCaloriesPerServing,
   recipeTotalCalories,
+  recipeTotalsPerServing,
   ingredientCalories,
   foodById,
   newId,
@@ -38,6 +39,7 @@ export default function Cookbook() {
         {recipes.map((r) => {
           const perServing = recipeCaloriesPerServing(r, foods);
           const total = recipeTotalCalories(r, foods);
+          const m = recipeTotalsPerServing(r, foods);
           return (
             <div
               key={r.id}
@@ -63,6 +65,13 @@ export default function Cookbook() {
                 <span className="text-xs text-zinc-400">
                   {total} total · {r.servings} servings
                 </span>
+              </div>
+
+              {/* Macro breakdown per serving */}
+              <div className="mt-2 flex gap-1.5 text-[11px]">
+                <span className="rounded-md bg-rose-50 px-2 py-0.5 font-medium text-rose-600 dark:bg-rose-950/40 dark:text-rose-300">P {m.protein}g</span>
+                <span className="rounded-md bg-amber-50 px-2 py-0.5 font-medium text-amber-600 dark:bg-amber-950/40 dark:text-amber-300">C {m.carbs}g</span>
+                <span className="rounded-md bg-sky-50 px-2 py-0.5 font-medium text-sky-600 dark:bg-sky-950/40 dark:text-sky-300">F {m.fat}g</span>
               </div>
 
               {/* Ingredients with per-item calories */}
@@ -103,6 +112,9 @@ interface Row {
   newEmoji: string;
   newUnit: Unit;
   newCalories: number;
+  newProtein: number;
+  newCarbs: number;
+  newFat: number;
   newLocation: Location;
 }
 
@@ -113,6 +125,9 @@ const emptyRow = (foodId: string): Row => ({
   newEmoji: "🥕",
   newUnit: "each",
   newCalories: 50,
+  newProtein: 0,
+  newCarbs: 0,
+  newFat: 0,
   newLocation: "fridge",
 });
 
@@ -154,6 +169,9 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
             emoji: row.newEmoji || "🥕",
             unit: row.newUnit,
             caloriesPerUnit: Math.max(0, row.newCalories),
+            protein: Math.max(0, row.newProtein),
+            carbs: Math.max(0, row.newCarbs),
+            fat: Math.max(0, row.newFat),
             location: row.newLocation,
           });
           return { foodId: id, quantity: row.quantity };
@@ -291,6 +309,29 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
                           placeholder="cal/unit"
                           className="rounded-lg border border-zinc-300 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-700"
                         />
+                        <div className="col-span-2 grid grid-cols-3 gap-2">
+                          <input
+                            type="number"
+                            value={row.newProtein}
+                            onChange={(e) => update(i, { newProtein: Number(e.target.value) })}
+                            placeholder="protein g"
+                            className="rounded-lg border border-zinc-300 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-700"
+                          />
+                          <input
+                            type="number"
+                            value={row.newCarbs}
+                            onChange={(e) => update(i, { newCarbs: Number(e.target.value) })}
+                            placeholder="carbs g"
+                            className="rounded-lg border border-zinc-300 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-700"
+                          />
+                          <input
+                            type="number"
+                            value={row.newFat}
+                            onChange={(e) => update(i, { newFat: Number(e.target.value) })}
+                            placeholder="fat g"
+                            className="rounded-lg border border-zinc-300 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-700"
+                          />
+                        </div>
                         <select
                           value={row.newLocation}
                           onChange={(e) => update(i, { newLocation: e.target.value as Location })}
