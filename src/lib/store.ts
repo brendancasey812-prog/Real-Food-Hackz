@@ -13,14 +13,17 @@ import { seedData } from "./seed";
 interface AppState extends AppData {
   // Inventory
   setInventory: (foodId: string, quantity: number) => void;
-  // Foods
-  addFood: (food: Food) => void;
-  // Recipes
-  addRecipe: (recipe: Recipe) => void;
+  // Foods — adding a food makes it show up in the Kitchen and available to recipes.
+  addFood: (food: Food, startQty?: number) => void;
+  // Recipes — new ingredient foods are created alongside the recipe.
+  addRecipe: (recipe: Recipe, newFoods?: Food[]) => void;
   removeRecipe: (id: string) => void;
   // Plan
   addPlannedMeal: (meal: PlannedMeal) => void;
   removePlannedMeal: (id: string) => void;
+  // Manual grocery items
+  addManualGrocery: (foodId: string, quantity: number) => void;
+  removeManualGrocery: (id: string) => void;
   // Goals
   setDailyCalorieTarget: (target: number) => void;
   // Utilities
@@ -47,13 +50,29 @@ export const useApp = create<AppState>()(
           return { inventory };
         }),
 
-      addFood: (food) =>
-        set((s) => ({
-          foods: [...s.foods, food],
-          inventory: [...s.inventory, { foodId: food.id, quantity: 0 }],
-        })),
+      addFood: (food, startQty = 0) =>
+        set((s) => {
+          if (s.foods.some((f) => f.id === food.id)) return s;
+          return {
+            foods: [...s.foods, food],
+            inventory: [...s.inventory, { foodId: food.id, quantity: Math.max(0, startQty) }],
+          };
+        }),
 
-      addRecipe: (recipe) => set((s) => ({ recipes: [...s.recipes, recipe] })),
+      addRecipe: (recipe, newFoods = []) =>
+        set((s) => {
+          const freshFoods = newFoods.filter(
+            (nf) => !s.foods.some((f) => f.id === nf.id),
+          );
+          return {
+            foods: [...s.foods, ...freshFoods],
+            inventory: [
+              ...s.inventory,
+              ...freshFoods.map((f) => ({ foodId: f.id, quantity: 0 })),
+            ],
+            recipes: [...s.recipes, recipe],
+          };
+        }),
 
       removeRecipe: (id) =>
         set((s) => ({
@@ -66,12 +85,25 @@ export const useApp = create<AppState>()(
       removePlannedMeal: (id) =>
         set((s) => ({ plan: s.plan.filter((p) => p.id !== id) })),
 
+      addManualGrocery: (foodId, quantity) =>
+        set((s) => ({
+          manualGroceries: [
+            ...s.manualGroceries,
+            { id: uid(), foodId, quantity: Math.max(0, quantity) },
+          ],
+        })),
+
+      removeManualGrocery: (id) =>
+        set((s) => ({
+          manualGroceries: s.manualGroceries.filter((m) => m.id !== id),
+        })),
+
       setDailyCalorieTarget: (target) =>
         set((s) => ({ goals: { ...s.goals, dailyCalorieTarget: target } })),
 
       resetToSeed: () => set({ ...seedData }),
     }),
-    { name: "mealplan-store-v1" },
+    { name: "mealplan-store-v2" },
   ),
 );
 
@@ -81,13 +113,26 @@ export function foodById(foods: Food[], id: string) {
   return foods.find((f) => f.id === id);
 }
 
+/** Calories contributed by one ingredient line (quantity × per-unit calories). */
+export function ingredientCalories(
+  ing: { foodId: string; quantity: number },
+  foods: Food[],
+): number {
+  const food = foodById(foods, ing.foodId);
+  return food ? Math.round(food.caloriesPerUnit * ing.quantity) : 0;
+}
+
+/** Total calories for the whole recipe (all servings). */
+export function recipeTotalCalories(recipe: Recipe, foods: Food[]): number {
+  return recipe.ingredients.reduce(
+    (sum, ing) => sum + ingredientCalories(ing, foods),
+    0,
+  );
+}
+
 /** Calories for one serving of a recipe, derived from its ingredients. */
 export function recipeCaloriesPerServing(recipe: Recipe, foods: Food[]): number {
-  const total = recipe.ingredients.reduce((sum, ing) => {
-    const food = foodById(foods, ing.foodId);
-    return sum + (food ? food.caloriesPerUnit * ing.quantity : 0);
-  }, 0);
-  return Math.round(total / recipe.servings);
+  return Math.round(recipeTotalCalories(recipe, foods) / recipe.servings);
 }
 
 /** Total quantity of each food required by a set of planned meals. */

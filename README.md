@@ -26,6 +26,39 @@ RECIPES ──▶ PLANNER ──▶ DASHBOARD (calories vs goal)
 One shared store ([`src/lib/store.ts`](src/lib/store.ts)) holds foods, inventory,
 recipes, the plan, and goals. Every tab is a live, reactive view of it.
 
+## Nutrition & calorie tracking
+
+Calories are tracked at the **individual food-unit level** and roll up everywhere:
+
+- Every **food** stores `caloriesPerUnit` — calories in one US unit of it
+  (per each / cup / tbsp / tsp / oz).
+- A **recipe's** calories are *derived*, never hand-entered:
+  `ingredientCalories = quantity × caloriesPerUnit`, summed for the recipe total,
+  divided by servings for the per-serving figure. Both the per-ingredient and
+  the total/per-serving numbers are shown on each recipe card and live in the
+  add-recipe form as you build it.
+- The **Kitchen** shows each food's `cal / unit` and its total calories on hand.
+- The **Groceries** list totals the calories you're about to buy.
+- The **Dashboard** rolls planned meals into a weekly calorie tracker vs. your
+  daily goal.
+
+Helper functions live in [`src/lib/store.ts`](src/lib/store.ts)
+(`ingredientCalories`, `recipeTotalCalories`, `recipeCaloriesPerServing`) and
+US units in [`src/lib/units.ts`](src/lib/units.ts).
+
+### Units
+
+All quantities use **US measuring units** — `each`, `cup`, `tbsp`, `tsp`, `oz` —
+picked per food for the most rational way to cook with it (eggs by *each*, milk
+by *cup*, chicken by *oz*, olive oil by *tbsp*, …).
+
+### Adding items
+
+- **Cookbook → Add recipe** — new ingredients you type in are created as foods
+  and automatically appear in the Kitchen, Pantry, groceries, and calorie math.
+- **Kitchen → Add food** and **Groceries → Add item** — the top-right buttons add
+  a food (name, emoji, unit, calories/unit, location, quantity) to the catalog.
+
 ## Tech
 
 - **Next.js (App Router) + React + TypeScript**

@@ -38,7 +38,7 @@ export default function Dashboard() {
     const have = inventory.find((i) => i.foodId === foodId)?.quantity ?? 0;
     return qty - have > 0.01;
   }).length;
-  const lowStock = inventory.filter((i) => i.quantity <= 2 && foods.find((f) => f.id === i.foodId)?.unit === "piece").length;
+  const lowStock = inventory.filter((i) => i.quantity <= 2 && foods.find((f) => f.id === i.foodId)?.unit === "each").length;
   const mealsPlanned = perDay.reduce((n, d) => n + plan.filter((m) => m.date === d.iso).length, 0);
 
   const stats = [

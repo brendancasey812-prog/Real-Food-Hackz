@@ -1,23 +1,24 @@
 import { format, startOfWeek, addDays } from "date-fns";
 import type { AppData, Food, Recipe } from "./types";
 
+// Calories are per single US unit (per each / per cup / per tbsp / per tsp / per oz).
 const foods: Food[] = [
-  { id: "egg", name: "Eggs", unit: "piece", caloriesPerUnit: 78, location: "fridge", emoji: "🥚" },
-  { id: "milk", name: "Milk", unit: "ml", caloriesPerUnit: 0.42, location: "fridge", emoji: "🥛" },
-  { id: "chicken", name: "Chicken breast", unit: "g", caloriesPerUnit: 1.65, location: "fridge", emoji: "🍗" },
-  { id: "spinach", name: "Spinach", unit: "g", caloriesPerUnit: 0.23, location: "fridge", emoji: "🥬" },
-  { id: "tomato", name: "Tomatoes", unit: "piece", caloriesPerUnit: 22, location: "fridge", emoji: "🍅" },
-  { id: "cheese", name: "Cheddar cheese", unit: "g", caloriesPerUnit: 4.0, location: "fridge", emoji: "🧀" },
-  { id: "yogurt", name: "Greek yogurt", unit: "g", caloriesPerUnit: 0.59, location: "fridge", emoji: "🍶" },
-  { id: "butter", name: "Butter", unit: "g", caloriesPerUnit: 7.2, location: "fridge", emoji: "🧈" },
-  { id: "rice", name: "Rice", unit: "g", caloriesPerUnit: 1.3, location: "pantry", emoji: "🍚" },
-  { id: "oats", name: "Oats", unit: "g", caloriesPerUnit: 3.8, location: "pantry", emoji: "🌾" },
-  { id: "pasta", name: "Pasta", unit: "g", caloriesPerUnit: 3.7, location: "pantry", emoji: "🍝" },
-  { id: "oliveoil", name: "Olive oil", unit: "ml", caloriesPerUnit: 8.8, location: "pantry", emoji: "🫒" },
-  { id: "banana", name: "Bananas", unit: "piece", caloriesPerUnit: 105, location: "pantry", emoji: "🍌" },
-  { id: "bread", name: "Bread", unit: "piece", caloriesPerUnit: 80, location: "pantry", emoji: "🍞" },
+  { id: "egg", name: "Eggs", unit: "each", caloriesPerUnit: 78, location: "fridge", emoji: "🥚" },
+  { id: "milk", name: "Milk", unit: "cup", caloriesPerUnit: 149, location: "fridge", emoji: "🥛" },
+  { id: "chicken", name: "Chicken breast", unit: "oz", caloriesPerUnit: 47, location: "fridge", emoji: "🍗" },
+  { id: "spinach", name: "Spinach", unit: "cup", caloriesPerUnit: 7, location: "fridge", emoji: "🥬" },
+  { id: "tomato", name: "Tomatoes", unit: "each", caloriesPerUnit: 22, location: "fridge", emoji: "🍅" },
+  { id: "cheese", name: "Cheddar cheese", unit: "oz", caloriesPerUnit: 113, location: "fridge", emoji: "🧀" },
+  { id: "yogurt", name: "Greek yogurt", unit: "cup", caloriesPerUnit: 150, location: "fridge", emoji: "🍶" },
+  { id: "butter", name: "Butter", unit: "tbsp", caloriesPerUnit: 102, location: "fridge", emoji: "🧈" },
+  { id: "rice", name: "Rice (cooked)", unit: "cup", caloriesPerUnit: 205, location: "pantry", emoji: "🍚" },
+  { id: "oats", name: "Oats", unit: "cup", caloriesPerUnit: 307, location: "pantry", emoji: "🌾" },
+  { id: "pasta", name: "Pasta (cooked)", unit: "cup", caloriesPerUnit: 221, location: "pantry", emoji: "🍝" },
+  { id: "oliveoil", name: "Olive oil", unit: "tbsp", caloriesPerUnit: 119, location: "pantry", emoji: "🫒" },
+  { id: "banana", name: "Bananas", unit: "each", caloriesPerUnit: 105, location: "pantry", emoji: "🍌" },
+  { id: "bread", name: "Bread", unit: "each", caloriesPerUnit: 80, location: "pantry", emoji: "🍞" },
   { id: "honey", name: "Honey", unit: "tbsp", caloriesPerUnit: 64, location: "pantry", emoji: "🍯" },
-  { id: "berries", name: "Mixed berries", unit: "g", caloriesPerUnit: 0.57, location: "freezer", emoji: "🫐" },
+  { id: "berries", name: "Mixed berries", unit: "cup", caloriesPerUnit: 70, location: "freezer", emoji: "🫐" },
 ];
 
 const recipes: Recipe[] = [
@@ -28,9 +29,9 @@ const recipes: Recipe[] = [
     emoji: "🍳",
     ingredients: [
       { foodId: "egg", quantity: 3 },
-      { foodId: "spinach", quantity: 40 },
-      { foodId: "cheese", quantity: 30 },
-      { foodId: "butter", quantity: 10 },
+      { foodId: "spinach", quantity: 1 },
+      { foodId: "cheese", quantity: 1 },
+      { foodId: "butter", quantity: 1 },
     ],
     steps: [
       "Whisk the eggs with a pinch of salt.",
@@ -45,10 +46,10 @@ const recipes: Recipe[] = [
     servings: 1,
     emoji: "🥣",
     ingredients: [
-      { foodId: "oats", quantity: 60 },
-      { foodId: "milk", quantity: 180 },
-      { foodId: "yogurt", quantity: 80 },
-      { foodId: "berries", quantity: 70 },
+      { foodId: "oats", quantity: 0.5 },
+      { foodId: "milk", quantity: 0.75 },
+      { foodId: "yogurt", quantity: 0.5 },
+      { foodId: "berries", quantity: 0.5 },
       { foodId: "honey", quantity: 1 },
     ],
     steps: [
@@ -63,10 +64,10 @@ const recipes: Recipe[] = [
     servings: 2,
     emoji: "🍛",
     ingredients: [
-      { foodId: "chicken", quantity: 300 },
-      { foodId: "rice", quantity: 150 },
-      { foodId: "spinach", quantity: 80 },
-      { foodId: "oliveoil", quantity: 15 },
+      { foodId: "chicken", quantity: 10 },
+      { foodId: "rice", quantity: 1.5 },
+      { foodId: "spinach", quantity: 2 },
+      { foodId: "oliveoil", quantity: 1 },
     ],
     steps: [
       "Cook rice according to package.",
@@ -80,10 +81,10 @@ const recipes: Recipe[] = [
     servings: 2,
     emoji: "🍝",
     ingredients: [
-      { foodId: "pasta", quantity: 200 },
+      { foodId: "pasta", quantity: 2 },
       { foodId: "tomato", quantity: 4 },
-      { foodId: "cheese", quantity: 50 },
-      { foodId: "oliveoil", quantity: 15 },
+      { foodId: "cheese", quantity: 1.5 },
+      { foodId: "oliveoil", quantity: 1 },
     ],
     steps: [
       "Boil pasta until al dente.",
@@ -100,7 +101,7 @@ const recipes: Recipe[] = [
       { foodId: "bread", quantity: 2 },
       { foodId: "banana", quantity: 1 },
       { foodId: "honey", quantity: 1 },
-      { foodId: "butter", quantity: 8 },
+      { foodId: "butter", quantity: 0.5 },
     ],
     steps: [
       "Toast and butter the bread.",
@@ -109,23 +110,24 @@ const recipes: Recipe[] = [
   },
 ];
 
+// Current stock, in each food's US unit.
 const inventory = [
-  { foodId: "egg", quantity: 8 },
-  { foodId: "milk", quantity: 1000 },
-  { foodId: "chicken", quantity: 250 },
-  { foodId: "spinach", quantity: 150 },
-  { foodId: "tomato", quantity: 5 },
-  { foodId: "cheese", quantity: 120 },
-  { foodId: "yogurt", quantity: 400 },
-  { foodId: "butter", quantity: 200 },
-  { foodId: "rice", quantity: 500 },
-  { foodId: "oats", quantity: 400 },
-  { foodId: "pasta", quantity: 250 },
-  { foodId: "oliveoil", quantity: 500 },
-  { foodId: "banana", quantity: 4 },
-  { foodId: "bread", quantity: 6 },
-  { foodId: "honey", quantity: 20 },
-  { foodId: "berries", quantity: 300 },
+  { foodId: "egg", quantity: 12 },
+  { foodId: "milk", quantity: 4 },
+  { foodId: "chicken", quantity: 16 },
+  { foodId: "spinach", quantity: 4 },
+  { foodId: "tomato", quantity: 6 },
+  { foodId: "cheese", quantity: 8 },
+  { foodId: "yogurt", quantity: 4 },
+  { foodId: "butter", quantity: 8 },
+  { foodId: "rice", quantity: 6 },
+  { foodId: "oats", quantity: 5 },
+  { foodId: "pasta", quantity: 4 },
+  { foodId: "oliveoil", quantity: 16 },
+  { foodId: "banana", quantity: 5 },
+  { foodId: "bread", quantity: 10 },
+  { foodId: "honey", quantity: 12 },
+  { foodId: "berries", quantity: 3 },
 ];
 
 /** Build a starter weekly plan anchored to the current week. */
@@ -148,5 +150,6 @@ export const seedData: AppData = {
   recipes,
   inventory,
   plan: seedPlan(),
+  manualGroceries: [],
   goals: { dailyCalorieTarget: 2000 },
 };

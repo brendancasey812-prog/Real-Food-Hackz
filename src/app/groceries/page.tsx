@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import { addWeeks, format } from "date-fns";
-import { ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Plus } from "lucide-react";
 import { useApp, neededQuantities, foodById } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
+import { fmtQty, pluralUnit } from "@/lib/units";
+import { AddFoodModal } from "@/components/AddFoodModal";
 
 export default function Groceries() {
-  const { recipes, foods, plan, inventory, setInventory } = useApp();
+  const { recipes, foods, plan, inventory, manualGroceries, setInventory, removeManualGrocery } = useApp();
   const [offset, setOffset] = useState(0);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [adding, setAdding] = useState(false);
 
   const days = weekDays(addWeeks(new Date(), offset)).map(isoOf);
   const need = neededQuantities(
@@ -17,14 +20,24 @@ export default function Groceries() {
     recipes,
   );
 
-  const items = Object.entries(need)
-    .map(([foodId, qty]) => {
-      const have = inventory.find((i) => i.foodId === foodId)?.quantity ?? 0;
+  // Merge the auto-derived shortfall with any manually-added quantities.
+  const buyByFood: Record<string, number> = {};
+  for (const [foodId, qty] of Object.entries(need)) {
+    const have = inventory.find((i) => i.foodId === foodId)?.quantity ?? 0;
+    const shortfall = Math.max(0, qty - have);
+    if (shortfall > 0.001) buyByFood[foodId] = shortfall;
+  }
+  for (const m of manualGroceries) {
+    buyByFood[m.foodId] = (buyByFood[m.foodId] ?? 0) + m.quantity;
+  }
+
+  const items = Object.entries(buyByFood)
+    .map(([foodId, buy]) => {
       const food = foodById(foods, foodId);
-      return { food, need: qty, have, buy: Math.max(0, qty - have) };
+      const have = inventory.find((i) => i.foodId === foodId)?.quantity ?? 0;
+      return { food, buy, have };
     })
-    .filter((x) => x.food && x.buy > 0.01)
-    .sort((a, b) => (a.food!.location > b.food!.location ? 1 : -1));
+    .filter((x) => x.food && x.buy > 0.001);
 
   const grouped = items.reduce<Record<string, typeof items>>((acc, item) => {
     const loc = item.food!.location;
@@ -32,32 +45,48 @@ export default function Groceries() {
     return acc;
   }, {});
 
-  const markBought = (foodId: string, total: number) => {
-    setInventory(foodId, total);
+  const totalCals = items.reduce(
+    (s, x) => s + Math.round(x.buy * x.food!.caloriesPerUnit),
+    0,
+  );
+
+  const markBought = (foodId: string, have: number, buy: number) => {
+    setInventory(foodId, have + buy);
+    manualGroceries.filter((m) => m.foodId === foodId).forEach((m) => removeManualGrocery(m.id));
     setChecked((c) => ({ ...c, [foodId]: true }));
   };
 
   return (
     <div className="mx-auto max-w-2xl">
-      <header className="mb-5 flex items-center justify-between">
+      <header className="mb-5 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Grocery list</h1>
           <p className="mt-1 text-sm text-zinc-500">
             Auto-built from your plan minus what&apos;s in the kitchen
           </p>
         </div>
+        <button
+          onClick={() => setAdding(true)}
+          className="flex shrink-0 items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
+        >
+          <Plus size={16} /> Add item
+        </button>
+      </header>
+
+      <div className="mb-4 flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-center gap-1">
-          <button onClick={() => setOffset((o) => o - 1)} className="rounded-lg border border-zinc-200 p-2 dark:border-zinc-800">
+          <button onClick={() => setOffset((o) => o - 1)} className="rounded-lg p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800">
             <ChevronLeft size={16} />
           </button>
-          <span className="px-1 text-sm text-zinc-500">
-            {format(weekDays(addWeeks(new Date(), offset))[0], "MMM d")}
+          <span className="px-1 text-zinc-500">
+            Week of {format(weekDays(addWeeks(new Date(), offset))[0], "MMM d")}
           </span>
-          <button onClick={() => setOffset((o) => o + 1)} className="rounded-lg border border-zinc-200 p-2 dark:border-zinc-800">
+          <button onClick={() => setOffset((o) => o + 1)} className="rounded-lg p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800">
             <ChevronRight size={16} />
           </button>
         </div>
-      </header>
+        <span className="text-zinc-400">{totalCals.toLocaleString()} cal to buy</span>
+      </div>
 
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-zinc-300 py-16 text-center text-sm text-zinc-400 dark:border-zinc-700">
@@ -72,14 +101,16 @@ export default function Groceries() {
               </h2>
               <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
                 {list.map((item) => {
-                  const isChecked = checked[item.food!.id];
+                  const f = item.food!;
+                  const isChecked = checked[f.id];
+                  const lineCals = Math.round(item.buy * f.caloriesPerUnit);
                   return (
                     <div
-                      key={item.food!.id}
+                      key={f.id}
                       className="flex items-center gap-3 border-b border-zinc-100 px-4 py-3 last:border-0 dark:border-zinc-800"
                     >
                       <button
-                        onClick={() => markBought(item.food!.id, item.need)}
+                        onClick={() => markBought(f.id, item.have, item.buy)}
                         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${
                           isChecked
                             ? "border-emerald-500 bg-emerald-500 text-white"
@@ -88,11 +119,12 @@ export default function Groceries() {
                       >
                         {isChecked && <Check size={14} />}
                       </button>
-                      <span className={`flex-1 ${isChecked ? "text-zinc-400 line-through" : ""}`}>
-                        {item.food!.emoji} {item.food!.name}
-                      </span>
+                      <div className={`flex-1 ${isChecked ? "text-zinc-400 line-through" : ""}`}>
+                        <div>{f.emoji} {f.name}</div>
+                        <div className="text-[11px] text-zinc-400">{lineCals} cal</div>
+                      </div>
                       <span className="text-sm text-zinc-500">
-                        buy {Math.ceil(item.buy)} {item.food!.unit}
+                        buy {fmtQty(Math.ceil(item.buy * 4) / 4)} {pluralUnit(item.buy, f.unit)}
                       </span>
                     </div>
                   );
@@ -102,6 +134,8 @@ export default function Groceries() {
           ))}
         </div>
       )}
+
+      {adding && <AddFoodModal context="grocery" onClose={() => setAdding(false)} />}
     </div>
   );
 }

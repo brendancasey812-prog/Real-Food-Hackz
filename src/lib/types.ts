@@ -2,7 +2,8 @@
 
 export type Location = "fridge" | "pantry" | "freezer";
 
-export type Unit = "g" | "ml" | "piece" | "cup" | "tbsp" | "tsp";
+/** US cooking units. Each food uses whichever is most rational to cook with. */
+export type Unit = "each" | "cup" | "tbsp" | "tsp" | "oz";
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
@@ -11,7 +12,7 @@ export interface Food {
   id: string;
   name: string;
   unit: Unit;
-  /** Calories per single `unit` of this food. */
+  /** Calories in one `unit` of this food (the heart of the nutrition tracking). */
   caloriesPerUnit: number;
   location: Location;
   emoji: string;
@@ -48,6 +49,13 @@ export interface PlannedMeal {
   servings: number;
 }
 
+/** A shopping-list line the user added by hand (on top of the auto-derived list). */
+export interface ManualGrocery {
+  id: string;
+  foodId: string;
+  quantity: number;
+}
+
 export interface Goals {
   dailyCalorieTarget: number;
 }
@@ -57,5 +65,6 @@ export interface AppData {
   inventory: InventoryItem[];
   recipes: Recipe[];
   plan: PlannedMeal[];
+  manualGroceries: ManualGrocery[];
   goals: Goals;
 }
