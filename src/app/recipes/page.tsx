@@ -29,7 +29,7 @@ export default function Cookbook() {
         </div>
         <button
           onClick={() => setOpen(true)}
-          className="flex shrink-0 items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
+          className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-900/30 px-4 py-2.5 text-sm font-medium text-white hover:brightness-110"
         >
           <Plus size={16} /> Add recipe
         </button>
@@ -43,7 +43,7 @@ export default function Cookbook() {
           return (
             <div
               key={r.id}
-              className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+              className="flex flex-col rounded-2xl card p-5"
             >
               <div className="flex items-start justify-between">
                 <span className="text-3xl">{r.emoji}</span>
@@ -198,7 +198,7 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-0 md:items-center md:p-4">
-      <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-6 dark:bg-zinc-900 md:rounded-2xl">
+      <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-white/10 bg-zinc-950/95 p-6 md:rounded-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">New recipe</h2>
           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600">
@@ -211,14 +211,14 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
             <input
               value={emoji}
               onChange={(e) => setEmoji(e.target.value)}
-              className="w-14 rounded-lg border border-zinc-300 bg-transparent px-2 py-2 text-center text-xl dark:border-zinc-700"
+              className="w-14 rounded-lg field px-2 py-2 text-center text-xl"
             />
             <input
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Recipe name"
-              className="flex-1 rounded-lg border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700"
+              className="flex-1 rounded-lg field px-3 py-2"
             />
           </div>
 
@@ -228,7 +228,7 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
               type="number"
               value={servings}
               onChange={(e) => setServings(Number(e.target.value))}
-              className="w-20 rounded-lg border border-zinc-300 bg-transparent px-2 py-1.5 dark:border-zinc-700"
+              className="w-20 rounded-lg field px-2 py-1.5"
             />
           </label>
 
@@ -250,13 +250,13 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
                 return (
                   <div
                     key={i}
-                    className="rounded-xl border border-zinc-200 p-2.5 dark:border-zinc-800"
+                    className="rounded-xl border border-white/10 p-2.5"
                   >
                     <div className="flex gap-2">
                       <select
                         value={row.foodId}
                         onChange={(e) => update(i, { foodId: e.target.value })}
-                        className="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-700"
+                        className="min-w-0 flex-1 rounded-lg field px-2 py-1.5 text-sm"
                       >
                         {foods.map((f) => (
                           <option key={f.id} value={f.id}>
@@ -269,7 +269,7 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
                         type="number"
                         value={row.quantity}
                         onChange={(e) => update(i, { quantity: Number(e.target.value) })}
-                        className="w-16 rounded-lg border border-zinc-300 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-700"
+                        className="w-16 rounded-lg field px-2 py-1.5 text-sm"
                       />
                       <span className="flex w-12 items-center text-xs text-zinc-400">
                         {unitLabel(unit)}
@@ -277,24 +277,24 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
                     </div>
 
                     {isNew && (
-                      <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg bg-zinc-50 p-2 dark:bg-zinc-800/50">
+                      <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border border-white/5 bg-white/[0.03] p-2">
                         <input
                           value={row.newEmoji}
                           onChange={(e) => update(i, { newEmoji: e.target.value })}
                           placeholder="🥕"
-                          className="col-span-2 rounded-lg border border-zinc-300 bg-transparent px-2 py-1.5 text-center text-sm dark:border-zinc-700"
+                          className="col-span-2 rounded-lg field px-2 py-1.5 text-center text-sm"
                           style={{ gridColumn: "span 1" }}
                         />
                         <input
                           value={row.newName}
                           onChange={(e) => update(i, { newName: e.target.value })}
                           placeholder="Ingredient name"
-                          className="rounded-lg border border-zinc-300 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-700"
+                          className="rounded-lg field px-2 py-1.5 text-sm"
                         />
                         <select
                           value={row.newUnit}
                           onChange={(e) => update(i, { newUnit: e.target.value as Unit })}
-                          className="rounded-lg border border-zinc-300 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-700"
+                          className="rounded-lg field px-2 py-1.5 text-sm"
                         >
                           {UNITS.map((u) => (
                             <option key={u.value} value={u.value}>
@@ -307,7 +307,7 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
                           value={row.newCalories}
                           onChange={(e) => update(i, { newCalories: Number(e.target.value) })}
                           placeholder="cal/unit"
-                          className="rounded-lg border border-zinc-300 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-700"
+                          className="rounded-lg field px-2 py-1.5 text-sm"
                         />
                         <div className="col-span-2 grid grid-cols-3 gap-2">
                           <input
@@ -315,27 +315,27 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
                             value={row.newProtein}
                             onChange={(e) => update(i, { newProtein: Number(e.target.value) })}
                             placeholder="protein g"
-                            className="rounded-lg border border-zinc-300 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-700"
+                            className="rounded-lg field px-2 py-1.5 text-sm"
                           />
                           <input
                             type="number"
                             value={row.newCarbs}
                             onChange={(e) => update(i, { newCarbs: Number(e.target.value) })}
                             placeholder="carbs g"
-                            className="rounded-lg border border-zinc-300 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-700"
+                            className="rounded-lg field px-2 py-1.5 text-sm"
                           />
                           <input
                             type="number"
                             value={row.newFat}
                             onChange={(e) => update(i, { newFat: Number(e.target.value) })}
                             placeholder="fat g"
-                            className="rounded-lg border border-zinc-300 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-700"
+                            className="rounded-lg field px-2 py-1.5 text-sm"
                           />
                         </div>
                         <select
                           value={row.newLocation}
                           onChange={(e) => update(i, { newLocation: e.target.value as Location })}
-                          className="col-span-2 rounded-lg border border-zinc-300 bg-transparent px-2 py-1.5 text-sm dark:border-zinc-700"
+                          className="col-span-2 rounded-lg field px-2 py-1.5 text-sm"
                         >
                           <option value="fridge">Store in Fridge</option>
                           <option value="freezer">Store in Freezer</option>
@@ -361,7 +361,7 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
             </div>
             <button
               onClick={() => setRows((rs) => [...rs, emptyRow(foods[0]?.id ?? NEW)])}
-              className="mt-2 text-sm font-medium text-emerald-600 hover:text-emerald-700"
+              className="mt-2 text-sm font-medium text-emerald-400 hover:text-emerald-300"
             >
               + Add ingredient
             </button>
@@ -376,7 +376,7 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setSteps(e.target.value)}
               rows={3}
               placeholder={"Chop the vegetables\nSauté until soft"}
-              className="w-full rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm dark:border-zinc-700"
+              className="w-full rounded-lg field px-3 py-2 text-sm"
             />
           </div>
 
@@ -390,7 +390,7 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
 
           <button
             onClick={save}
-            className="w-full rounded-xl bg-emerald-600 py-3 font-medium text-white hover:bg-emerald-700"
+            className="w-full rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-900/30 py-3 font-medium text-white hover:brightness-110"
           >
             Save recipe
           </button>

@@ -37,7 +37,7 @@ export default function Kitchen() {
         </div>
         <button
           onClick={() => setAdding("fridge")}
-          className="flex shrink-0 items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
+          className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-900/30 px-4 py-2.5 text-sm font-medium text-white hover:brightness-110"
         >
           <Plus size={16} /> Add food
         </button>
@@ -49,7 +49,7 @@ export default function Kitchen() {
           return (
             <section
               key={section.key}
-              className={`rounded-2xl border border-zinc-200 bg-gradient-to-b p-5 dark:border-zinc-800 ${section.tint}`}
+              className={`rounded-2xl border border-white/10 bg-gradient-to-b p-5 ${section.tint}`}
             >
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="flex items-center gap-2 font-semibold">
@@ -57,7 +57,7 @@ export default function Kitchen() {
                 </h2>
                 <button
                   onClick={() => setAdding(section.key)}
-                  className="flex items-center gap-1 rounded-lg border border-zinc-300 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:bg-white dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-xs font-medium text-zinc-300 hover:bg-white/[0.08]"
                 >
                   <Plus size={13} /> Add
                 </button>
@@ -82,7 +82,7 @@ export default function Kitchen() {
                     return (
                       <div
                         key={f.id}
-                        className="rounded-xl border border-zinc-200 bg-white/80 p-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80"
+                        className="rounded-xl card p-3"
                       >
                         <div className="flex items-center justify-between">
                           <span className="flex items-center gap-2 text-sm font-medium">
@@ -92,13 +92,13 @@ export default function Kitchen() {
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => setInventory(f.id, have - stepFor(f.unit))}
-                              className="flex h-6 w-6 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                              className="flex h-6 w-6 items-center justify-center rounded-md border border-white/10 text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100"
                             >
                               <Minus size={12} />
                             </button>
                             <button
                               onClick={() => setInventory(f.id, have + stepFor(f.unit))}
-                              className="flex h-6 w-6 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                              className="flex h-6 w-6 items-center justify-center rounded-md border border-white/10 text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100"
                             >
                               <Plus size={12} />
                             </button>
@@ -125,7 +125,7 @@ export default function Kitchen() {
                               short {fmtQty(shortfall)} {pluralUnit(shortfall, f.unit)}
                             </span>
                           ) : willUse > 0 ? (
-                            <span className="text-amber-600">
+                            <span className="text-amber-400">
                               uses {fmtQty(willUse)} {pluralUnit(willUse, f.unit)}
                             </span>
                           ) : (

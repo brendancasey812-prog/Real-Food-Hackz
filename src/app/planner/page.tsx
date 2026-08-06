@@ -34,13 +34,13 @@ export default function Planner() {
         </div>
         <div className="flex items-center gap-2">
           {/* View toggle */}
-          <div className="flex rounded-lg border border-zinc-200 p-0.5 text-sm dark:border-zinc-800">
+          <div className="flex rounded-lg border border-white/10 p-0.5 text-sm">
             {(["week", "month"] as View[]).map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
                 className={`rounded-md px-3 py-1.5 font-medium capitalize ${
-                  view === v ? "bg-emerald-600 text-white" : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  view === v ? "bg-gradient-to-b from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-900/30 text-white" : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                 }`}
               >
                 {v}
@@ -48,13 +48,13 @@ export default function Planner() {
             ))}
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={() => shift(-1)} className="rounded-lg border border-zinc-200 p-2 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-800">
+            <button onClick={() => shift(-1)} className="rounded-lg border border-white/10 p-2 hover:bg-white/[0.06]">
               <ChevronLeft size={16} />
             </button>
-            <button onClick={() => setAnchor(new Date())} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-800">
+            <button onClick={() => setAnchor(new Date())} className="rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/[0.06]">
               Today
             </button>
-            <button onClick={() => shift(1)} className="rounded-lg border border-zinc-200 p-2 hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-800">
+            <button onClick={() => shift(1)} className="rounded-lg border border-white/10 p-2 hover:bg-white/[0.06]">
               <ChevronRight size={16} />
             </button>
           </div>
@@ -83,7 +83,7 @@ export default function Planner() {
 
       {picking && (
         <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-0 md:items-center md:p-4">
-          <div className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 dark:bg-zinc-900 md:rounded-2xl">
+          <div className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-white/10 bg-zinc-950/95 p-5 md:rounded-2xl">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-semibold">
                 Add to {MEAL_LABEL[picking.meal]} · {format(new Date(picking.iso), "EEE MMM d")}
@@ -106,7 +106,7 @@ export default function Planner() {
                     });
                     setPicking(null);
                   }}
-                  className="flex w-full items-center justify-between rounded-xl border border-zinc-200 px-3 py-2.5 text-left text-sm hover:border-emerald-400 hover:bg-emerald-50 dark:border-zinc-800 dark:hover:bg-emerald-950/30"
+                  className="flex w-full items-center justify-between rounded-xl border border-white/10 px-3 py-2.5 text-left text-sm hover:border-emerald-400/60 hover:bg-emerald-500/10"
                 >
                   <span>{r.emoji} {r.name}</span>
                   <span className="text-xs text-zinc-400">{recipeCaloriesPerServing(r, foods)} cal</span>
@@ -146,7 +146,7 @@ function WeekView({
           const cals = dayCalories(iso);
           return (
             <div key={iso} className="flex flex-col gap-2">
-              <div className={`rounded-lg px-2 py-1.5 text-center ${today ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"}`}>
+              <div className={`rounded-lg px-2 py-1.5 text-center ${today ? "bg-gradient-to-b from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-900/30 text-white" : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"}`}>
                 <div className="text-sm font-medium">{format(d, "EEE d")}</div>
                 <div className={`text-[10px] ${today ? "text-emerald-100" : cals > target * 1.05 ? "text-rose-500" : "text-zinc-400"}`}>
                   {cals.toLocaleString()} cal
@@ -156,7 +156,7 @@ function WeekView({
               {MEAL_ORDER.map((meal) => {
                 const items = plan.filter((m) => m.date === iso && m.mealType === meal);
                 return (
-                  <div key={meal} className="min-h-[56px] rounded-xl border border-zinc-200 bg-white p-1.5 dark:border-zinc-800 dark:bg-zinc-900">
+                  <div key={meal} className="min-h-[56px] rounded-xl card p-1.5">
                     <div className="px-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
                       {MEAL_LABEL[meal]}
                     </div>
@@ -216,7 +216,7 @@ function MonthView({
                 } ${inMonth ? "bg-white dark:bg-zinc-900" : "bg-zinc-50 opacity-60 dark:bg-zinc-900/40"}`}
               >
                 <div className="flex items-center justify-between">
-                  <span className={`text-sm font-medium ${isToday(d) ? "text-emerald-600" : ""}`}>{format(d, "d")}</span>
+                  <span className={`text-sm font-medium ${isToday(d) ? "text-emerald-400" : ""}`}>{format(d, "d")}</span>
                   {cals > 0 && <span className="text-[10px] text-zinc-400">{(cals / 1000).toFixed(1)}k</span>}
                 </div>
                 <div className="mt-1 flex flex-wrap gap-0.5">

@@ -24,9 +24,9 @@ export default function Dashboard() {
   const targetPct = (target / maxBar) * 100;
 
   const macros = [
-    { key: "protein", label: "Protein", value: todayCol.protein, target: goals.proteinTarget, icon: Beef, bar: "bg-rose-500", text: "text-rose-600" },
-    { key: "carbs", label: "Carbs", value: todayCol.carbs, target: goals.carbsTarget, icon: Wheat, bar: "bg-amber-500", text: "text-amber-600" },
-    { key: "fat", label: "Fat", value: todayCol.fat, target: goals.fatTarget, icon: Droplet, bar: "bg-sky-500", text: "text-sky-600" },
+    { key: "protein", label: "Protein", value: todayCol.protein, target: goals.proteinTarget, icon: Beef, bar: "bg-gradient-to-r from-rose-500 to-rose-400", text: "text-rose-400" },
+    { key: "carbs", label: "Carbs", value: todayCol.carbs, target: goals.carbsTarget, icon: Wheat, bar: "bg-gradient-to-r from-amber-500 to-amber-400", text: "text-amber-400" },
+    { key: "fat", label: "Fat", value: todayCol.fat, target: goals.fatTarget, icon: Droplet, bar: "bg-gradient-to-r from-sky-500 to-sky-400", text: "text-sky-400" },
   ];
 
   const ft = Math.floor(profile.heightIn / 12);
@@ -42,7 +42,7 @@ export default function Dashboard() {
           </p>
         </div>
         {/* Profile card */}
-        <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex items-center gap-3 rounded-xl card px-4 py-2.5 text-sm">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
             <User size={18} />
           </span>
@@ -54,7 +54,7 @@ export default function Dashboard() {
       </header>
 
       {/* Today's targets */}
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="rounded-2xl card p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-semibold">
             Today · {format(todayCol.date, "EEEE")}
@@ -86,7 +86,7 @@ export default function Dashboard() {
       </section>
 
       {/* Weekly calorie bar chart with target line */}
-      <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+      <section className="mt-6 rounded-2xl card p-5">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-semibold">Weekly calories</h2>
@@ -100,7 +100,7 @@ export default function Dashboard() {
               type="number"
               value={target}
               onChange={(e) => setGoals({ dailyCalorieTarget: Number(e.target.value) || 0 })}
-              className="w-24 rounded-lg border border-zinc-300 bg-transparent px-2 py-1 text-right dark:border-zinc-700"
+              className="w-24 rounded-lg field px-2 py-1 text-right"
             />
           </label>
         </div>
@@ -121,18 +121,22 @@ export default function Dashboard() {
               const pct = (d.calories / maxBar) * 100;
               const over = d.calories > target * 1.05;
               const under = d.calories < target * 0.9;
-              const color = over ? "bg-rose-400" : under ? "bg-amber-400" : "bg-emerald-500";
+              const color = over
+                ? "bg-gradient-to-t from-rose-600 to-rose-400 shadow-[0_0_24px_-6px_rgba(244,63,94,0.6)]"
+                : under
+                ? "bg-gradient-to-t from-amber-600 to-amber-400 shadow-[0_0_24px_-6px_rgba(245,158,11,0.5)]"
+                : "bg-gradient-to-t from-emerald-600 to-emerald-400 shadow-[0_0_24px_-6px_rgba(16,185,129,0.6)]";
               return (
                 <div key={d.iso} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
-                  <div className="text-[10px] font-medium text-zinc-500">
+                  <div className={`text-[10px] font-medium ${isToday(d.date) ? "text-emerald-300" : "text-zinc-500"}`}>
                     {d.calories > 0 ? d.calories.toLocaleString() : ""}
                   </div>
                   <div
-                    className={`w-full rounded-t-lg transition-all ${d.calories === 0 ? "bg-zinc-200 dark:bg-zinc-800" : color}`}
+                    className={`w-full rounded-t-lg transition-all ${d.calories === 0 ? "bg-white/5" : color}`}
                     style={{ height: `${Math.max(pct, 1)}%` }}
                   />
                   <div
-                    className={`text-xs font-medium ${isToday(d.date) ? "text-emerald-600" : "text-zinc-500"}`}
+                    className={`text-xs font-medium ${isToday(d.date) ? "text-emerald-400" : "text-zinc-500"}`}
                   >
                     {format(d.date, "EEEEE")}
                   </div>

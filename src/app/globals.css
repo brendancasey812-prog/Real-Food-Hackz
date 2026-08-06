@@ -1,26 +1,110 @@
 @import "tailwindcss";
 
+/* Make `dark:` respond to the `.dark` class (committed dark theme), not the OS. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Committed dark theme — deep, calm, slightly cool near-black with accent glow. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+  --bg: #08090c;
+  --panel: rgba(255, 255, 255, 0.035);
+  --panel-strong: rgba(255, 255, 255, 0.05);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --foreground: #e7e9ee;
+  --muted: #9aa1ad;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
+  min-height: 100%;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Layered ambient glow over near-black. */
+  background:
+    radial-gradient(1100px 620px at 12% -8%, rgba(16, 185, 129, 0.14), transparent 60%),
+    radial-gradient(1000px 560px at 100% 0%, rgba(56, 120, 255, 0.10), transparent 55%),
+    radial-gradient(900px 900px at 90% 110%, rgba(20, 184, 166, 0.07), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* Reusable polished surfaces (used across the app). */
+@layer components {
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.04) inset,
+      0 20px 40px -24px rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+  }
+  .card-hover {
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-strong);
+    box-shadow: 0 24px 50px -24px rgba(0, 0, 0, 0.9);
+  }
+  .field {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    color: var(--foreground);
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .field:focus {
+    outline: none;
+    border-color: rgba(16, 185, 129, 0.6);
+    background: rgba(16, 185, 129, 0.06);
+  }
+  .btn-accent {
+    background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+    color: #04120c;
+    font-weight: 600;
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.25) inset,
+      0 10px 24px -10px rgba(16, 185, 129, 0.55);
+    transition: filter 0.15s ease, transform 0.15s ease;
+  }
+  .btn-accent:hover {
+    filter: brightness(1.08);
+  }
+  .btn-accent:active {
+    transform: translateY(1px);
+  }
+}
+
+/* Refined dark scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+  background-clip: content-box;
+}
+
+::selection {
+  background: rgba(16, 185, 129, 0.3);
+  color: #ffffff;
 }

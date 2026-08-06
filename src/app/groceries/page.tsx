@@ -67,13 +67,13 @@ export default function Groceries() {
         </div>
         <button
           onClick={() => setAdding(true)}
-          className="flex shrink-0 items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700"
+          className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-900/30 px-4 py-2.5 text-sm font-medium text-white hover:brightness-110"
         >
           <Plus size={16} /> Add item
         </button>
       </header>
 
-      <div className="mb-4 flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="mb-4 flex items-center justify-between rounded-xl card px-4 py-2.5 text-sm">
         <div className="flex items-center gap-1">
           <button onClick={() => setOffset((o) => o - 1)} className="rounded-lg p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800">
             <ChevronLeft size={16} />
@@ -89,7 +89,7 @@ export default function Groceries() {
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-zinc-300 py-16 text-center text-sm text-zinc-400 dark:border-zinc-700">
+        <div className="rounded-2xl border border-dashed border-white/15 py-16 text-center text-sm text-zinc-400">
           🎉 Your kitchen already has everything for this week&apos;s plan.
         </div>
       ) : (
@@ -99,7 +99,7 @@ export default function Groceries() {
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
                 {loc}
               </h2>
-              <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="overflow-hidden rounded-2xl card">
                 {list.map((item) => {
                   const f = item.food!;
                   const isChecked = checked[f.id];
