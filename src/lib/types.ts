@@ -7,6 +7,19 @@ export type Unit = "each" | "cup" | "tbsp" | "tsp" | "oz";
 
 export type MealType = "breakfast" | "lunch" | "snack" | "dinner" | "extra";
 
+/** Groups foods within a fridge/pantry section (protein, vegetables, legumes, …). */
+export type FoodCategory =
+  | "protein"
+  | "dairy"
+  | "grain"
+  | "starch"
+  | "legume"
+  | "nut"
+  | "fat"
+  | "vegetable"
+  | "fruit"
+  | "condiment";
+
 /** Grams of each macronutrient — used on foods (per unit) and rolled up everywhere. */
 export interface Macros {
   protein: number;
@@ -26,6 +39,7 @@ export interface Food {
   carbs: number;
   fat: number;
   location: Location;
+  category: FoodCategory;
   emoji: string;
 }
 
@@ -48,6 +62,8 @@ export interface Recipe {
   ingredients: RecipeIngredient[];
   steps: string[];
   emoji: string;
+  /** Which meal slot this recipe belongs to (groups the "add" picker). */
+  category: MealType;
 }
 
 /** A recipe scheduled onto a specific day + meal slot. */

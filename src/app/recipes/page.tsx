@@ -12,7 +12,9 @@ import {
   newId,
 } from "@/lib/store";
 import { UNITS, unitLabel, pluralUnit, fmtQty } from "@/lib/units";
-import type { Food, Location, Unit } from "@/lib/types";
+import { FOOD_CATEGORIES } from "@/lib/foodcat";
+import { MEAL_ORDER, MEAL_LABEL } from "@/lib/week";
+import type { Food, FoodCategory, Location, MealType, Unit } from "@/lib/types";
 
 export default function Cookbook() {
   const { recipes, foods, removeRecipe } = useApp();
@@ -116,6 +118,7 @@ interface Row {
   newCarbs: number;
   newFat: number;
   newLocation: Location;
+  newCategory: FoodCategory;
 }
 
 const emptyRow = (foodId: string): Row => ({
@@ -129,6 +132,7 @@ const emptyRow = (foodId: string): Row => ({
   newCarbs: 0,
   newFat: 0,
   newLocation: "fridge",
+  newCategory: "vegetable",
 });
 
 function AddRecipeModal({ onClose }: { onClose: () => void }) {
@@ -136,6 +140,7 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🍽️");
   const [servings, setServings] = useState(2);
+  const [mealCat, setMealCat] = useState<MealType>("breakfast");
   const [rows, setRows] = useState<Row[]>([emptyRow(foods[0]?.id ?? NEW)]);
   const [steps, setSteps] = useState("");
 
@@ -173,6 +178,7 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
             carbs: Math.max(0, row.newCarbs),
             fat: Math.max(0, row.newFat),
             location: row.newLocation,
+            category: row.newCategory,
           });
           return { foodId: id, quantity: row.quantity };
         }
@@ -190,6 +196,7 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
         servings: Math.max(1, servings),
         ingredients,
         steps: steps.split("\n").map((s) => s.trim()).filter(Boolean),
+        category: mealCat,
       },
       newFoods,
     );
@@ -222,15 +229,29 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
             />
           </div>
 
-          <label className="flex items-center gap-2 text-sm">
-            <span className="text-zinc-500">Servings</span>
-            <input
-              type="number"
-              value={servings}
-              onChange={(e) => setServings(Number(e.target.value))}
-              className="w-20 rounded-lg field px-2 py-1.5"
-            />
-          </label>
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              <span className="text-zinc-500">Servings</span>
+              <input
+                type="number"
+                value={servings}
+                onChange={(e) => setServings(Number(e.target.value))}
+                className="w-20 rounded-lg field px-2 py-1.5"
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <span className="text-zinc-500">Meal</span>
+              <select
+                value={mealCat}
+                onChange={(e) => setMealCat(e.target.value as MealType)}
+                className="rounded-lg field px-2 py-1.5"
+              >
+                {MEAL_ORDER.map((mt) => (
+                  <option key={mt} value={mt}>{MEAL_LABEL[mt]}</option>
+                ))}
+              </select>
+            </label>
+          </div>
 
           <div>
             <div className="mb-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">
@@ -335,11 +356,20 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
                         <select
                           value={row.newLocation}
                           onChange={(e) => update(i, { newLocation: e.target.value as Location })}
-                          className="col-span-2 rounded-lg field px-2 py-1.5 text-sm"
+                          className="rounded-lg field px-2 py-1.5 text-sm"
                         >
                           <option value="fridge">Store in Fridge</option>
                           <option value="freezer">Store in Freezer</option>
                           <option value="pantry">Store in Pantry</option>
+                        </select>
+                        <select
+                          value={row.newCategory}
+                          onChange={(e) => update(i, { newCategory: e.target.value as FoodCategory })}
+                          className="rounded-lg field px-2 py-1.5 text-sm"
+                        >
+                          {FOOD_CATEGORIES.map((c) => (
+                            <option key={c.key} value={c.key}>{c.label}</option>
+                          ))}
                         </select>
                       </div>
                     )}

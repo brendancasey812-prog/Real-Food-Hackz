@@ -1,6 +1,22 @@
 import { startOfMonth, endOfMonth, addDays, format } from "date-fns";
-import type { AppData, Food, Recipe, MealType, PlannedMeal } from "./types";
+import type { AppData, Food, FoodCategory, Recipe, MealType, PlannedMeal } from "./types";
 import { mondayIndex } from "./week";
+
+// Which food-type bucket each food id belongs to (groups the Kitchen).
+const CATS: Record<FoodCategory, string[]> = {
+  protein: ["egg", "eggwhite", "chicken", "chickenthigh", "salmon", "whitefish", "beef937", "sirloin", "groundturkey", "turkeydeli", "turkeysausage", "shrimp", "tuna", "proteinpowder", "proteinshake"],
+  dairy: ["greekyogurt", "cottagecheese", "stringcheese", "cheese", "milk"],
+  grain: ["oats", "brownrice", "whiterice", "quinoa", "farro", "wwbread", "wrap", "roll", "crackers", "englishmuffin", "granola"],
+  starch: ["potato", "sweetpotato"],
+  legume: ["blackbeans", "beans", "hummus"],
+  nut: ["peanutbutter", "almondbutter", "almonds", "walnuts", "mixednuts", "trailmix"],
+  fat: ["oliveoil", "sesameoil", "butter", "vinaigrette", "caesar", "avocado"],
+  vegetable: ["broccoli", "spinach", "mushrooms", "peppers", "onion", "carrots", "greens", "brussels", "greenbeans", "asparagus", "tomatoes", "rootveg"],
+  fruit: ["banana", "berries", "apple", "orange", "grapes", "pineapple", "fruitsalad", "oj"],
+  condiment: ["honey", "salsa", "cinnamon", "coffee"],
+};
+const CAT_OF: Record<string, FoodCategory> = {};
+(Object.keys(CATS) as FoodCategory[]).forEach((c) => CATS[c].forEach((id) => (CAT_OF[id] = c)));
 
 // Compact food builder: id, name, unit, calories, protein, carbs, fat, location, emoji.
 type Loc = Food["location"];
@@ -8,7 +24,7 @@ type U = Food["unit"];
 const F = (
   id: string, name: string, unit: U, cal: number,
   protein: number, carbs: number, fat: number, location: Loc, emoji: string,
-): Food => ({ id, name, unit, caloriesPerUnit: cal, protein, carbs, fat, location, emoji });
+): Food => ({ id, name, unit, caloriesPerUnit: cal, protein, carbs, fat, location, category: CAT_OF[id] ?? "condiment", emoji });
 
 const foods: Food[] = [
   // Proteins & dairy
@@ -91,6 +107,9 @@ const foods: Food[] = [
   F("coffee", "Black coffee", "cup", 2, 0.3, 0, 0, "pantry", "☕"),
 ];
 
+// Meal category from the recipe id suffix (mon-b → breakfast, tue-l → lunch, …).
+const SUFFIX: Record<string, MealType> = { b: "breakfast", l: "lunch", s: "snack", d: "dinner", e: "extra" };
+
 // Compact recipe builder. All meals are single-serving personal portions.
 const R = (
   id: string, name: string, emoji: string,
@@ -99,6 +118,7 @@ const R = (
   id, name, emoji, servings: 1,
   ingredients: ings.map(([foodId, quantity]) => ({ foodId, quantity })),
   steps,
+  category: SUFFIX[id.split("-").pop() ?? ""] ?? "breakfast",
 });
 
 const recipes: Recipe[] = [

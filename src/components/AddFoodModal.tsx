@@ -4,7 +4,8 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { useApp, newId } from "@/lib/store";
 import { UNITS } from "@/lib/units";
-import type { Location, Unit } from "@/lib/types";
+import { FOOD_CATEGORIES } from "@/lib/foodcat";
+import type { FoodCategory, Location, Unit } from "@/lib/types";
 
 const LOCATIONS: { value: Location; label: string }[] = [
   { value: "fridge", label: "Fridge" },
@@ -35,6 +36,7 @@ export function AddFoodModal({
   const [carbs, setCarbs] = useState(0);
   const [fat, setFat] = useState(0);
   const [location, setLocation] = useState<Location>(defaultLocation);
+  const [category, setCategory] = useState<FoodCategory>("protein");
   const [quantity, setQuantity] = useState(1);
 
   const save = () => {
@@ -50,6 +52,7 @@ export function AddFoodModal({
         carbs: Math.max(0, carbs),
         fat: Math.max(0, fat),
         location,
+        category,
         emoji: emoji || "🍽️",
       },
       context === "kitchen" ? quantity : 0,
@@ -138,6 +141,21 @@ export function AddFoodModal({
                 ))}
               </select>
             </label>
+            <label className="text-sm">
+              <span className="mb-1 block text-zinc-500">Food type</span>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as FoodCategory)}
+                className="w-full rounded-lg field px-2 py-2"
+              >
+                {FOOD_CATEGORIES.map((c) => (
+                  <option key={c.key} value={c.key}>{c.label}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <label className="text-sm">
               <span className="mb-1 block text-zinc-500">{qtyLabel}</span>
               <input
