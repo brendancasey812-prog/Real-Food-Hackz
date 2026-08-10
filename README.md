@@ -66,6 +66,27 @@ by *cup*, chicken by *oz*, olive oil by *tbsp*, …).
 - **Kitchen → Add food** and **Groceries → Add item** — the top-right buttons add
   a food (name, emoji, unit, calories/unit, location, quantity) to the catalog.
 
+## Receipt scanner (AI)
+
+The Kitchen tab has a **Scan receipt** button. Take/upload a photo of a grocery
+receipt and Claude's vision model reads it, classifies each item
+(Protein / Fruit / Veggie / Pantry), normalizes names and variants, converts to
+US units, and estimates package sizes when the receipt doesn't print them. You
+**review and edit** the parsed items in a table (fix a category, delete a
+non-food row) before anything is saved. On confirm, items are **merged into your
+Kitchen** by normalized name — quantities are unit-converted and summed, the
+variant is appended to a `notes` field, and every purchase is written to a
+history log for traceability. Unmatched items are added as new foods.
+
+- Implementation: [`src/lib/receipt.ts`](src/lib/receipt.ts) (system prompt,
+  `scanReceipt` via the Anthropic SDK, `demoScan`, merge helpers) and
+  [`src/components/ScanReceiptModal.tsx`](src/components/ScanReceiptModal.tsx).
+- **API key:** because the site is static (no backend), real scanning uses
+  **your own Anthropic API key**, pasted into the modal's Settings and stored
+  only in your browser (`localStorage`), sent directly to Anthropic. A built-in
+  **sample receipt** lets you try the whole flow with no key.
+- Model: `claude-opus-5` (vision). Change it in `src/lib/receipt.ts`.
+
 ## Tech
 
 - **Next.js (App Router) + React + TypeScript**

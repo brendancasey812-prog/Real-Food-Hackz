@@ -41,6 +41,36 @@ export interface Food {
   location: Location;
   category: FoodCategory;
   emoji: string;
+  /** How this food entered the app. */
+  source?: "manual" | "receipt_scan";
+  /** Free-text detail appended from scans (e.g. "80/20", "organic"). */
+  notes?: string;
+}
+
+/** One line the receipt scanner extracted (matches the vision model's JSON schema). */
+export interface ScannedItem {
+  category: "Protein" | "Fruit" | "Veggie" | "Pantry";
+  food: string;
+  variant: string;
+  quantity: number;
+  unit: "lb" | "oz" | "each" | "dozen" | "head";
+  estimated: boolean;
+}
+
+export interface ScanResult {
+  items: ScannedItem[];
+  excluded_items: { raw_text: string; reason: string }[];
+}
+
+/** An append-only record of a stock change, for traceability. */
+export interface PurchaseHistoryEntry {
+  id: string;
+  foodId: string;
+  /** ISO date string */
+  date: string;
+  quantity: number;
+  unit: string;
+  source: "manual" | "receipt_scan";
 }
 
 /** How much of a given food you currently have on hand. */
@@ -107,4 +137,5 @@ export interface AppData {
   manualGroceries: ManualGrocery[];
   goals: Goals;
   profile: Profile;
+  history: PurchaseHistoryEntry[];
 }

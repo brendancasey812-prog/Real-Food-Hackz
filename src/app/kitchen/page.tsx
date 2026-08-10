@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, ScanLine } from "lucide-react";
 import { useApp, neededQuantities } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
 import { fmtQty, unitLabel, pluralUnit, stepFor } from "@/lib/units";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
 import { AddFoodModal } from "@/components/AddFoodModal";
+import { ScanReceiptModal } from "@/components/ScanReceiptModal";
 import type { Food, Location } from "@/lib/types";
 
 const SECTIONS: { key: Location; title: string; icon: string; tint: string }[] = [
@@ -18,6 +19,7 @@ const SECTIONS: { key: Location; title: string; icon: string; tint: string }[] =
 export default function Kitchen() {
   const { foods, inventory, recipes, plan, setInventory } = useApp();
   const [adding, setAdding] = useState<Location | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   const days = weekDays(new Date()).map(isoOf);
   const need = neededQuantities(plan.filter((m) => days.includes(m.date)), recipes);
@@ -32,12 +34,20 @@ export default function Kitchen() {
             Grouped by food type. The shaded part of each bar is what this week&apos;s plan will use.
           </p>
         </div>
-        <button
-          onClick={() => setAdding("fridge")}
-          className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110"
-        >
-          <Plus size={16} /> Add food
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            onClick={() => setScanning(true)}
+            className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm font-medium text-zinc-200 hover:bg-white/[0.08]"
+          >
+            <ScanLine size={16} className="text-emerald-400" /> Scan receipt
+          </button>
+          <button
+            onClick={() => setAdding("fridge")}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110"
+          >
+            <Plus size={16} /> Add food
+          </button>
+        </div>
       </header>
 
       <div className="space-y-6">
@@ -97,6 +107,7 @@ export default function Kitchen() {
       {adding && (
         <AddFoodModal context="kitchen" defaultLocation={adding} onClose={() => setAdding(null)} />
       )}
+      {scanning && <ScanReceiptModal onClose={() => setScanning(false)} />}
     </div>
   );
 }

@@ -212,6 +212,7 @@ export const seedData: AppData = {
   inventory,
   plan: seedPlan(),
   manualGroceries: [],
+  history: [],
   goals: {
     dailyCalorieTarget: 2900,
     proteinTarget: 180,

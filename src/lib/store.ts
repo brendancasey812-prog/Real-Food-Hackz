@@ -8,8 +8,10 @@ import type {
   Macros,
   PlannedMeal,
   Recipe,
+  ScannedItem,
 } from "./types";
 import { seedData } from "./seed";
+import { normalizeName, mapCategory, unitForNewFood, convertToUnit } from "./receipt";
 
 interface Totals extends Macros {
   calories: number;
@@ -25,6 +27,8 @@ interface AppState extends AppData {
   addManualGrocery: (foodId: string, quantity: number) => void;
   removeManualGrocery: (id: string) => void;
   setGoals: (patch: Partial<AppData["goals"]>) => void;
+  /** Merge receipt-scanned items into the kitchen; returns a summary. */
+  commitScan: (items: ScannedItem[]) => { merged: number; added: number; skipped: number };
   resetToSeed: () => void;
 }
 
@@ -34,7 +38,7 @@ export const newId = uid;
 
 export const useApp = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...seedData,
 
       setInventory: (foodId, quantity) =>
@@ -98,9 +102,61 @@ export const useApp = create<AppState>()(
 
       setGoals: (patch) => set((s) => ({ goals: { ...s.goals, ...patch } })),
 
+      commitScan: (items) => {
+        const s = get();
+        const foods = [...s.foods];
+        const inventory = [...s.inventory];
+        const history = [...s.history];
+        const today = new Date().toISOString().slice(0, 10);
+        let merged = 0, added = 0, skipped = 0;
+
+        for (const item of items) {
+          const norm = normalizeName(item.food);
+          const existing = foods.find((f) => normalizeName(f.name) === norm);
+
+          if (existing) {
+            // Always log the original scanned quantity/unit for traceability.
+            history.push({ id: uid(), foodId: existing.id, date: today, quantity: item.quantity, unit: item.unit, source: "receipt_scan" });
+
+            const add = convertToUnit(item.quantity, item.unit, existing.unit);
+            if (add != null) {
+              const idx = inventory.findIndex((i) => i.foodId === existing.id);
+              if (idx >= 0) inventory[idx] = { ...inventory[idx], quantity: Math.round((inventory[idx].quantity + add) * 100) / 100 };
+              else inventory.push({ foodId: existing.id, quantity: add });
+              merged++;
+            } else {
+              skipped++; // unit families don't match — logged, but stock left unchanged
+            }
+
+            if (item.variant) {
+              const parts = new Set((existing.notes ?? "").split(",").map((x) => x.trim()).filter(Boolean));
+              parts.add(item.variant);
+              const fi = foods.findIndex((f) => f.id === existing.id);
+              foods[fi] = { ...existing, notes: Array.from(parts).join(", ") };
+            }
+          } else {
+            const id = uid();
+            const map = mapCategory(item.category);
+            const unit = unitForNewFood(item.unit);
+            const qty = convertToUnit(item.quantity, item.unit, unit) ?? item.quantity;
+            foods.push({
+              id, name: item.food, unit, caloriesPerUnit: 0, protein: 0, carbs: 0, fat: 0,
+              location: map.location, category: map.category, emoji: map.emoji,
+              source: "receipt_scan", notes: item.variant || undefined,
+            });
+            inventory.push({ foodId: id, quantity: qty });
+            history.push({ id: uid(), foodId: id, date: today, quantity: item.quantity, unit: item.unit, source: "receipt_scan" });
+            added++;
+          }
+        }
+
+        set({ foods, inventory, history });
+        return { merged, added, skipped };
+      },
+
       resetToSeed: () => set({ ...seedData }),
     }),
-    { name: "mealplan-store-v4" },
+    { name: "mealplan-store-v5" },
   ),
 );
 
