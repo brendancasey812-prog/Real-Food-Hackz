@@ -24,9 +24,16 @@ export default function Cookbook() {
   const [addMenu, setAddMenu] = useState(false);
   const [filterMenu, setFilterMenu] = useState(false);
   const [visible, setVisible] = useState<Set<MealType>>(new Set(MEAL_ORDER));
+  const [collapsed, setCollapsed] = useState<Set<MealType>>(new Set());
 
   const toggleMeal = (m: MealType) =>
     setVisible((s) => {
+      const n = new Set(s);
+      if (n.has(m)) n.delete(m); else n.add(m);
+      return n;
+    });
+  const toggleCollapsed = (m: MealType) =>
+    setCollapsed((s) => {
       const n = new Set(s);
       if (n.has(m)) n.delete(m); else n.add(m);
       return n;
@@ -95,15 +102,23 @@ export default function Cookbook() {
         {MEAL_ORDER.filter((m) => visible.has(m)).map((meal) => {
           const list = recipes.filter((r) => r.category === meal);
           if (list.length === 0) return null;
+          const isCollapsed = collapsed.has(meal);
           return (
             <section key={meal}>
-              <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
+              <button
+                onClick={() => toggleCollapsed(meal)}
+                className="mb-3 flex w-full items-center gap-2 text-lg font-semibold"
+                aria-expanded={!isCollapsed}
+              >
+                <ChevronDown size={18} className={`text-zinc-400 transition-transform ${isCollapsed ? "-rotate-90" : ""}`} />
                 {MEAL_LABEL[meal]}
                 <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-xs font-normal text-zinc-400">{list.length}</span>
-              </h2>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {list.map((r) => <RecipeCard key={r.id} recipe={r} foods={foods} onRemove={() => removeRecipe(r.id)} />)}
-              </div>
+              </button>
+              {!isCollapsed && (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {list.map((r) => <RecipeCard key={r.id} recipe={r} foods={foods} onRemove={() => removeRecipe(r.id)} />)}
+                </div>
+              )}
             </section>
           );
         })}

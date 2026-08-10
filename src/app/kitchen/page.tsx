@@ -25,11 +25,13 @@ export default function Kitchen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [hidden, setHidden] = useState<Set<Location>>(new Set());
+  const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
 
   const days = weekDays(new Date()).map(isoOf);
   const need = neededQuantities(plan.filter((m) => days.includes(m.date)), recipes);
   const qtyOf = (id: string) => inventory.find((i) => i.foodId === id)?.quantity ?? 0;
   const toggleHidden = (k: Location) => setHidden((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const toggleCat = (key: string) => setCollapsedCats((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; });
 
   const menuItems = [
     { label: "Add food", icon: Plus, run: () => setAdding("fridge") },
@@ -104,25 +106,38 @@ export default function Kitchen() {
                     {FOOD_CATEGORIES.map((cat) => {
                       const catFoods = sectionFoods.filter((f) => f.category === cat.key);
                       if (catFoods.length === 0) return null;
+                      const catKey = `${section.key}:${cat.key}`;
+                      const catCollapsed = collapsedCats.has(catKey);
                       return (
                         <div key={cat.key}>
-                          <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                            <span>{cat.emoji}</span> {cat.label}
-                            <span className="font-normal text-zinc-600">· {catFoods.length}</span>
-                          </h3>
-                          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                            {catFoods.map((f) => (
-                              <FoodTile
-                                key={f.id}
-                                food={f}
-                                have={qtyOf(f.id)}
-                                need={need[f.id] ?? 0}
-                                editMode={editMode}
-                                onChange={(q) => setInventory(f.id, q)}
-                                onDelete={() => removeFood(f.id)}
-                              />
-                            ))}
+                          <div className="mb-2 flex items-center justify-between">
+                            <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                              <span>{cat.emoji}</span> {cat.label}
+                              <span className="font-normal text-zinc-600">· {catFoods.length}</span>
+                            </h3>
+                            <button
+                              onClick={() => toggleCat(catKey)}
+                              aria-label={catCollapsed ? `Show ${cat.label}` : `Hide ${cat.label}`}
+                              className="flex h-6 w-6 items-center justify-center rounded-md border border-white/10 bg-white/[0.03] text-zinc-400 hover:bg-white/[0.08] hover:text-zinc-100"
+                            >
+                              {catCollapsed ? <Plus size={12} /> : <Minus size={12} />}
+                            </button>
                           </div>
+                          {!catCollapsed && (
+                            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                              {catFoods.map((f) => (
+                                <FoodTile
+                                  key={f.id}
+                                  food={f}
+                                  have={qtyOf(f.id)}
+                                  need={need[f.id] ?? 0}
+                                  editMode={editMode}
+                                  onChange={(q) => setInventory(f.id, q)}
+                                  onDelete={() => removeFood(f.id)}
+                                />
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
