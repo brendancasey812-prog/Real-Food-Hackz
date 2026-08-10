@@ -156,7 +156,7 @@ export const useApp = create<AppState>()(
 
       resetToSeed: () => set({ ...seedData }),
     }),
-    { name: "mealplan-store-v5" },
+    { name: "mealplan-store-v6" },
   ),
 );
 

@@ -4,16 +4,16 @@ import { mondayIndex } from "./week";
 
 // Which food-type bucket each food id belongs to (groups the Kitchen).
 const CATS: Record<FoodCategory, string[]> = {
-  protein: ["egg", "eggwhite", "chicken", "chickenthigh", "salmon", "whitefish", "beef937", "sirloin", "groundturkey", "turkeydeli", "turkeysausage", "shrimp", "tuna", "proteinpowder", "proteinshake"],
-  dairy: ["greekyogurt", "cottagecheese", "stringcheese", "cheese", "milk"],
-  grain: ["oats", "brownrice", "whiterice", "quinoa", "farro", "wwbread", "wrap", "roll", "crackers", "englishmuffin", "granola"],
+  protein: ["egg", "eggwhite", "chicken", "chickenthigh", "salmon", "whitefish", "beef937", "groundbeef80", "sirloin", "groundturkey", "turkeydeli", "turkeysausage", "shrimp", "tuna", "tofu", "proteinpowder", "proteinshake"],
+  dairy: ["greekyogurt", "cottagecheese", "stringcheese", "cheese", "milk", "oatmilk"],
+  grain: ["oats", "brownrice", "whiterice", "jasminerice", "quinoa", "farro", "wwbread", "wrap", "roll", "crackers", "englishmuffin", "granola", "corntortillas"],
   starch: ["potato", "sweetpotato"],
   legume: ["blackbeans", "beans", "hummus"],
   nut: ["peanutbutter", "almondbutter", "almonds", "walnuts", "mixednuts", "trailmix"],
   fat: ["oliveoil", "sesameoil", "butter", "vinaigrette", "caesar", "avocado"],
-  vegetable: ["broccoli", "spinach", "mushrooms", "peppers", "onion", "carrots", "greens", "brussels", "greenbeans", "asparagus", "tomatoes", "rootveg"],
-  fruit: ["banana", "berries", "apple", "orange", "grapes", "pineapple", "fruitsalad", "oj"],
-  condiment: ["honey", "salsa", "cinnamon", "coffee"],
+  vegetable: ["broccoli", "spinach", "mushrooms", "peppers", "onion", "carrots", "greens", "brussels", "greenbeans", "asparagus", "tomatoes", "rootveg", "arugula", "garlic"],
+  fruit: ["banana", "berries", "apple", "orange", "grapes", "pineapple", "fruitsalad", "oj", "blueberries"],
+  condiment: ["honey", "salsa", "cinnamon", "coffee", "yangnyeom"],
 };
 const CAT_OF: Record<string, FoodCategory> = {};
 (Object.keys(CATS) as FoodCategory[]).forEach((c) => CATS[c].forEach((id) => (CAT_OF[id] = c)));
@@ -105,6 +105,16 @@ const foods: Food[] = [
   F("salsa", "Salsa", "tbsp", 5, 0.2, 1, 0, "fridge", "🍅"),
   F("cinnamon", "Cinnamon", "tsp", 6, 0.1, 2, 0, "pantry", "🧂"),
   F("coffee", "Black coffee", "cup", 2, 0.3, 0, 0, "pantry", "☕"),
+  // Added from the Trader Joe's receipt
+  F("groundbeef80", "Ground beef 80/20", "oz", 71, 6.7, 0, 4.9, "fridge", "🥩"),
+  F("tofu", "Tofu (firm)", "oz", 20, 2.3, 0.6, 1.2, "fridge", "⬜"),
+  F("oatmilk", "Oat milk", "cup", 120, 3, 16, 5, "fridge", "🥛"),
+  F("jasminerice", "Jasmine rice", "oz", 100, 2, 22, 0.2, "pantry", "🍚"),
+  F("corntortillas", "Corn tortillas", "each", 60, 1.5, 12, 0.7, "pantry", "🫓"),
+  F("arugula", "Arugula", "cup", 5, 0.5, 0.7, 0.1, "fridge", "🥬"),
+  F("garlic", "Garlic", "each", 4, 0.2, 1, 0, "fridge", "🧄"),
+  F("blueberries", "Blueberries", "cup", 84, 1.1, 21, 0.5, "fridge", "🫐"),
+  F("yangnyeom", "Yangnyeom sauce", "tbsp", 30, 0, 7, 0, "pantry", "🥫"),
 ];
 
 // Meal category from the recipe id suffix (mon-b → breakfast, tue-l → lunch, …).
@@ -200,11 +210,14 @@ function seedPlan(): PlannedMeal[] {
   return plan;
 }
 
-// Stock a reasonable starting amount of everything, by unit.
-const defaultStock: Record<Food["unit"], number> = {
-  each: 8, cup: 6, tbsp: 16, tsp: 24, oz: 24,
+// Stock reflects the latest Trader Joe's receipt — everything else starts empty.
+const RECEIPT_STOCK: Record<string, number> = {
+  chickenthigh: 20, egg: 12, cheese: 8, carrots: 3, onion: 1.5, apple: 3,
+  banana: 7, spinach: 8, sweetpotato: 1, groundbeef80: 32, jasminerice: 32,
+  oatmilk: 4, tofu: 14, corntortillas: 12, arugula: 5, garlic: 1,
+  blueberries: 2, yangnyeom: 16,
 };
-const inventory = foods.map((f) => ({ foodId: f.id, quantity: defaultStock[f.unit] }));
+const inventory = foods.map((f) => ({ foodId: f.id, quantity: RECEIPT_STOCK[f.id] ?? 0 }));
 
 export const seedData: AppData = {
   foods,

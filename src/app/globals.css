@@ -108,3 +108,11 @@ body {
   background: rgba(16, 185, 129, 0.3);
   color: #ffffff;
 }
+
+/* Native <select> dropdown lists — force readable dark options (no white-on-white). */
+select,
+option,
+optgroup {
+  background-color: #16181d;
+  color: var(--foreground);
+}
