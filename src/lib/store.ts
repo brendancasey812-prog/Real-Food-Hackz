@@ -20,6 +20,7 @@ interface Totals extends Macros {
 interface AppState extends AppData {
   setInventory: (foodId: string, quantity: number) => void;
   addFood: (food: Food, startQty?: number) => void;
+  removeFood: (foodId: string) => void;
   addRecipe: (recipe: Recipe, newFoods?: Food[]) => void;
   removeRecipe: (id: string) => void;
   addPlannedMeal: (meal: PlannedMeal) => void;
@@ -51,6 +52,15 @@ export const useApp = create<AppState>()(
             : [...s.inventory, { foodId, quantity: Math.max(0, quantity) }];
           return { inventory };
         }),
+
+      removeFood: (foodId) =>
+        set((s) => ({
+          foods: s.foods.filter((f) => f.id !== foodId),
+          inventory: s.inventory.filter((i) => i.foodId !== foodId),
+          manualGroceries: s.manualGroceries.filter((m) => m.foodId !== foodId),
+          history: s.history.filter((h) => h.foodId !== foodId),
+          recipes: s.recipes.map((r) => ({ ...r, ingredients: r.ingredients.filter((ing) => ing.foodId !== foodId) })),
+        })),
 
       addFood: (food, startQty = 0) =>
         set((s) => {
