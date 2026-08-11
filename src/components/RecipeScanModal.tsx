@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { X, Camera, Upload, Loader2, Trash2, Sparkles, KeyRound, AlertCircle, Check } from "lucide-react";
 import { useApp, newId } from "@/lib/store";
-import { scanRecipe, demoScanRecipe, type ScannedRecipe } from "@/lib/recipescan";
+import { scanRecipe, demoScanRecipe, buildRecipeFromText, parseTextLocally, type ScannedRecipe } from "@/lib/recipescan";
 import { normalizeName, mapCategory, ReceiptError } from "@/lib/receipt";
 import { UNITS } from "@/lib/units";
 import { MEAL_ORDER, MEAL_LABEL } from "@/lib/week";
@@ -14,14 +14,20 @@ const KEY_STORE = "anthropic_api_key";
 const OK_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
 const CATS = ["Protein", "Fruit", "Veggie", "Pantry"] as const;
 
-export function RecipeScanModal({ onClose }: { onClose: () => void }) {
+export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => void; mode?: "photo" | "text" }) {
   const { foods, addRecipe } = useApp();
   const [step, setStep] = useState<Step>("upload");
   const [error, setError] = useState("");
   const [recipe, setRecipe] = useState<ScannedRecipe | null>(null);
   const [apiKey, setApiKey] = useState(() => (typeof window !== "undefined" ? localStorage.getItem(KEY_STORE) ?? "" : ""));
   const [showKey, setShowKey] = useState(false);
+  const [text, setText] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const buildFromText = () => {
+    if (!text.trim()) { setError("Paste a recipe or ingredient list first."); setStep("error"); return; }
+    run(apiKey.trim() ? buildRecipeFromText(apiKey.trim(), text) : Promise.resolve(parseTextLocally(text)));
+  };
 
   const saveKey = (k: string) => { setApiKey(k); if (typeof window !== "undefined") localStorage.setItem(KEY_STORE, k.trim()); };
 
@@ -69,24 +75,42 @@ export function RecipeScanModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm md:items-center md:p-4">
       <div className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-zinc-950/95 md:rounded-2xl">
         <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-4">
-          <h2 className="flex items-center gap-2 font-semibold"><Sparkles size={18} className="text-emerald-400" /> Scan recipe</h2>
+          <h2 className="flex items-center gap-2 font-semibold"><Sparkles size={18} className="text-emerald-400" /> {mode === "text" ? "Paste a recipe" : "Scan recipe"}</h2>
           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200"><X size={20} /></button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
           {step === "upload" && (
             <div className="space-y-5">
-              <p className="text-sm text-zinc-400">Photograph a recipe card or cookbook page. Claude reads the title, ingredients and steps into an editable recipe you can save to your cookbook.</p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <button onClick={() => { fileRef.current?.setAttribute("capture", "environment"); fileRef.current?.click(); }} className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-8 text-sm font-medium hover:border-emerald-400/60 hover:bg-emerald-500/10">
-                  <Camera size={26} className="text-emerald-400" /> Take a photo
-                </button>
-                <button onClick={() => { fileRef.current?.removeAttribute("capture"); fileRef.current?.click(); }} className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-8 text-sm font-medium hover:border-emerald-400/60 hover:bg-emerald-500/10">
-                  <Upload size={26} className="text-emerald-400" /> Upload a photo
-                </button>
-              </div>
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
-              <button onClick={() => run(demoScanRecipe())} className="w-full rounded-xl border border-dashed border-white/15 py-2.5 text-sm font-medium text-zinc-300 hover:bg-white/[0.04]">Try a sample recipe (no key needed)</button>
+              {mode === "text" ? (
+                <>
+                  <p className="text-sm text-zinc-400">Paste a recipe or ingredient list — one item per line (e.g. “2 eggs”, “1 cup oats”, “handful spinach”). Claude turns it into a built-out recipe, defaulting to a single serving.</p>
+                  <textarea
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    rows={7}
+                    placeholder={"Tofu scramble\n\n6 oz firm tofu\n1 cup spinach\n2 corn tortillas\n1 tbsp olive oil\nsalt and pepper"}
+                    className="w-full rounded-xl field px-3 py-2 text-sm"
+                  />
+                  <button onClick={buildFromText} className="w-full rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110">
+                    Build recipe {apiKey.trim() ? "with Claude" : "(basic, no key)"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-zinc-400">Photograph a recipe card or cookbook page. Claude reads the title, ingredients and steps into an editable recipe you can save to your cookbook.</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button onClick={() => { fileRef.current?.setAttribute("capture", "environment"); fileRef.current?.click(); }} className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-8 text-sm font-medium hover:border-emerald-400/60 hover:bg-emerald-500/10">
+                      <Camera size={26} className="text-emerald-400" /> Take a photo
+                    </button>
+                    <button onClick={() => { fileRef.current?.removeAttribute("capture"); fileRef.current?.click(); }} className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-8 text-sm font-medium hover:border-emerald-400/60 hover:bg-emerald-500/10">
+                      <Upload size={26} className="text-emerald-400" /> Upload a photo
+                    </button>
+                  </div>
+                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+                  <button onClick={() => run(demoScanRecipe())} className="w-full rounded-xl border border-dashed border-white/15 py-2.5 text-sm font-medium text-zinc-300 hover:bg-white/[0.04]">Try a sample recipe (no key needed)</button>
+                </>
+              )}
               <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
                 <button onClick={() => setShowKey((v) => !v)} className="flex w-full items-center gap-2 text-sm font-medium text-zinc-300">
                   <KeyRound size={15} className="text-zinc-400" /> Anthropic API key {apiKey ? <span className="text-xs text-emerald-400">· set</span> : <span className="text-xs text-zinc-500">· not set</span>}

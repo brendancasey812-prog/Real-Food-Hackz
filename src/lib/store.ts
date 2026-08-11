@@ -166,7 +166,42 @@ export const useApp = create<AppState>()(
 
       resetToSeed: () => set({ ...seedData }),
     }),
-    { name: "mealplan-store-v6" },
+    {
+      name: "mealplan-store-v6",
+      version: 1,
+      // Preserve the user's own data across app updates; only fill in missing
+      // defaults and restore items that earlier resets dropped.
+      migrate: (persisted) => {
+        const s = persisted as Partial<AppData> | undefined;
+        if (!s || !Array.isArray(s.foods)) return persisted as AppData;
+        const foods = [...(s.foods as Food[])];
+        const inventory = [...(s.inventory ?? [])];
+        const recipes = [...(s.recipes ?? [])];
+        for (const fid of ["frozenstrawberries"]) {
+          if (!foods.some((f) => f.id === fid)) {
+            const sf = seedData.foods.find((f) => f.id === fid);
+            if (sf) { foods.push(sf); inventory.push({ foodId: sf.id, quantity: 2 }); }
+          }
+        }
+        for (const rid of ["overnight-oats", "corn-egg-breakfast"]) {
+          if (!recipes.some((r) => r.id === rid)) {
+            const sr = seedData.recipes.find((r) => r.id === rid);
+            if (sr) recipes.push(sr);
+          }
+        }
+        return {
+          ...seedData,
+          ...s,
+          foods,
+          inventory,
+          recipes,
+          history: s.history ?? [],
+          manualGroceries: s.manualGroceries ?? [],
+          goals: { ...seedData.goals, ...(s.goals ?? {}) },
+          profile: { ...seedData.profile, ...(s.profile ?? {}) },
+        } as AppData;
+      },
+    },
   ),
 );
 

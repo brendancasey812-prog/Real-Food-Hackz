@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Trash2, X, Flame, Menu, ChevronDown, Camera, PenLine } from "lucide-react";
+import { Plus, Trash2, X, Flame, Menu, ChevronDown, Camera, PenLine, ClipboardList } from "lucide-react";
 import {
   useApp,
   recipeCaloriesPerServing,
@@ -21,6 +21,7 @@ export default function Cookbook() {
   const { recipes, foods, removeRecipe } = useApp();
   const [manualOpen, setManualOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
+  const [textOpen, setTextOpen] = useState(false);
   const [addMenu, setAddMenu] = useState(false);
   const [filterMenu, setFilterMenu] = useState(false);
   const [visible, setVisible] = useState<Set<MealType>>(new Set(MEAL_ORDER));
@@ -88,6 +89,9 @@ export default function Cookbook() {
                 <button onClick={() => { setAddMenu(false); setScanOpen(true); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm text-zinc-200 hover:bg-emerald-500/10">
                   <Camera size={16} className="text-emerald-400" /> Scan recipe (camera)
                 </button>
+                <button onClick={() => { setAddMenu(false); setTextOpen(true); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm text-zinc-200 hover:bg-emerald-500/10">
+                  <ClipboardList size={16} className="text-emerald-400" /> Paste text (AI)
+                </button>
                 <button onClick={() => { setAddMenu(false); setManualOpen(true); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm text-zinc-200 hover:bg-emerald-500/10">
                   <PenLine size={16} className="text-emerald-400" /> Manually enter
                 </button>
@@ -128,7 +132,8 @@ export default function Cookbook() {
       </div>
 
       {manualOpen && <AddRecipeModal onClose={() => setManualOpen(false)} />}
-      {scanOpen && <RecipeScanModal onClose={() => setScanOpen(false)} />}
+      {scanOpen && <RecipeScanModal mode="photo" onClose={() => setScanOpen(false)} />}
+      {textOpen && <RecipeScanModal mode="text" onClose={() => setTextOpen(false)} />}
     </div>
   );
 }
@@ -246,7 +251,7 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
   const { foods, addRecipe } = useApp();
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🍽️");
-  const [servings, setServings] = useState(2);
+  const [servings, setServings] = useState(1);
   const [mealCat, setMealCat] = useState<MealType>("breakfast");
   const [rows, setRows] = useState<Row[]>([emptyRow(foods[0]?.id ?? NEW)]);
   const [steps, setSteps] = useState("");

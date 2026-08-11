@@ -12,7 +12,7 @@ const CATS: Record<FoodCategory, string[]> = {
   nut: ["peanutbutter", "almondbutter", "almonds", "walnuts", "mixednuts", "trailmix"],
   fat: ["oliveoil", "sesameoil", "butter", "vinaigrette", "caesar", "avocado"],
   vegetable: ["broccoli", "spinach", "mushrooms", "peppers", "onion", "carrots", "greens", "brussels", "greenbeans", "asparagus", "tomatoes", "rootveg", "arugula", "garlic"],
-  fruit: ["banana", "berries", "apple", "orange", "grapes", "pineapple", "fruitsalad", "oj", "blueberries"],
+  fruit: ["banana", "berries", "apple", "orange", "grapes", "pineapple", "fruitsalad", "oj", "blueberries", "frozenstrawberries"],
   condiment: ["honey", "salsa", "cinnamon", "coffee", "yangnyeom"],
 };
 const CAT_OF: Record<string, FoodCategory> = {};
@@ -115,6 +115,7 @@ const foods: Food[] = [
   F("garlic", "Garlic", "each", 4, 0.2, 1, 0, "fridge", "🧄"),
   F("blueberries", "Blueberries", "cup", 84, 1.1, 21, 0.5, "fridge", "🫐"),
   F("yangnyeom", "Yangnyeom sauce", "tbsp", 30, 0, 7, 0, "pantry", "🥫"),
+  F("frozenstrawberries", "Frozen strawberries", "cup", 50, 1, 12, 0.3, "freezer", "🍓"),
 ];
 
 // Meal category from the recipe id suffix (mon-b → breakfast, tue-l → lunch, …).
@@ -174,6 +175,9 @@ const recipes: Recipe[] = [
   R("sun-s", "Greek Yogurt & Granola", "🥣", [["greekyogurt", 1], ["granola", 1.25]]),
   R("sun-d", "Roast Chicken & Root Veg", "🍗", [["chicken", 8], ["rootveg", 2], ["greens", 2]]),
   R("sun-e", "Cottage Cheese", "🧀", [["cottagecheese", 1]]),
+  // Restored favorites (single-serving)
+  R("overnight-oats", "Berry Overnight Oats", "🥣", [["oats", 0.5], ["oatmilk", 0.75], ["berries", 0.5], ["honey", 1]], ["Combine oats and oat milk in a jar.", "Top with berries and a drizzle of honey.", "Refrigerate overnight."]),
+  R("corn-egg-breakfast", "Corn Tortilla & Egg Breakfast", "🌮", [["corntortillas", 2], ["egg", 2], ["cheese", 1]], ["Scramble the eggs.", "Warm the corn tortillas.", "Fill with egg and cheese."]),
 ];
 
 // Which recipe fills each meal slot, per weekday (Monday = 0 … Sunday = 6).
@@ -215,7 +219,7 @@ const RECEIPT_STOCK: Record<string, number> = {
   chickenthigh: 20, egg: 12, cheese: 8, carrots: 3, onion: 1.5, apple: 3,
   banana: 7, spinach: 8, sweetpotato: 1, groundbeef80: 32, jasminerice: 32,
   oatmilk: 4, tofu: 14, corntortillas: 12, arugula: 5, garlic: 1,
-  blueberries: 2, yangnyeom: 16,
+  blueberries: 2, yangnyeom: 16, frozenstrawberries: 2,
 };
 const inventory = foods.map((f) => ({ foodId: f.id, quantity: RECEIPT_STOCK[f.id] ?? 0 }));
 
