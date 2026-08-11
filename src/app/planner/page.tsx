@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   format,
   addDays,
@@ -15,22 +15,27 @@ import {
   getHours,
   getMinutes,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, CalendarDays, Search, CalendarPlus, UtensilsCrossed } from "lucide-react";
 import { useApp, recipeTotalsPerServing, newId } from "@/lib/store";
 import { weekDays, isoOf, monthGrid, MEAL_ORDER, MEAL_LABEL } from "@/lib/week";
 import {
-  MEAL_TIME, MEAL_COLOR, START_HOUR, END_HOUR, HOUR_PX, formatHour, clockLabel,
+  MEAL_COLOR, EVENT_COLOR, mealStart, mealEnd, snapHour,
+  START_HOUR, END_HOUR, HOUR_PX, formatHour, clockLabel,
 } from "@/lib/mealtime";
-import type { MealType, PlannedMeal, Recipe, Food } from "@/lib/types";
+import type { MealType, PlannedMeal, CalendarEvent, Recipe, Food } from "@/lib/types";
 
 type View = "day" | "week" | "month" | "year";
 const VIEWS: View[] = ["day", "week", "month", "year"];
 
 export default function Planner() {
-  const { recipes, foods, plan, addPlannedMeal, removePlannedMeal } = useApp();
+  const {
+    recipes, foods, plan, events,
+    addPlannedMeal, updatePlannedMeal, removePlannedMeal,
+    addEvent, updateEvent, removeEvent,
+  } = useApp();
   const [view, setView] = useState<View>("week");
   const [anchor, setAnchor] = useState<Date>(new Date());
-  const [picking, setPicking] = useState<{ iso: string; meal: MealType | null } | null>(null);
+  const [picking, setPicking] = useState<{ iso: string; hour: number | null } | null>(null);
 
   const shift = (dir: number) => {
     if (view === "day") setAnchor((a) => addDays(a, dir));
@@ -51,7 +56,17 @@ export default function Planner() {
   })();
 
   const dayMeals = (iso: string) => plan.filter((m) => m.date === iso);
+  const dayEvents = (iso: string) => (events ?? []).filter((e) => e.date === iso);
   const openDay = (d: Date) => { setAnchor(d); setView("day"); };
+
+  const gridProps = {
+    recipes, foods, dayMeals, dayEvents,
+    onEmpty: (iso: string, hour: number) => setPicking({ iso, hour }),
+    onRemoveMeal: removePlannedMeal,
+    onRemoveEvent: removeEvent,
+    onMoveMeal: (id: string, date: string, start: number, end: number) => updatePlannedMeal(id, { date, start, end }),
+    onMoveEvent: (id: string, date: string, start: number, end: number) => updateEvent(id, { date, start, end }),
+  };
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -100,20 +115,30 @@ export default function Planner() {
         </div>
       </header>
 
-      {view === "day" && <TimeGrid days={[anchor]} recipes={recipes} foods={foods} dayMeals={dayMeals} onEmpty={(iso, meal) => setPicking({ iso, meal })} onRemove={removePlannedMeal} />}
-      {view === "week" && <TimeGrid days={weekDays(anchor)} recipes={recipes} foods={foods} dayMeals={dayMeals} onEmpty={(iso, meal) => setPicking({ iso, meal })} onRemove={removePlannedMeal} />}
-      {view === "month" && <MonthView anchor={anchor} recipes={recipes} dayMeals={dayMeals} onOpenDay={openDay} onAdd={(iso) => setPicking({ iso, meal: null })} />}
-      {view === "year" && <YearView anchor={anchor} plan={plan} onOpenDay={openDay} onOpenMonth={(d) => { setAnchor(d); setView("month"); }} />}
+      {view === "day" && <TimeGrid days={[anchor]} {...gridProps} />}
+      {view === "week" && <TimeGrid days={weekDays(anchor)} {...gridProps} />}
+      {view === "month" && <MonthView anchor={anchor} recipes={recipes} events={events ?? []} dayMeals={dayMeals} onOpenDay={openDay} onAdd={(iso) => setPicking({ iso, hour: null })} />}
+      {view === "year" && <YearView anchor={anchor} plan={plan} events={events ?? []} onOpenDay={openDay} onOpenMonth={(d) => { setAnchor(d); setView("month"); }} />}
 
       {picking && (
         <AddModal
           iso={picking.iso}
-          initialMeal={picking.meal}
+          hour={picking.hour}
           recipes={recipes}
           foods={foods}
           onClose={() => setPicking(null)}
-          onPick={(meal, r) => {
-            addPlannedMeal({ id: newId(), date: picking.iso, mealType: meal, recipeId: r.id, servings: r.servings });
+          onPickMeal={(r) => {
+            const base = { id: newId(), date: picking.iso, mealType: r.category, recipeId: r.id, servings: r.servings };
+            addPlannedMeal(
+              picking.hour != null
+                ? { ...base, start: snapHour(picking.hour), end: snapHour(picking.hour) + 1 }
+                : base,
+            );
+            setPicking(null);
+          }}
+          onAddEvent={(title) => {
+            const start = picking.hour != null ? snapHour(picking.hour) : 12;
+            addEvent({ id: newId(), date: picking.iso, title: title.trim() || "Event", start, end: start + 1 });
             setPicking(null);
           }}
         />
@@ -124,15 +149,27 @@ export default function Planner() {
 
 // ---------- Shared time grid (Day + Week) ----------
 
+interface GhostState { x: number; y: number; width: number; height: number; label: string; block: string }
+interface DragData {
+  kind: "meal" | "event";
+  id: string; label: string; block: string; durH: number;
+  startX: number; startY: number; grabDX: number; grabDY: number;
+  width: number; height: number; moved: boolean;
+}
+
 function TimeGrid({
-  days, recipes, foods, dayMeals, onEmpty, onRemove,
+  days, recipes, foods, dayMeals, dayEvents, onEmpty, onRemoveMeal, onRemoveEvent, onMoveMeal, onMoveEvent,
 }: {
   days: Date[];
   recipes: Recipe[];
   foods: Food[];
   dayMeals: (iso: string) => PlannedMeal[];
-  onEmpty: (iso: string, meal: MealType) => void;
-  onRemove: (id: string) => void;
+  dayEvents: (iso: string) => CalendarEvent[];
+  onEmpty: (iso: string, hour: number) => void;
+  onRemoveMeal: (id: string) => void;
+  onRemoveEvent: (id: string) => void;
+  onMoveMeal: (id: string, date: string, start: number, end: number) => void;
+  onMoveEvent: (id: string, date: string, start: number, end: number) => void;
 }) {
   const hours: number[] = [];
   for (let h = START_HOUR; h <= END_HOUR; h++) hours.push(h);
@@ -150,14 +187,67 @@ function TimeGrid({
     }
   };
 
-  const nearestMeal = (hour: number): MealType => {
-    let best: MealType = "breakfast";
-    let bestD = Infinity;
-    (Object.keys(MEAL_TIME) as MealType[]).forEach((m) => {
-      const d = Math.abs(MEAL_TIME[m].start - hour);
-      if (d < bestD) { bestD = d; best = m; }
-    });
-    return best;
+  // ----- drag-to-move -----
+  const colRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const dragRef = useRef<DragData | null>(null);
+  const [ghost, setGhost] = useState<GhostState | null>(null);
+  // Keep the latest days + callbacks reachable from the (once-attached) listeners.
+  const commitRef = useRef<(d: DragData, x: number, y: number) => void>(() => {});
+  useEffect(() => {
+    commitRef.current = (d, clientX, clientY) => {
+      let idx = 0;
+      for (let i = 0; i < days.length; i++) {
+        const r = colRefs.current[i]?.getBoundingClientRect();
+        if (!r) continue;
+        if (clientX >= r.left) idx = i;
+        if (clientX >= r.left && clientX < r.right) { idx = i; break; }
+      }
+      const colEl = colRefs.current[idx];
+      if (!colEl) return;
+      const r = colEl.getBoundingClientRect();
+      let hour = START_HOUR + (clientY - d.grabDY - r.top) / HOUR_PX;
+      hour = snapHour(hour);
+      hour = Math.max(START_HOUR, Math.min(END_HOUR - d.durH, hour));
+      const iso = isoOf(days[idx]);
+      if (d.kind === "meal") onMoveMeal(d.id, iso, hour, hour + d.durH);
+      else onMoveEvent(d.id, iso, hour, hour + d.durH);
+    };
+  });
+
+  useEffect(() => {
+    const move = (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      if (!d.moved) {
+        if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
+        d.moved = true;
+      }
+      setGhost({ x: e.clientX - d.grabDX, y: e.clientY - d.grabDY, width: d.width, height: d.height, label: d.label, block: d.block });
+    };
+    const up = (e: PointerEvent) => {
+      const d = dragRef.current;
+      dragRef.current = null;
+      setGhost(null);
+      if (d && d.moved) commitRef.current(d, e.clientX, e.clientY);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+  }, []);
+
+  const beginDrag = (
+    e: React.PointerEvent,
+    d: { kind: "meal" | "event"; id: string; label: string; block: string; durH: number },
+  ) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    dragRef.current = {
+      ...d,
+      startX: e.clientX, startY: e.clientY,
+      grabDX: e.clientX - rect.left, grabDY: e.clientY - rect.top,
+      width: rect.width, height: rect.height, moved: false,
+    };
+    e.preventDefault();
+    e.stopPropagation();
   };
 
   return (
@@ -188,17 +278,19 @@ function TimeGrid({
           </div>
 
           {/* Day columns */}
-          {days.map((d) => {
+          {days.map((d, ci) => {
             const iso = isoOf(d);
             const meals = dayMeals(iso);
+            const evs = dayEvents(iso);
             return (
               <div
                 key={iso}
+                ref={(el) => { colRefs.current[ci] = el; }}
                 className="relative flex-1 border-l border-white/[0.05]"
                 onClick={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
                   const hour = START_HOUR + (e.clientY - rect.top) / HOUR_PX;
-                  onEmpty(iso, nearestMeal(hour));
+                  onEmpty(iso, Math.max(START_HOUR, Math.min(END_HOUR - 1, hour)));
                 }}
               >
                 {/* Hour lines */}
@@ -215,29 +307,55 @@ function TimeGrid({
                   </div>
                 )}
 
+                {/* Free-form events */}
+                {evs.map((ev) => {
+                  const top = (ev.start - START_HOUR) * HOUR_PX;
+                  const height = Math.max(28, (ev.end - ev.start) * HOUR_PX);
+                  const c = EVENT_COLOR;
+                  return (
+                    <div
+                      key={ev.id}
+                      onClick={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => beginDrag(e, { kind: "event", id: ev.id, label: ev.title, block: c.block, durH: ev.end - ev.start })}
+                      className={`group absolute inset-x-1 z-10 cursor-grab touch-none select-none overflow-hidden rounded-md px-1.5 py-1 text-[11px] shadow-md active:cursor-grabbing ${c.block}`}
+                      style={{ top, height }}
+                    >
+                      <div className="flex items-start justify-between gap-1">
+                        <span className="truncate font-semibold leading-tight">{ev.title}</span>
+                        <button onClick={() => onRemoveEvent(ev.id)} onPointerDown={(e) => e.stopPropagation()} className="shrink-0 opacity-0 transition group-hover:opacity-100" aria-label="Remove">
+                          <X size={11} />
+                        </button>
+                      </div>
+                      <div className="truncate opacity-80">{clockLabel(ev.start)} – {clockLabel(ev.end)}</div>
+                    </div>
+                  );
+                })}
+
                 {/* Meal events */}
                 {meals.map((m) => {
                   const r = recipes.find((x) => x.id === m.recipeId);
                   if (!r) return null;
-                  const t = MEAL_TIME[m.mealType];
-                  const top = (t.start - START_HOUR) * HOUR_PX;
-                  const height = Math.max(28, (t.end - t.start) * HOUR_PX);
+                  const start = mealStart(m);
+                  const end = mealEnd(m);
+                  const top = (start - START_HOUR) * HOUR_PX;
+                  const height = Math.max(28, (end - start) * HOUR_PX);
                   const cal = recipeTotalsPerServing(r, foods).calories * m.servings;
                   const c = MEAL_COLOR[m.mealType];
                   return (
                     <div
                       key={m.id}
                       onClick={(e) => e.stopPropagation()}
-                      className={`group absolute inset-x-1 z-10 overflow-hidden rounded-md px-1.5 py-1 text-[11px] shadow-md ${c.block}`}
+                      onPointerDown={(e) => beginDrag(e, { kind: "meal", id: m.id, label: `${r.emoji} ${r.name}`, block: c.block, durH: end - start })}
+                      className={`group absolute inset-x-1 z-10 cursor-grab touch-none select-none overflow-hidden rounded-md px-1.5 py-1 text-[11px] shadow-md active:cursor-grabbing ${c.block}`}
                       style={{ top, height }}
                     >
                       <div className="flex items-start justify-between gap-1">
                         <span className="truncate font-semibold leading-tight">{r.emoji} {r.name}</span>
-                        <button onClick={() => onRemove(m.id)} className="shrink-0 opacity-0 transition group-hover:opacity-100" aria-label="Remove">
+                        <button onClick={() => onRemoveMeal(m.id)} onPointerDown={(e) => e.stopPropagation()} className="shrink-0 opacity-0 transition group-hover:opacity-100" aria-label="Remove">
                           <X size={11} />
                         </button>
                       </div>
-                      <div className="truncate opacity-80">{clockLabel(t.start)} · {cal} cal</div>
+                      <div className="truncate opacity-80">{clockLabel(start)} · {cal} cal</div>
                     </div>
                   );
                 })}
@@ -247,8 +365,18 @@ function TimeGrid({
         </div>
       </div>
       <div className="border-t border-white/[0.07] px-4 py-2 text-center text-[11px] text-zinc-500">
-        Tap an empty slot to add a meal · tap a meal to remove it
+        Tap an empty slot to add a meal or event · drag to move · hover to remove
       </div>
+
+      {/* Drag ghost */}
+      {ghost && (
+        <div
+          className={`pointer-events-none fixed z-50 overflow-hidden rounded-md px-1.5 py-1 text-[11px] font-semibold shadow-2xl ring-2 ring-white/40 ${ghost.block}`}
+          style={{ left: ghost.x, top: ghost.y, width: ghost.width, height: ghost.height }}
+        >
+          <span className="truncate">{ghost.label}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -256,10 +384,11 @@ function TimeGrid({
 // ---------- Month view ----------
 
 function MonthView({
-  anchor, recipes, dayMeals, onOpenDay, onAdd,
+  anchor, recipes, events, dayMeals, onOpenDay, onAdd,
 }: {
   anchor: Date;
   recipes: Recipe[];
+  events: CalendarEvent[];
   dayMeals: (iso: string) => PlannedMeal[];
   onOpenDay: (d: Date) => void;
   onAdd: (iso: string) => void;
@@ -278,6 +407,8 @@ function MonthView({
           const iso = isoOf(d);
           const inMonth = isSameMonth(d, anchor);
           const meals = dayMeals(iso);
+          const evs = events.filter((e) => e.date === iso);
+          const items = meals.length + evs.length;
           return (
             <div
               key={iso}
@@ -292,7 +423,7 @@ function MonthView({
                 >
                   {format(d, "d")}
                 </button>
-                <button onClick={() => onAdd(iso)} className="text-zinc-600 opacity-0 transition hover:text-emerald-400 group-hover:opacity-100" aria-label="Add meal">
+                <button onClick={() => onAdd(iso)} className="text-zinc-600 opacity-0 transition hover:text-emerald-400 group-hover:opacity-100" aria-label="Add">
                   <Plus size={13} />
                 </button>
               </div>
@@ -308,9 +439,15 @@ function MonthView({
                     </button>
                   );
                 })}
-                {meals.length > 3 && (
+                {meals.length < 3 && evs.slice(0, 3 - meals.length).map((ev) => (
+                  <button key={ev.id} onClick={() => onOpenDay(d)} className="flex w-full items-center gap-1 truncate rounded bg-zinc-500/20 px-1 py-0.5 text-left text-[10px] font-medium text-zinc-200">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-300" />
+                    <span className="truncate">{ev.title}</span>
+                  </button>
+                ))}
+                {items > 3 && (
                   <button onClick={() => onOpenDay(d)} className="px-1 text-[10px] text-zinc-500 hover:text-zinc-300">
-                    +{meals.length - 3} more
+                    +{items - 3} more
                   </button>
                 )}
               </div>
@@ -325,15 +462,16 @@ function MonthView({
 // ---------- Year view ----------
 
 function YearView({
-  anchor, plan, onOpenDay, onOpenMonth,
+  anchor, plan, events, onOpenDay, onOpenMonth,
 }: {
   anchor: Date;
   plan: PlannedMeal[];
+  events: CalendarEvent[];
   onOpenDay: (d: Date) => void;
   onOpenMonth: (d: Date) => void;
 }) {
   const year = anchor.getFullYear();
-  const plannedDates = new Set(plan.map((m) => m.date));
+  const plannedDates = new Set<string>([...plan.map((m) => m.date), ...events.map((e) => e.date)]);
   const dow = ["M", "T", "W", "T", "F", "S", "S"];
 
   return (
@@ -384,71 +522,142 @@ function YearView({
   );
 }
 
-// ---------- Add-meal modal ----------
+// ---------- Add-to-calendar modal (meal or event) ----------
 
 function AddModal({
-  iso, initialMeal, recipes, foods, onClose, onPick,
+  iso, hour, recipes, foods, onClose, onPickMeal, onAddEvent,
 }: {
   iso: string;
-  initialMeal: MealType | null;
+  hour: number | null;
   recipes: Recipe[];
   foods: Food[];
   onClose: () => void;
-  onPick: (meal: MealType, r: Recipe) => void;
+  onPickMeal: (r: Recipe) => void;
+  onAddEvent: (title: string) => void;
 }) {
-  // Which section is expanded (accordion). Default to the tapped slot, else breakfast.
-  const [open, setOpen] = useState<MealType>(initialMeal ?? "breakfast");
+  const [tab, setTab] = useState<"meal" | "event">("meal");
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState<MealType | "">("");
+  const [eventTitle, setEventTitle] = useState("");
+
+  const q = query.trim().toLowerCase();
+  const matches = q ? recipes.filter((r) => r.name.toLowerCase().includes(q)) : [];
+  const when = hour != null ? ` · ${clockLabel(snapHour(hour))}` : "";
 
   return (
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm md:items-center md:p-4">
       <div className="max-h-[82vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-white/10 bg-zinc-950/95 p-5 md:rounded-2xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-semibold">Add meal · {format(new Date(iso), "EEE, MMM d")}</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-semibold">Add · {format(new Date(iso), "EEE, MMM d")}{when}</h2>
           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200"><X size={20} /></button>
         </div>
 
-        <div className="space-y-2">
-          {MEAL_ORDER.map((mt) => {
-            const list = recipes.filter((r) => r.category === mt);
-            const isOpen = open === mt;
-            const c = MEAL_COLOR[mt];
-            return (
-              <div key={mt} className="overflow-hidden rounded-xl border border-white/10">
-                <button
-                  onClick={() => setOpen(isOpen ? ("" as MealType) : mt)}
-                  className="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-white/[0.04]"
-                >
-                  <span className="flex items-center gap-2 text-sm font-medium">
-                    <span className={`h-2.5 w-2.5 rounded-full ${c.dot}`} />
-                    {MEAL_LABEL[mt]}
-                    <span className="text-xs font-normal text-zinc-500">{list.length}</span>
-                  </span>
-                  <ChevronDown size={16} className={`text-zinc-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                </button>
-                {isOpen && (
-                  <div className="space-y-1 border-t border-white/[0.06] p-2">
-                    {list.length === 0 && (
-                      <p className="px-2 py-3 text-center text-xs text-zinc-500">No recipes in this section yet.</p>
-                    )}
-                    {list.map((r) => {
-                      const cal = recipeTotalsPerServing(r, foods).calories;
-                      return (
-                        <button
-                          key={r.id}
-                          onClick={() => onPick(mt, r)}
-                          className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-emerald-500/10"
-                        >
-                          <span>{r.emoji} {r.name}</span>
-                          <span className="text-xs text-zinc-400">{cal} cal</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        {/* Meal / Event tabs */}
+        <div className="mb-4 flex rounded-xl border border-white/10 bg-white/[0.03] p-0.5 text-sm">
+          <button onClick={() => setTab("meal")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 font-medium ${tab === "meal" ? "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white" : "text-zinc-400 hover:text-zinc-100"}`}>
+            <UtensilsCrossed size={15} /> Meal
+          </button>
+          <button onClick={() => setTab("event")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 font-medium ${tab === "event" ? "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white" : "text-zinc-400 hover:text-zinc-100"}`}>
+            <CalendarPlus size={15} /> Event
+          </button>
         </div>
+
+        {tab === "meal" ? (
+          <>
+            {/* Search across every recipe — any meal can land in any slot. */}
+            <div className="relative mb-3">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search recipes…"
+                className="w-full rounded-lg field py-2 pl-9 pr-3 text-sm"
+              />
+            </div>
+
+            {q ? (
+              <div className="space-y-1">
+                {matches.length === 0 && <p className="px-2 py-6 text-center text-xs text-zinc-500">No recipes match “{query}”.</p>}
+                {matches.map((r) => {
+                  const cal = recipeTotalsPerServing(r, foods).calories;
+                  const c = MEAL_COLOR[r.category];
+                  return (
+                    <button key={r.id} onClick={() => onPickMeal(r)} className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-emerald-500/10">
+                      <span className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${c.dot}`} />{r.emoji} {r.name}</span>
+                      <span className="text-xs text-zinc-400">{MEAL_LABEL[r.category]} · {cal} cal</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {MEAL_ORDER.map((mt) => {
+                  const list = recipes.filter((r) => r.category === mt);
+                  const isOpen = open === mt;
+                  const c = MEAL_COLOR[mt];
+                  return (
+                    <div key={mt} className="overflow-hidden rounded-xl border border-white/10">
+                      <button
+                        onClick={() => setOpen(isOpen ? "" : mt)}
+                        className="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-white/[0.04]"
+                      >
+                        <span className="flex items-center gap-2 text-sm font-medium">
+                          <span className={`h-2.5 w-2.5 rounded-full ${c.dot}`} />
+                          {MEAL_LABEL[mt]}
+                          <span className="text-xs font-normal text-zinc-500">{list.length}</span>
+                        </span>
+                        <ChevronDown size={16} className={`text-zinc-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                      </button>
+                      {isOpen && (
+                        <div className="space-y-1 border-t border-white/[0.06] p-2">
+                          {list.length === 0 && (
+                            <p className="px-2 py-3 text-center text-xs text-zinc-500">No recipes in this section yet.</p>
+                          )}
+                          {list.map((r) => {
+                            const cal = recipeTotalsPerServing(r, foods).calories;
+                            return (
+                              <button
+                                key={r.id}
+                                onClick={() => onPickMeal(r)}
+                                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-emerald-500/10"
+                              >
+                                <span>{r.emoji} {r.name}</span>
+                                <span className="text-xs text-zinc-400">{cal} cal</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="space-y-3">
+            <label className="block text-sm text-zinc-400">Event name</label>
+            <input
+              autoFocus
+              value={eventTitle}
+              onChange={(e) => setEventTitle(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && eventTitle.trim()) onAddEvent(eventTitle); }}
+              placeholder="e.g. Grocery run, Meal prep, Gym"
+              className="w-full rounded-lg field px-3 py-2 text-sm"
+            />
+            <p className="text-xs text-zinc-500">
+              Adds a 1-hour event {hour != null ? `at ${clockLabel(snapHour(hour))}` : "at noon"}. Drag it on the day or week grid to move it.
+            </p>
+            <button
+              onClick={() => onAddEvent(eventTitle)}
+              disabled={!eventTitle.trim()}
+              className="w-full rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Add event
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

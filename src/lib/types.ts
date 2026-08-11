@@ -104,6 +104,21 @@ export interface PlannedMeal {
   mealType: MealType;
   recipeId: string;
   servings: number;
+  /** Optional custom placement (decimal hours). When set, overrides the
+   *  default meal-time slot — lets any meal sit anywhere and be dragged. */
+  start?: number;
+  end?: number;
+}
+
+/** A free-form calendar event (not tied to a recipe), placed by the hour. */
+export interface CalendarEvent {
+  id: string;
+  /** ISO date string: yyyy-MM-dd */
+  date: string;
+  title: string;
+  /** Decimal hours, e.g. 13.5 = 1:30 PM. */
+  start: number;
+  end: number;
 }
 
 /** A shopping-list line the user added by hand (on top of the auto-derived list). */
@@ -134,6 +149,7 @@ export interface AppData {
   inventory: InventoryItem[];
   recipes: Recipe[];
   plan: PlannedMeal[];
+  events: CalendarEvent[];
   manualGroceries: ManualGrocery[];
   goals: Goals;
   profile: Profile;

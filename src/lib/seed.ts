@@ -228,6 +228,7 @@ export const seedData: AppData = {
   recipes,
   inventory,
   plan: seedPlan(),
+  events: [],
   manualGroceries: [],
   history: [],
   goals: {

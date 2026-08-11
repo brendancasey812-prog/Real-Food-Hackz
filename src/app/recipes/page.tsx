@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Trash2, X, Flame, Menu, ChevronDown, Camera, PenLine, ClipboardList } from "lucide-react";
+import { Plus, Trash2, X, Flame, Menu, ChevronDown, Camera, PenLine, ClipboardList, Search } from "lucide-react";
 import {
   useApp,
   recipeCaloriesPerServing,
@@ -185,8 +185,14 @@ const NEW = "__new__";
 function IngredientPicker({ foods, value, onChange }: { foods: Food[]; value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<FoodCategory>>(new Set());
+  const [query, setQuery] = useState("");
   const selected = value === NEW ? null : foods.find((f) => f.id === value);
   const toggle = (k: FoodCategory) => setExpanded((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const close = () => { setOpen(false); setQuery(""); };
+  const pick = (id: string) => { onChange(id); close(); };
+
+  const q = query.trim().toLowerCase();
+  const matches = q ? foods.filter((f) => f.name.toLowerCase().includes(q)) : [];
 
   return (
     <div className="relative min-w-0 flex-1">
@@ -196,29 +202,55 @@ function IngredientPicker({ foods, value, onChange }: { foods: Food[]; value: st
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute z-50 mt-1 max-h-72 w-full min-w-[220px] overflow-y-auto rounded-xl border border-white/10 bg-zinc-900 p-1 shadow-2xl">
-            <button type="button" onClick={() => { onChange(NEW); setOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm font-medium text-emerald-300 hover:bg-emerald-500/10">
-              ➕ New ingredient…
-            </button>
-            {FOOD_CATEGORIES.map((cat) => {
-              const list = foods.filter((f) => f.category === cat.key);
-              if (list.length === 0) return null;
-              const isOpen = expanded.has(cat.key);
-              return (
-                <div key={cat.key}>
-                  <button type="button" onClick={() => toggle(cat.key)} className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-zinc-400 hover:bg-white/[0.05]">
-                    <span>{cat.emoji} {cat.label} <span className="font-normal text-zinc-600">· {list.length}</span></span>
-                    <ChevronDown size={13} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                  </button>
-                  {isOpen && list.map((f) => (
-                    <button key={f.id} type="button" onClick={() => { onChange(f.id); setOpen(false); }} className={`flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-zinc-200 hover:bg-emerald-500/10 ${f.id === value ? "bg-emerald-500/15" : ""}`}>
+          <div className="fixed inset-0 z-40" onClick={close} />
+          <div className="absolute z-50 mt-1 flex max-h-80 w-full min-w-[220px] flex-col overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-2xl">
+            {/* Search box */}
+            <div className="relative border-b border-white/[0.07] p-2">
+              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search ingredients…"
+                className="w-full rounded-lg field py-1.5 pl-8 pr-2 text-sm"
+              />
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-1">
+              <button type="button" onClick={() => pick(NEW)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm font-medium text-emerald-300 hover:bg-emerald-500/10">
+                ➕ New ingredient…
+              </button>
+
+              {q ? (
+                <>
+                  {matches.length === 0 && <p className="px-3 py-4 text-center text-xs text-zinc-500">No ingredients match “{query}”.</p>}
+                  {matches.map((f) => (
+                    <button key={f.id} type="button" onClick={() => pick(f.id)} className={`flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-zinc-200 hover:bg-emerald-500/10 ${f.id === value ? "bg-emerald-500/15" : ""}`}>
                       <span>{f.emoji}</span> <span className="truncate">{f.name}</span>
                     </button>
                   ))}
-                </div>
-              );
-            })}
+                </>
+              ) : (
+                FOOD_CATEGORIES.map((cat) => {
+                  const list = foods.filter((f) => f.category === cat.key);
+                  if (list.length === 0) return null;
+                  const isOpen = expanded.has(cat.key);
+                  return (
+                    <div key={cat.key}>
+                      <button type="button" onClick={() => toggle(cat.key)} className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-zinc-400 hover:bg-white/[0.05]">
+                        <span>{cat.emoji} {cat.label} <span className="font-normal text-zinc-600">· {list.length}</span></span>
+                        <ChevronDown size={13} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                      </button>
+                      {isOpen && list.map((f) => (
+                        <button key={f.id} type="button" onClick={() => pick(f.id)} className={`flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-zinc-200 hover:bg-emerald-500/10 ${f.id === value ? "bg-emerald-500/15" : ""}`}>
+                          <span>{f.emoji}</span> <span className="truncate">{f.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </>
       )}

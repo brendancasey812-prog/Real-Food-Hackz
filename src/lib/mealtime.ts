@@ -1,4 +1,4 @@
-import type { MealType } from "./types";
+import type { MealType, PlannedMeal } from "./types";
 
 /** Where meals sit on a clock, so Day/Week views can place them like calendar events. */
 export const MEAL_TIME: Record<MealType, { start: number; end: number }> = {
@@ -20,6 +20,18 @@ export const MEAL_COLOR: Record<
   dinner: { block: "bg-indigo-600 text-white", dot: "bg-indigo-400", soft: "bg-indigo-600/25 text-indigo-200" },
   extra: { block: "bg-fuchsia-600 text-white", dot: "bg-fuchsia-400", soft: "bg-fuchsia-600/25 text-fuchsia-200" },
 };
+
+/** Solid color for free-form (non-recipe) calendar events. */
+export const EVENT_COLOR = { block: "bg-zinc-500 text-white", dot: "bg-zinc-300" };
+
+/** Effective start/end (decimal hours) of a planned meal — a custom placement
+ *  wins over the default meal-time slot. */
+export const mealStart = (m: PlannedMeal) => m.start ?? MEAL_TIME[m.mealType].start;
+export const mealEnd = (m: PlannedMeal) =>
+  m.end ?? (m.start != null ? m.start + 1 : MEAL_TIME[m.mealType].end);
+
+/** Snap a decimal hour to the nearest 15 minutes. */
+export const snapHour = (h: number) => Math.round(h * 4) / 4;
 
 /** The hour window the Day/Week grids render (6 AM → midnight). */
 export const START_HOUR = 6;

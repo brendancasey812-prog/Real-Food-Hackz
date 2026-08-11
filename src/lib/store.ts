@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type {
   AppData,
+  CalendarEvent,
   Food,
   Macros,
   PlannedMeal,
@@ -24,7 +25,11 @@ interface AppState extends AppData {
   addRecipe: (recipe: Recipe, newFoods?: Food[]) => void;
   removeRecipe: (id: string) => void;
   addPlannedMeal: (meal: PlannedMeal) => void;
+  updatePlannedMeal: (id: string, patch: Partial<PlannedMeal>) => void;
   removePlannedMeal: (id: string) => void;
+  addEvent: (event: CalendarEvent) => void;
+  updateEvent: (id: string, patch: Partial<CalendarEvent>) => void;
+  removeEvent: (id: string) => void;
   addManualGrocery: (foodId: string, quantity: number) => void;
   removeManualGrocery: (id: string) => void;
   setGoals: (patch: Partial<AppData["goals"]>) => void;
@@ -94,8 +99,19 @@ export const useApp = create<AppState>()(
 
       addPlannedMeal: (meal) => set((s) => ({ plan: [...s.plan, meal] })),
 
+      updatePlannedMeal: (id, patch) =>
+        set((s) => ({ plan: s.plan.map((p) => (p.id === id ? { ...p, ...patch } : p)) })),
+
       removePlannedMeal: (id) =>
         set((s) => ({ plan: s.plan.filter((p) => p.id !== id) })),
+
+      addEvent: (event) => set((s) => ({ events: [...(s.events ?? []), event] })),
+
+      updateEvent: (id, patch) =>
+        set((s) => ({ events: (s.events ?? []).map((e) => (e.id === id ? { ...e, ...patch } : e)) })),
+
+      removeEvent: (id) =>
+        set((s) => ({ events: (s.events ?? []).filter((e) => e.id !== id) })),
 
       addManualGrocery: (foodId, quantity) =>
         set((s) => ({
@@ -195,6 +211,7 @@ export const useApp = create<AppState>()(
           foods,
           inventory,
           recipes,
+          events: s.events ?? [],
           history: s.history ?? [],
           manualGroceries: s.manualGroceries ?? [],
           goals: { ...seedData.goals, ...(s.goals ?? {}) },
