@@ -19,7 +19,7 @@ export interface ScannedRecipe {
   steps: string[];
 }
 
-export const RECIPE_SYSTEM_PROMPT = `You are a recipe-scanning assistant for a meal-planning app. You will be given a photo of a recipe (a card, cookbook page, or handwritten note). Extract the recipe into JSON. Use general, human-readable ingredient names. Convert each ingredient quantity into one US unit from this set only: each, cup, tbsp, tsp, oz. Classify each ingredient into Protein, Fruit, Veggie, or Pantry (dairy/grains/sauces/oils/other packaged = Pantry). Choose the single best meal for the recipe: breakfast, lunch, snack, or dinner. Pick one food emoji that represents the dish. Return only the JSON below — no other text.
+export const RECIPE_SYSTEM_PROMPT = `You are a recipe-scanning assistant for a meal-planning app. You will be given a photo of a recipe (a card, cookbook page, or handwritten note). Extract the recipe into JSON. Use general, human-readable ingredient names. Convert each ingredient quantity into one US unit from this set only: each, cup, tbsp, tsp, oz. If a quantity is not given for an ingredient, set its quantity to 0 (the app will ask the user to fill it in). Strip filler and prep words from the food name (e.g. "chopped", "fresh", "to taste", "for garnish", "optional", "diced") — keep just the ingredient itself. Classify each ingredient into Protein, Fruit, Veggie, or Pantry (dairy/grains/sauces/oils/other packaged = Pantry). Choose the single best meal for the recipe: breakfast, lunch, snack, or dinner. Pick one food emoji that represents the dish. Return only the JSON below — no other text.
 
 {
   "name": "string",
@@ -49,7 +49,7 @@ function parseRecipe(text: string): ScannedRecipe {
     .filter((i) => i && i.food && UNITS.includes(i.unit) && CATS.includes(i.category))
     .map((i) => ({
       food: String(i.food).trim(),
-      quantity: Number(i.quantity) > 0 ? Number(i.quantity) : 1,
+      quantity: Math.max(0, Number(i.quantity) || 0), // 0 = unknown; user fills it in
       unit: i.unit,
       category: i.category,
     }));
@@ -146,28 +146,80 @@ const CAT_WORDS: { re: RegExp; cat: ScannedRecipeIngredient["category"] }[] = [
   { re: /apple|banana|berr|straw|blueberr|orange|grape|pineapple|mango|peach|lemon|lime|fruit/i, cat: "Fruit" },
   { re: /lettuce|spinach|arugula|kale|broccoli|carrot|onion|pepper|garlic|tomato|cucumber|zucchini|mushroom|celery|greens|veg/i, cat: "Veggie" },
 ];
-function parseFrac(s: string): number {
-  if (s.includes("/")) { const [a, b] = s.split("/").map(Number); return b ? a / b : Number(a) || 1; }
-  return Number(s) || 1;
+// Descriptor / prep words stripped from ingredient names.
+const FILLER = new Set([
+  "fresh", "freshly", "chopped", "diced", "minced", "sliced", "shredded", "grated", "crushed",
+  "ripe", "large", "small", "medium", "boneless", "skinless", "peeled", "seeded", "deseeded",
+  "drained", "rinsed", "halved", "quartered", "cubed", "packed", "softened", "melted", "divided",
+  "roughly", "finely", "thinly", "cold", "warm", "hot", "room", "temperature", "cooked", "raw",
+  "of", "a", "an", "the", "some", "and", "plus", "more", "about", "approximately", "approx",
+  "whole", "dried", "toasted", "beaten", "cored", "trimmed", "extra", "virgin", "low", "fat",
+  "reduced", "unsalted", "salted", "granulated", "pure",
+]);
+const UNIT_WORDS_LOCAL: Record<string, Unit> = {
+  ...UNIT_WORDS,
+  pinch: "tsp", dash: "tsp", handful: "cup", bunch: "each", can: "each", jar: "each",
+  package: "each", pkg: "each", stick: "each", head: "each", stalk: "each", sprig: "each",
+};
+
+function parseQtyToken(s: string): number {
+  // handles "1", "1.5", "1/2", "1 1/2"
+  const mixed = s.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (mixed) return Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]);
+  if (s.includes("/")) { const [a, b] = s.split("/").map(Number); return b ? a / b : 0; }
+  return Number(s) || 0;
 }
 function guessCat(name: string): ScannedRecipeIngredient["category"] {
   for (const { re, cat } of CAT_WORDS) if (re.test(name)) return cat;
   return "Pantry";
 }
+function cleanName(raw: string): string {
+  const tokens = raw
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, " ") // drop parentheticals
+    .split(/[^a-z0-9-]+/)
+    .filter((t) => t && !FILLER.has(t));
+  const name = tokens.join(" ").trim();
+  return name ? name.charAt(0).toUpperCase() + name.slice(1) : "";
+}
+
+/** Best-effort local parse (used when no API key is set). */
 export function parseTextLocally(text: string): ScannedRecipe {
-  const lines = text.split("\n").map((l) => l.trim().replace(/^[-*•]\s*/, "")).filter(Boolean);
-  const ingredients: ScannedRecipeIngredient[] = lines.map((line) => {
-    const m = line.match(/^([\d]+(?:[./][\d]+)?)?\s*([a-zA-Z]+)?\s*(.*)$/);
-    let quantity = 1, unit: Unit = "each", food = line;
-    if (m) {
-      if (m[1]) quantity = parseFrac(m[1]);
-      const uw = (m[2] || "").toLowerCase();
-      if (UNIT_WORDS[uw]) { unit = UNIT_WORDS[uw]; food = (m[3] || "").trim() || line; }
-      else food = ((m[2] ? m[2] + " " : "") + (m[3] || "")).trim() || line;
-    }
-    return { food, quantity: quantity > 0 ? quantity : 1, unit, category: guessCat(food) };
-  }).filter((i) => i.food);
-  return { name: "Pasted recipe", emoji: "🍽️", servings: 1, meal: "dinner", ingredients, steps: [] };
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  // A short first line with no quantity is likely the title.
+  let name = "Pasted recipe";
+  let body = lines;
+  if (lines.length > 1 && !/\d/.test(lines[0]) && lines[0].split(" ").length <= 6) {
+    name = lines[0];
+    body = lines.slice(1);
+  }
+
+  const ingredients: ScannedRecipeIngredient[] = body
+    .map((line) => {
+      let s = line
+        .replace(/^[-*•]\s*/, "")
+        .replace(/\b(to taste|for garnish|for serving|as needed|optional|if desired|divided)\b.*$/gi, " ")
+        .split(",")[0]
+        .trim();
+      if (!s) return null;
+
+      let quantity = 0;
+      let unit: Unit = "each";
+      // leading quantity (incl. mixed fraction) then optional unit word
+      const m = s.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d*\.?\d+)\s*([a-zA-Z.]+)?\s*(.*)$/);
+      if (m && m[1]) {
+        quantity = parseQtyToken(m[1]);
+        const uw = (m[2] || "").toLowerCase().replace(/\.$/, "");
+        if (UNIT_WORDS_LOCAL[uw]) { unit = UNIT_WORDS_LOCAL[uw]; s = m[3] || ""; }
+        else s = ((m[2] ? m[2] + " " : "") + (m[3] || "")).trim();
+      }
+      const food = cleanName(s) || cleanName(line);
+      if (!food) return null;
+      return { food, quantity, unit, category: guessCat(food) };
+    })
+    .filter((i): i is ScannedRecipeIngredient => i !== null);
+
+  return { name, emoji: "🍽️", servings: 1, meal: "dinner", ingredients, steps: [] };
 }
 
 export function demoScanRecipe(): Promise<ScannedRecipe> {

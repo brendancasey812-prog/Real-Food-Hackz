@@ -160,7 +160,13 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
                   {recipe.ingredients.map((ing, i) => (
                     <div key={i} className="flex flex-wrap items-center gap-1.5 rounded-lg border border-white/[0.06] p-1.5">
                       <input value={ing.food} onChange={(e) => patchIng(i, { food: e.target.value })} className="min-w-0 flex-1 rounded-lg field px-2 py-1.5 text-sm" />
-                      <input type="number" value={ing.quantity} onChange={(e) => patchIng(i, { quantity: Number(e.target.value) })} className="w-16 rounded-lg field px-2 py-1.5 text-sm" />
+                      <input
+                        type="number"
+                        value={ing.quantity === 0 ? "" : ing.quantity}
+                        placeholder="?"
+                        onChange={(e) => patchIng(i, { quantity: e.target.value === "" ? 0 : Number(e.target.value) })}
+                        className={`w-16 rounded-lg field px-2 py-1.5 text-sm ${ing.quantity === 0 ? "border-amber-500/70 bg-amber-500/10 placeholder:text-amber-300" : ""}`}
+                      />
                       <select value={ing.unit} onChange={(e) => patchIng(i, { unit: e.target.value as Unit })} className="rounded-lg field px-2 py-1.5 text-sm">
                         {UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
                       </select>
@@ -180,10 +186,28 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
                 </div>
               )}
 
-              <div className="flex gap-2">
-                <button onClick={() => setStep("upload")} className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-medium text-zinc-300 hover:bg-white/[0.06]">Back</button>
-                <button onClick={confirm} className="flex-1 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110">Save to cookbook</button>
-              </div>
+              {(() => {
+                const blanks = recipe.ingredients.filter((i) => i.quantity <= 0).length;
+                return (
+                  <>
+                    {blanks > 0 && (
+                      <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                        {blanks} ingredient{blanks > 1 ? "s need" : " needs"} a quantity (highlighted in amber). Enter or delete them to save.
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      <button onClick={() => setStep("upload")} className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-medium text-zinc-300 hover:bg-white/[0.06]">Back</button>
+                      <button
+                        onClick={confirm}
+                        disabled={blanks > 0}
+                        className="flex-1 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Save to cookbook
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
               <p className="text-[11px] text-zinc-500">New ingredients are added to your kitchen with 0 nutrition — set their calories/macros in the Kitchen afterward.</p>
             </div>
           )}
