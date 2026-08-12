@@ -135,6 +135,16 @@ export interface Goals {
   fatTarget: number;
 }
 
+export type Sex = "female" | "male" | "intersex";
+
+/** The five focus areas a user can opt into (Settings → Goals & focus areas). */
+export type FocusArea =
+  | "present"
+  | "productive"
+  | "athletic"
+  | "health"
+  | "stress";
+
 /** Who the plan is built for — shown on the dashboard. */
 export interface Profile {
   label: string;
@@ -142,6 +152,9 @@ export interface Profile {
   weightLb: number;
   age: number;
   activity: string;
+  /** ISO date string (yyyy-MM-dd). Age is derived from this when set. */
+  birthDate?: string;
+  sex?: Sex;
 }
 
 export interface AppData {
@@ -153,5 +166,6 @@ export interface AppData {
   manualGroceries: ManualGrocery[];
   goals: Goals;
   profile: Profile;
+  focusAreas: FocusArea[];
   history: PurchaseHistoryEntry[];
 }

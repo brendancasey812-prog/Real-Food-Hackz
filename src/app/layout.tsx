@@ -9,7 +9,7 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "PantryPlan — Meal planning that tracks your kitchen",
+  title: "Real Food Hackz — Meal planning that tracks your kitchen",
   description:
     "Plan meals, track calories, manage your fridge & pantry, and auto-build your grocery list — all in sync.",
 };

@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { format, isToday } from "date-fns";
-import { Flame, Beef, Wheat, Droplet, User } from "lucide-react";
+import { Flame, Beef, Wheat, Droplet, User, Settings } from "lucide-react";
 import { useApp, plannedTotals } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
+import { SettingsModal } from "@/components/SettingsModal";
 
 export default function Dashboard() {
   const { recipes, foods, plan, goals, profile, setGoals } = useApp();
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const days = weekDays(new Date());
   const target = goals.dailyCalorieTarget;
@@ -41,15 +44,25 @@ export default function Dashboard() {
             Week of {format(days[0], "MMM d")} — updates live as you change the plan.
           </p>
         </div>
-        {/* Profile card */}
-        <div className="flex items-center gap-3 rounded-xl card px-4 py-2.5 text-sm">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-            <User size={18} />
-          </span>
-          <div>
-            <div className="font-medium">{ft}&apos;{inch}&quot; · {profile.weightLb} lb · {profile.age}</div>
-            <div className="text-xs text-zinc-500">{profile.activity} · {target.toLocaleString()} cal/day</div>
+        <div className="flex items-center gap-3">
+          {/* Profile card */}
+          <div className="flex items-center gap-3 rounded-xl card px-4 py-2.5 text-sm">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+              <User size={18} />
+            </span>
+            <div>
+              <div className="font-medium">{ft}&apos;{inch}&quot; · {profile.weightLb} lb · {profile.age}</div>
+              <div className="text-xs text-zinc-500">{profile.activity} · {target.toLocaleString()} cal/day</div>
+            </div>
           </div>
+          {/* Settings */}
+          <button
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Settings"
+            className="flex h-11 w-11 items-center justify-center rounded-xl card text-zinc-300 transition-colors hover:text-emerald-300"
+          >
+            <Settings size={20} />
+          </button>
         </div>
       </header>
 
@@ -153,6 +166,8 @@ export default function Dashboard() {
           <span className="flex items-center gap-1.5"><span className="inline-block h-0 w-4 border-t-2 border-dashed border-emerald-500" /> Daily goal</span>
         </div>
       </section>
+
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }

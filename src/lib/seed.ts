@@ -243,5 +243,8 @@ export const seedData: AppData = {
     weightLb: 200,
     age: 25,
     activity: "Moderately active → active",
+    birthDate: "2001-01-01",
+    sex: "male",
   },
+  focusAreas: ["athletic", "health"],
 };

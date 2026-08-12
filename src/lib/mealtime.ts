@@ -30,8 +30,8 @@ export const mealStart = (m: PlannedMeal) => m.start ?? MEAL_TIME[m.mealType].st
 export const mealEnd = (m: PlannedMeal) =>
   m.end ?? (m.start != null ? m.start + 1 : MEAL_TIME[m.mealType].end);
 
-/** Snap a decimal hour to the nearest 15 minutes. */
-export const snapHour = (h: number) => Math.round(h * 4) / 4;
+/** Snap a decimal hour to the nearest 30 minutes. */
+export const snapHour = (h: number) => Math.round(h * 2) / 2;
 
 /** The hour window the Day/Week grids render (6 AM → midnight). */
 export const START_HOUR = 6;

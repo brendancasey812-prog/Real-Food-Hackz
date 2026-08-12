@@ -283,7 +283,7 @@ function TimeGrid({
         g.startHour = clamp(snapHour(hour - g.grab), START_HOUR, END_HOUR - g.durH);
         g.endHour = g.startHour + g.durH;
       } else if (g.mode === "resize") {
-        g.endHour = clamp(snapHour(hour), g.startHour + 0.25, END_HOUR);
+        g.endHour = clamp(snapHour(hour), g.startHour + 0.5, END_HOUR);
       } else {
         g.endHour = clamp(snapHour(hour), START_HOUR, END_HOUR);
       }

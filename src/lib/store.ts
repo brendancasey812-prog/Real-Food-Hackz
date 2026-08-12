@@ -33,6 +33,8 @@ interface AppState extends AppData {
   addManualGrocery: (foodId: string, quantity: number) => void;
   removeManualGrocery: (id: string) => void;
   setGoals: (patch: Partial<AppData["goals"]>) => void;
+  setProfile: (patch: Partial<AppData["profile"]>) => void;
+  setFocusAreas: (focusAreas: AppData["focusAreas"]) => void;
   /** Merge receipt-scanned items into the kitchen; returns a summary. */
   commitScan: (items: ScannedItem[]) => { merged: number; added: number; skipped: number };
   resetToSeed: () => void;
@@ -128,6 +130,10 @@ export const useApp = create<AppState>()(
 
       setGoals: (patch) => set((s) => ({ goals: { ...s.goals, ...patch } })),
 
+      setProfile: (patch) => set((s) => ({ profile: { ...s.profile, ...patch } })),
+
+      setFocusAreas: (focusAreas) => set({ focusAreas }),
+
       commitScan: (items) => {
         const s = get();
         const foods = [...s.foods];
@@ -216,6 +222,7 @@ export const useApp = create<AppState>()(
           manualGroceries: s.manualGroceries ?? [],
           goals: { ...seedData.goals, ...(s.goals ?? {}) },
           profile: { ...seedData.profile, ...(s.profile ?? {}) },
+          focusAreas: s.focusAreas ?? seedData.focusAreas,
         } as AppData;
       },
     },

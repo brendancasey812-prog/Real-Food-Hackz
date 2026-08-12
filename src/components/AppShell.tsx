@@ -9,6 +9,7 @@ import {
   CalendarDays,
   ShoppingCart,
   Refrigerator,
+  Salad,
 } from "lucide-react";
 
 /** True only after client hydration — avoids SSR/persisted-store mismatch. */
@@ -32,13 +33,13 @@ function Logo({ small }: { small?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
       <span
-        className="flex items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 shadow-lg shadow-emerald-950/50"
+        className="flex items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-lg shadow-emerald-950/50"
         style={{ height: small ? 30 : 36, width: small ? 30 : 36 }}
       >
-        <span style={{ fontSize: small ? 16 : 19 }}>🥗</span>
+        <Salad size={small ? 17 : 20} />
       </span>
       <span className={`font-semibold tracking-tight ${small ? "text-base" : "text-lg"}`}>
-        PantryPlan
+        Real Food Hackz
       </span>
     </div>
   );
