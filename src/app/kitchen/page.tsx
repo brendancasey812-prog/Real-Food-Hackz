@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Minus, Plus, ScanLine, Menu, Pencil, Calculator, X } from "lucide-react";
+import { Minus, Plus, ScanLine, Menu, Pencil, Calculator, X, ChevronDown } from "lucide-react";
 import { useApp, neededQuantities } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
 import { fmtQty, unitLabel, pluralUnit, stepFor } from "@/lib/units";
@@ -19,7 +19,7 @@ const SECTIONS: { key: Location; title: string; icon: string; tint: string }[] =
 ];
 
 export default function Kitchen() {
-  const { foods, inventory, recipes, plan, setInventory, removeFood } = useApp();
+  const { foods, inventory, recipes, plan, setInventory, updateFood, removeFood } = useApp();
   const [adding, setAdding] = useState<Location | null>(null);
   const [scanning, setScanning] = useState(false);
   const [convOpen, setConvOpen] = useState(false);
@@ -134,6 +134,7 @@ export default function Kitchen() {
                                   need={need[f.id] ?? 0}
                                   editMode={editMode}
                                   onChange={(q) => setInventory(f.id, q)}
+                                  onNutrition={(patch) => updateFood(f.id, patch)}
                                   onDelete={() => removeFood(f.id)}
                                 />
                               ))}
@@ -160,13 +161,14 @@ export default function Kitchen() {
 const SLIDER_MAX: Record<Unit, number> = { each: 12, cup: 12, tbsp: 32, tsp: 48, oz: 48 };
 
 function FoodTile({
-  food: f, have, need, editMode, onChange, onDelete,
+  food: f, have, need, editMode, onChange, onNutrition, onDelete,
 }: {
   food: Food;
   have: number;
   need: number;
   editMode: boolean;
   onChange: (q: number) => void;
+  onNutrition: (patch: Partial<Food>) => void;
   onDelete: () => void;
 }) {
   const willUse = Math.min(need, have);
@@ -176,6 +178,7 @@ function FoodTile({
   const step = stepFor(f.unit);
   const sliderMax = Math.max(SLIDER_MAX[f.unit], Math.ceil(have * 1.5), Math.ceil(need * 1.5), step);
   const [confirmDel, setConfirmDel] = useState(false);
+  const [editNutrition, setEditNutrition] = useState(false);
 
   return (
     <div className="relative rounded-xl card p-3">
@@ -213,9 +216,44 @@ function FoodTile({
         </div>
       </div>
 
-      <div className="mt-1.5 text-[11px] text-zinc-400">
-        {f.caloriesPerUnit} cal / {unitLabel(f.unit)} · {onHandCals} cal on hand
-      </div>
+      {/* Editable per-unit nutrition */}
+      <button
+        onClick={() => setEditNutrition((v) => !v)}
+        className="mt-1.5 flex w-full items-center gap-1 text-left text-[11px] text-zinc-400 hover:text-zinc-200"
+      >
+        <span className="font-medium text-emerald-300/90">{f.caloriesPerUnit}</span> cal / {unitLabel(f.unit)} · {onHandCals} cal on hand
+        <ChevronDown size={12} className={`ml-auto text-zinc-500 transition-transform ${editNutrition ? "rotate-180" : ""}`} />
+      </button>
+
+      {editNutrition && (
+        <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-2 text-[11px]">
+          <label className="col-span-2 flex items-center justify-between gap-2">
+            <span className="text-zinc-400">Calories / {unitLabel(f.unit)}</span>
+            <input type="number" min={0} value={f.caloriesPerUnit}
+              onChange={(e) => onNutrition({ caloriesPerUnit: Math.max(0, Number(e.target.value) || 0) })}
+              className="w-20 rounded-md field px-2 py-1 text-right" />
+          </label>
+          <label className="flex items-center justify-between gap-1">
+            <span className="text-rose-300/80">P g</span>
+            <input type="number" min={0} value={f.protein}
+              onChange={(e) => onNutrition({ protein: Math.max(0, Number(e.target.value) || 0) })}
+              className="w-14 rounded-md field px-2 py-1 text-right" />
+          </label>
+          <label className="flex items-center justify-between gap-1">
+            <span className="text-amber-300/80">C g</span>
+            <input type="number" min={0} value={f.carbs}
+              onChange={(e) => onNutrition({ carbs: Math.max(0, Number(e.target.value) || 0) })}
+              className="w-14 rounded-md field px-2 py-1 text-right" />
+          </label>
+          <label className="col-span-2 flex items-center justify-between gap-1">
+            <span className="text-sky-300/80">F g</span>
+            <input type="number" min={0} value={f.fat}
+              onChange={(e) => onNutrition({ fat: Math.max(0, Number(e.target.value) || 0) })}
+              className="w-14 rounded-md field px-2 py-1 text-right" />
+          </label>
+          <p className="col-span-2 text-[10px] leading-4 text-zinc-500">Per {unitLabel(f.unit)}. Updates calories in the cookbook &amp; planner instantly.</p>
+        </div>
+      )}
 
       {/* Interactive slider — drag to change quantity */}
       <input

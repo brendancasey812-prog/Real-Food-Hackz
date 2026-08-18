@@ -21,6 +21,7 @@ interface Totals extends Macros {
 interface AppState extends AppData {
   setInventory: (foodId: string, quantity: number) => void;
   addFood: (food: Food, startQty?: number) => void;
+  updateFood: (foodId: string, patch: Partial<Food>) => void;
   removeFood: (foodId: string) => void;
   addRecipe: (recipe: Recipe, newFoods?: Food[]) => void;
   updateRecipe: (recipe: Recipe) => void;
@@ -78,6 +79,11 @@ export const useApp = create<AppState>()(
             inventory: [...s.inventory, { foodId: food.id, quantity: Math.max(0, startQty) }],
           };
         }),
+
+      updateFood: (foodId, patch) =>
+        set((s) => ({
+          foods: s.foods.map((f) => (f.id === foodId ? { ...f, ...patch } : f)),
+        })),
 
       addRecipe: (recipe, newFoods = []) =>
         set((s) => {
