@@ -23,6 +23,7 @@ interface AppState extends AppData {
   addFood: (food: Food, startQty?: number) => void;
   removeFood: (foodId: string) => void;
   addRecipe: (recipe: Recipe, newFoods?: Food[]) => void;
+  updateRecipe: (recipe: Recipe) => void;
   removeRecipe: (id: string) => void;
   addPlannedMeal: (meal: PlannedMeal) => void;
   updatePlannedMeal: (id: string, patch: Partial<PlannedMeal>) => void;
@@ -92,6 +93,11 @@ export const useApp = create<AppState>()(
             recipes: [...s.recipes, recipe],
           };
         }),
+
+      updateRecipe: (recipe) =>
+        set((s) => ({
+          recipes: s.recipes.map((r) => (r.id === recipe.id ? recipe : r)),
+        })),
 
       removeRecipe: (id) =>
         set((s) => ({

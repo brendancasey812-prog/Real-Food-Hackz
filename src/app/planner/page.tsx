@@ -22,6 +22,7 @@ import {
   MEAL_COLOR, EVENT_COLOR, mealStart, mealEnd, snapHour,
   START_HOUR, END_HOUR, HOUR_PX, formatHour, clockLabel,
 } from "@/lib/mealtime";
+import { MealDetailModal } from "@/components/MealDetailModal";
 import type { MealType, PlannedMeal, CalendarEvent, Recipe, Food } from "@/lib/types";
 
 type View = "day" | "week" | "month" | "year";
@@ -36,6 +37,7 @@ export default function Planner() {
   const [view, setView] = useState<View>("week");
   const [anchor, setAnchor] = useState<Date>(new Date());
   const [picking, setPicking] = useState<{ iso: string; hour: number | null; durH: number } | null>(null);
+  const [openMealId, setOpenMealId] = useState<string | null>(null);
 
   const shift = (dir: number) => {
     if (view === "day") setAnchor((a) => addDays(a, dir));
@@ -67,6 +69,7 @@ export default function Planner() {
   const gridProps = {
     recipes, foods, dayMeals, dayEvents,
     onEmpty: (iso: string, hour: number, durH: number) => setPicking({ iso, hour, durH }),
+    onOpenMeal: (id: string) => setOpenMealId(id),
     onRemoveMeal: removePlannedMeal,
     onRemoveEvent: removeEvent,
     onMoveItem: moveItem,
@@ -148,6 +151,8 @@ export default function Planner() {
           }}
         />
       )}
+
+      {openMealId && <MealDetailModal mealId={openMealId} onClose={() => setOpenMealId(null)} />}
     </div>
   );
 }
@@ -213,7 +218,7 @@ function layoutOverlaps(items: Block[]): Block[] {
 }
 
 function TimeGrid({
-  days, recipes, foods, dayMeals, dayEvents, onEmpty, onRemoveMeal, onRemoveEvent, onMoveItem,
+  days, recipes, foods, dayMeals, dayEvents, onEmpty, onOpenMeal, onRemoveMeal, onRemoveEvent, onMoveItem,
 }: {
   days: Date[];
   recipes: Recipe[];
@@ -221,6 +226,7 @@ function TimeGrid({
   dayMeals: (iso: string) => PlannedMeal[];
   dayEvents: (iso: string) => CalendarEvent[];
   onEmpty: (iso: string, hour: number, durH: number) => void;
+  onOpenMeal: (id: string) => void;
   onRemoveMeal: (id: string) => void;
   onRemoveEvent: (id: string) => void;
   onMoveItem: (kind: ItemKind, id: string, date: string, start: number, end: number) => void;
@@ -438,6 +444,7 @@ function TimeGrid({
                       key={b.key} top={top} height={height} leftPct={b.left} widthPct={b.width}
                       block={b.block} dim={preview?.id === b.id} title={b.title} sub={b.sub}
                       onRemove={b.onRemove}
+                      onOpen={b.kind === "meal" ? () => { if (!skipClickRef.current) onOpenMeal(b.id); } : undefined}
                       onMoveDown={(e) => startMove(e, b.kind, b.id, b.start, b.end, b.block, b.title)}
                       onResizeDown={(e) => startResize(e, b.kind, b.id, b.start, b.end, b.block, b.title)}
                     />
@@ -460,7 +467,7 @@ function TimeGrid({
         </div>
       </div>
       <div className="border-t border-white/[0.07] px-4 py-2 text-center text-[11px] text-zinc-500">
-        Click or drag on the grid to add · drag a block to move · drag its bottom edge to resize
+        Click a meal to see its ingredients · drag to move · drag the bottom edge to resize · drag empty space to add
       </div>
     </div>
   );
@@ -468,19 +475,20 @@ function TimeGrid({
 
 // A single draggable/resizable calendar block.
 function EventBlock({
-  top, height, leftPct, widthPct, block, dim, title, sub, onRemove, onMoveDown, onResizeDown,
+  top, height, leftPct, widthPct, block, dim, title, sub, onRemove, onOpen, onMoveDown, onResizeDown,
 }: {
   top: number; height: number; leftPct: number; widthPct: number; block: string; dim: boolean;
   title: string; sub: string;
   onRemove: () => void;
+  onOpen?: () => void;
   onMoveDown: (e: React.PointerEvent) => void;
   onResizeDown: (e: React.PointerEvent) => void;
 }) {
   return (
     <div
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => { e.stopPropagation(); onOpen?.(); }}
       onPointerDown={onMoveDown}
-      className={`group absolute z-10 cursor-grab touch-none select-none overflow-hidden rounded-md px-1.5 py-1 text-[11px] shadow-md transition-opacity active:cursor-grabbing ${block} ${dim ? "opacity-30" : ""}`}
+      className={`group absolute z-10 touch-none select-none overflow-hidden rounded-md px-1.5 py-1 text-[11px] shadow-md transition-opacity active:cursor-grabbing ${onOpen ? "cursor-pointer" : "cursor-grab"} ${block} ${dim ? "opacity-30" : ""}`}
       style={{ top, height, left: `calc(${leftPct * 100}% + 1px)`, width: `calc(${widthPct * 100}% - 2px)` }}
     >
       <div className="flex items-start justify-between gap-1">
