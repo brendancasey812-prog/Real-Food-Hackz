@@ -24,6 +24,7 @@ import {
 } from "@/lib/mealtime";
 import { MealDetailModal } from "@/components/MealDetailModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { SearchFilterBar } from "@/components/SearchFilterBar";
 import type { MealType, PlannedMeal, CalendarEvent, Recipe, Food } from "@/lib/types";
 
 type View = "day" | "week" | "month" | "year";
@@ -40,6 +41,9 @@ export default function Planner() {
   const [picking, setPicking] = useState<{ iso: string; hour: number | null; durH: number } | null>(null);
   const [openMealId, setOpenMealId] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<{ kind: "meal" | "event"; id: string; name: string } | null>(null);
+  const [search, setSearch] = useState("");
+  const [mealFilter, setMealFilter] = useState("all");
+  const q = search.trim().toLowerCase();
 
   const shift = (dir: number) => {
     if (view === "day") setAnchor((a) => addDays(a, dir));
@@ -69,7 +73,7 @@ export default function Planner() {
   };
 
   const gridProps = {
-    recipes, foods, dayMeals, dayEvents,
+    recipes, foods, dayMeals, dayEvents, query: q, mealFilter,
     onEmpty: (iso: string, hour: number, durH: number) => setPicking({ iso, hour, durH }),
     onOpenMeal: (id: string) => setOpenMealId(id),
     onRemoveMeal: (id: string) => {
@@ -131,9 +135,22 @@ export default function Planner() {
         </div>
       </header>
 
+      <SearchFilterBar
+        query={search}
+        onQuery={setSearch}
+        placeholder="Search meals & events…"
+        value={mealFilter}
+        onValue={setMealFilter}
+        options={[
+          { value: "all", label: "All items" },
+          ...MEAL_ORDER.map((m) => ({ value: m, label: MEAL_LABEL[m] })),
+          { value: "event", label: "Events" },
+        ]}
+      />
+
       {view === "day" && <TimeGrid days={[anchor]} {...gridProps} />}
       {view === "week" && <TimeGrid days={weekDays(anchor)} {...gridProps} />}
-      {view === "month" && <MonthView anchor={anchor} recipes={recipes} events={events ?? []} dayMeals={dayMeals} onOpenDay={openDay} onAdd={(iso) => setPicking({ iso, hour: null, durH: 1 })} />}
+      {view === "month" && <MonthView anchor={anchor} recipes={recipes} events={events ?? []} dayMeals={dayMeals} query={q} mealFilter={mealFilter} onOpenDay={openDay} onAdd={(iso) => setPicking({ iso, hour: null, durH: 1 })} />}
       {view === "year" && <YearView anchor={anchor} plan={plan} events={events ?? []} onOpenDay={openDay} onOpenMonth={(d) => { setAnchor(d); setView("month"); }} />}
 
       {picking && (
@@ -208,6 +225,7 @@ interface Block {
   key: string; kind: ItemKind; id: string;
   start: number; end: number; block: string; title: string; sub: string;
   onRemove: () => void;
+  dimmed: boolean; // faded because it doesn't match the active search/filter
   left: number; width: number; // fractions [0,1], filled by layoutOverlaps
 }
 
@@ -241,19 +259,22 @@ function layoutOverlaps(items: Block[]): Block[] {
 }
 
 function TimeGrid({
-  days, recipes, foods, dayMeals, dayEvents, onEmpty, onOpenMeal, onRemoveMeal, onRemoveEvent, onMoveItem,
+  days, recipes, foods, dayMeals, dayEvents, query, mealFilter, onEmpty, onOpenMeal, onRemoveMeal, onRemoveEvent, onMoveItem,
 }: {
   days: Date[];
   recipes: Recipe[];
   foods: Food[];
   dayMeals: (iso: string) => PlannedMeal[];
   dayEvents: (iso: string) => CalendarEvent[];
+  query: string;
+  mealFilter: string;
   onEmpty: (iso: string, hour: number, durH: number) => void;
   onOpenMeal: (id: string) => void;
   onRemoveMeal: (id: string) => void;
   onRemoveEvent: (id: string) => void;
   onMoveItem: (kind: ItemKind, id: string, date: string, start: number, end: number) => void;
 }) {
+  const filterOn = query !== "" || mealFilter !== "all";
   const hours: number[] = [];
   for (let h = START_HOUR; h <= END_HOUR; h++) hours.push(h);
   const gridHeight = (END_HOUR - START_HOUR) * HOUR_PX;
@@ -443,20 +464,24 @@ function TimeGrid({
 
                 {/* Events + meals, laid out side-by-side where they overlap */}
                 {layoutOverlaps([
-                  ...evs.map((ev): Block => ({
-                    key: ev.id, kind: "event", id: ev.id, start: ev.start, end: ev.end,
-                    block: EVENT_COLOR.block, title: ev.title, sub: `${clockLabel(ev.start)} – ${clockLabel(ev.end)}`,
-                    onRemove: () => onRemoveEvent(ev.id), left: 0, width: 1,
-                  })),
+                  ...evs.map((ev): Block => {
+                    const matches = (query ? ev.title.toLowerCase().includes(query) : true) && (mealFilter === "all" || mealFilter === "event");
+                    return {
+                      key: ev.id, kind: "event", id: ev.id, start: ev.start, end: ev.end,
+                      block: EVENT_COLOR.block, title: ev.title, sub: `${clockLabel(ev.start)} – ${clockLabel(ev.end)}`,
+                      onRemove: () => onRemoveEvent(ev.id), dimmed: filterOn && !matches, left: 0, width: 1,
+                    };
+                  }),
                   ...meals.map((m): Block | null => {
                     const r = recipes.find((x) => x.id === m.recipeId);
                     if (!r) return null;
                     const start = mealStart(m), end = mealEnd(m);
                     const cal = recipeTotalsPerServing(r, foods, recipes).calories * m.servings;
+                    const matches = (query ? r.name.toLowerCase().includes(query) : true) && (mealFilter === "all" || m.mealType === mealFilter);
                     return {
                       key: m.id, kind: "meal", id: m.id, start, end,
                       block: MEAL_COLOR[m.mealType].block, title: `${r.emoji} ${r.name}`, sub: `${clockLabel(start)} · ${cal} cal`,
-                      onRemove: () => onRemoveMeal(m.id), left: 0, width: 1,
+                      onRemove: () => onRemoveMeal(m.id), dimmed: filterOn && !matches, left: 0, width: 1,
                     };
                   }).filter((b): b is Block => b !== null),
                 ]).map((b) => {
@@ -465,7 +490,7 @@ function TimeGrid({
                   return (
                     <EventBlock
                       key={b.key} top={top} height={height} leftPct={b.left} widthPct={b.width}
-                      block={b.block} dim={preview?.id === b.id} title={b.title} sub={b.sub}
+                      block={b.block} dim={preview?.id === b.id || b.dimmed} title={b.title} sub={b.sub}
                       onRemove={b.onRemove}
                       onOpen={b.kind === "meal" ? () => { if (!skipClickRef.current) onOpenMeal(b.id); } : undefined}
                       onMoveDown={(e) => startMove(e, b.kind, b.id, b.start, b.end, b.block, b.title)}
@@ -535,17 +560,25 @@ function EventBlock({
 // ---------- Month view ----------
 
 function MonthView({
-  anchor, recipes, events, dayMeals, onOpenDay, onAdd,
+  anchor, recipes, events, dayMeals, query, mealFilter, onOpenDay, onAdd,
 }: {
   anchor: Date;
   recipes: Recipe[];
   events: CalendarEvent[];
   dayMeals: (iso: string) => PlannedMeal[];
+  query: string;
+  mealFilter: string;
   onOpenDay: (d: Date) => void;
   onAdd: (iso: string) => void;
 }) {
   const weeks = monthGrid(anchor);
   const dow = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const mealMatches = (m: PlannedMeal) => {
+    const r = recipes.find((x) => x.id === m.recipeId);
+    return (query ? !!r && r.name.toLowerCase().includes(query) : true) && (mealFilter === "all" || m.mealType === mealFilter);
+  };
+  const eventMatches = (e: CalendarEvent) =>
+    (query ? e.title.toLowerCase().includes(query) : true) && (mealFilter === "all" || mealFilter === "event");
   return (
     <div className="overflow-hidden rounded-2xl card">
       <div className="grid grid-cols-7 border-b border-white/[0.07]">
@@ -557,8 +590,8 @@ function MonthView({
         {weeks.flat().map((d, i) => {
           const iso = isoOf(d);
           const inMonth = isSameMonth(d, anchor);
-          const meals = dayMeals(iso);
-          const evs = events.filter((e) => e.date === iso);
+          const meals = dayMeals(iso).filter(mealMatches);
+          const evs = events.filter((e) => e.date === iso).filter(eventMatches);
           const items = meals.length + evs.length;
           return (
             <div

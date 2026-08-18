@@ -10,6 +10,7 @@ import { AddFoodModal } from "@/components/AddFoodModal";
 import { ScanReceiptModal } from "@/components/ScanReceiptModal";
 import { ConversionsModal } from "@/components/ConversionsModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { SearchFilterBar } from "@/components/SearchFilterBar";
 import type { Food, Location, Unit } from "@/lib/types";
 
 const SECTIONS: { key: Location; title: string; icon: string; tint: string }[] = [
@@ -27,6 +28,9 @@ export default function Kitchen() {
   const [editMode, setEditMode] = useState(false);
   const [hidden, setHidden] = useState<Set<Location>>(new Set());
   const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  const [locFilter, setLocFilter] = useState("all");
+  const q = search.trim().toLowerCase();
 
   const days = weekDays(new Date()).map(isoOf);
   const need = neededQuantities(plan.filter((m) => days.includes(m.date)), recipes);
@@ -78,10 +82,20 @@ export default function Kitchen() {
         </div>
       )}
 
+      <SearchFilterBar
+        query={search}
+        onQuery={setSearch}
+        placeholder="Search foods…"
+        value={locFilter}
+        onValue={setLocFilter}
+        options={[{ value: "all", label: "All locations" }, ...SECTIONS.map((s) => ({ value: s.key, label: s.title }))]}
+      />
+
       <div className="space-y-6">
-        {SECTIONS.map((section) => {
-          const sectionFoods = foods.filter((f) => f.location === section.key);
-          const collapsed = hidden.has(section.key);
+        {SECTIONS.filter((section) => locFilter === "all" || section.key === locFilter).map((section) => {
+          const sectionFoods = foods.filter((f) => f.location === section.key && (q ? f.name.toLowerCase().includes(q) : true));
+          if (q && sectionFoods.length === 0) return null;
+          const collapsed = !q && hidden.has(section.key);
           return (
             <section key={section.key} className={`rounded-2xl border border-white/10 bg-gradient-to-b p-5 ${section.tint}`}>
               <div className="flex items-center justify-between">
@@ -108,7 +122,7 @@ export default function Kitchen() {
                       const catFoods = sectionFoods.filter((f) => f.category === cat.key);
                       if (catFoods.length === 0) return null;
                       const catKey = `${section.key}:${cat.key}`;
-                      const catCollapsed = collapsedCats.has(catKey);
+                      const catCollapsed = !q && collapsedCats.has(catKey);
                       return (
                         <div key={cat.key}>
                           <div className="mb-2 flex items-center justify-between">

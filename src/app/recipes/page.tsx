@@ -17,6 +17,7 @@ import { FOOD_CATEGORIES } from "@/lib/foodcat";
 import { MEAL_ORDER, MEAL_LABEL } from "@/lib/week";
 import { RecipeScanModal } from "@/components/RecipeScanModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { SearchFilterBar } from "@/components/SearchFilterBar";
 import type { Food, FoodCategory, Location, MealType, Recipe, RecipeComponent, Unit } from "@/lib/types";
 
 export default function Cookbook() {
@@ -29,6 +30,9 @@ export default function Cookbook() {
   const [filterMenu, setFilterMenu] = useState(false);
   const [visible, setVisible] = useState<Set<MealType>>(new Set(MEAL_ORDER));
   const [collapsed, setCollapsed] = useState<Set<MealType>>(new Set());
+  const [search, setSearch] = useState("");
+  const [secFilter, setSecFilter] = useState("all");
+  const q = search.trim().toLowerCase();
 
   const toggleMeal = (m: MealType) =>
     setVisible((s) => {
@@ -104,12 +108,21 @@ export default function Cookbook() {
         </div>
       </header>
 
+      <SearchFilterBar
+        query={search}
+        onQuery={setSearch}
+        placeholder="Search recipes…"
+        value={secFilter}
+        onValue={setSecFilter}
+        options={[{ value: "all", label: "All sections" }, ...MEAL_ORDER.map((m) => ({ value: m, label: MEAL_LABEL[m] }))]}
+      />
+
       {/* Grouped sections by meal */}
       <div className="space-y-8">
-        {MEAL_ORDER.filter((m) => visible.has(m)).map((meal) => {
-          const list = recipes.filter((r) => r.category === meal);
+        {MEAL_ORDER.filter((m) => visible.has(m) && (secFilter === "all" || secFilter === m)).map((meal) => {
+          const list = recipes.filter((r) => r.category === meal && (q ? r.name.toLowerCase().includes(q) : true));
           if (list.length === 0) return null;
-          const isCollapsed = collapsed.has(meal);
+          const isCollapsed = !q && collapsed.has(meal);
           return (
             <section key={meal}>
               <button
@@ -129,8 +142,8 @@ export default function Cookbook() {
             </section>
           );
         })}
-        {recipes.filter((r) => visible.has(r.category)).length === 0 && (
-          <p className="py-16 text-center text-sm text-zinc-500">No recipes in the selected sections.</p>
+        {recipes.filter((r) => visible.has(r.category) && (secFilter === "all" || secFilter === r.category) && (q ? r.name.toLowerCase().includes(q) : true)).length === 0 && (
+          <p className="py-16 text-center text-sm text-zinc-500">{q ? `No recipes match “${search}”.` : "No recipes in the selected sections."}</p>
         )}
       </div>
 
