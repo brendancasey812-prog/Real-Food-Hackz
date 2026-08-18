@@ -85,11 +85,20 @@ export interface RecipeIngredient {
   quantity: number;
 }
 
+/** A sub-recipe included inside another recipe (e.g. Mexican rice inside
+ *  Taco Tuesday). `servings` is how many servings of the sub-recipe are used. */
+export interface RecipeComponent {
+  recipeId: string;
+  servings: number;
+}
+
 export interface Recipe {
   id: string;
   name: string;
   servings: number;
   ingredients: RecipeIngredient[];
+  /** Other recipes folded into this one. Optional for backward compatibility. */
+  components?: RecipeComponent[];
   steps: string[];
   emoji: string;
   /** Which meal slot this recipe belongs to (groups the "add" picker). */

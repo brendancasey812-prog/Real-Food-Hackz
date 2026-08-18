@@ -23,6 +23,7 @@ import {
   START_HOUR, END_HOUR, HOUR_PX, formatHour, clockLabel,
 } from "@/lib/mealtime";
 import { MealDetailModal } from "@/components/MealDetailModal";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { MealType, PlannedMeal, CalendarEvent, Recipe, Food } from "@/lib/types";
 
 type View = "day" | "week" | "month" | "year";
@@ -38,6 +39,7 @@ export default function Planner() {
   const [anchor, setAnchor] = useState<Date>(new Date());
   const [picking, setPicking] = useState<{ iso: string; hour: number | null; durH: number } | null>(null);
   const [openMealId, setOpenMealId] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<{ kind: "meal" | "event"; id: string; name: string } | null>(null);
 
   const shift = (dir: number) => {
     if (view === "day") setAnchor((a) => addDays(a, dir));
@@ -70,8 +72,15 @@ export default function Planner() {
     recipes, foods, dayMeals, dayEvents,
     onEmpty: (iso: string, hour: number, durH: number) => setPicking({ iso, hour, durH }),
     onOpenMeal: (id: string) => setOpenMealId(id),
-    onRemoveMeal: removePlannedMeal,
-    onRemoveEvent: removeEvent,
+    onRemoveMeal: (id: string) => {
+      const m = plan.find((x) => x.id === id);
+      const r = recipes.find((x) => x.id === m?.recipeId);
+      setConfirmRemove({ kind: "meal", id, name: r?.name ?? "this meal" });
+    },
+    onRemoveEvent: (id: string) => {
+      const e = (events ?? []).find((x) => x.id === id);
+      setConfirmRemove({ kind: "event", id, name: e?.title ?? "this event" });
+    },
     onMoveItem: moveItem,
   };
 
@@ -153,6 +162,20 @@ export default function Planner() {
       )}
 
       {openMealId && <MealDetailModal mealId={openMealId} onClose={() => setOpenMealId(null)} />}
+
+      {confirmRemove && (
+        <ConfirmDialog
+          title={confirmRemove.kind === "meal" ? "Remove meal?" : "Remove event?"}
+          message={`“${confirmRemove.name}” will be removed from this day. ${confirmRemove.kind === "meal" ? "The recipe stays in your cookbook." : ""}`.trim()}
+          confirmLabel="Remove"
+          onConfirm={() => {
+            if (confirmRemove.kind === "meal") removePlannedMeal(confirmRemove.id);
+            else removeEvent(confirmRemove.id);
+            setConfirmRemove(null);
+          }}
+          onCancel={() => setConfirmRemove(null)}
+        />
+      )}
     </div>
   );
 }
@@ -429,7 +452,7 @@ function TimeGrid({
                     const r = recipes.find((x) => x.id === m.recipeId);
                     if (!r) return null;
                     const start = mealStart(m), end = mealEnd(m);
-                    const cal = recipeTotalsPerServing(r, foods).calories * m.servings;
+                    const cal = recipeTotalsPerServing(r, foods, recipes).calories * m.servings;
                     return {
                       key: m.id, kind: "meal", id: m.id, start, end,
                       block: MEAL_COLOR[m.mealType].block, title: `${r.emoji} ${r.name}`, sub: `${clockLabel(start)} · ${cal} cal`,
@@ -493,7 +516,7 @@ function EventBlock({
     >
       <div className="flex items-start justify-between gap-1">
         <span className="truncate font-semibold leading-tight">{title}</span>
-        <button onClick={onRemove} onPointerDown={(e) => e.stopPropagation()} className="shrink-0 opacity-0 transition group-hover:opacity-100" aria-label="Remove">
+        <button onClick={(e) => { e.stopPropagation(); onRemove(); }} onPointerDown={(e) => e.stopPropagation()} className="shrink-0 opacity-0 transition group-hover:opacity-100" aria-label="Remove">
           <X size={11} />
         </button>
       </div>
@@ -709,7 +732,7 @@ function AddModal({
               <div className="space-y-1">
                 {matches.length === 0 && <p className="px-2 py-6 text-center text-xs text-zinc-500">No recipes match “{query}”.</p>}
                 {matches.map((r) => {
-                  const cal = recipeTotalsPerServing(r, foods).calories;
+                  const cal = recipeTotalsPerServing(r, foods, recipes).calories;
                   const c = MEAL_COLOR[r.category];
                   return (
                     <button key={r.id} onClick={() => onPickMeal(r)} className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-emerald-500/10">
@@ -744,7 +767,7 @@ function AddModal({
                             <p className="px-2 py-3 text-center text-xs text-zinc-500">No recipes in this section yet.</p>
                           )}
                           {list.map((r) => {
-                            const cal = recipeTotalsPerServing(r, foods).calories;
+                            const cal = recipeTotalsPerServing(r, foods, recipes).calories;
                             return (
                               <button
                                 key={r.id}

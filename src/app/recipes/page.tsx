@@ -8,6 +8,7 @@ import {
   recipeTotalCalories,
   recipeTotalsPerServing,
   ingredientCalories,
+  componentCalories,
   foodById,
   newId,
 } from "@/lib/store";
@@ -15,11 +16,13 @@ import { UNITS, unitLabel, pluralUnit, fmtQty } from "@/lib/units";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
 import { MEAL_ORDER, MEAL_LABEL } from "@/lib/week";
 import { RecipeScanModal } from "@/components/RecipeScanModal";
-import type { Food, FoodCategory, Location, MealType, Recipe, Unit } from "@/lib/types";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import type { Food, FoodCategory, Location, MealType, Recipe, RecipeComponent, Unit } from "@/lib/types";
 
 export default function Cookbook() {
   const { recipes, foods, removeRecipe } = useApp();
   const [manualOpen, setManualOpen] = useState(false);
+  const [editRecipe, setEditRecipe] = useState<Recipe | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
   const [textOpen, setTextOpen] = useState(false);
   const [addMenu, setAddMenu] = useState(false);
@@ -120,7 +123,7 @@ export default function Cookbook() {
               </button>
               {!isCollapsed && (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {list.map((r) => <RecipeCard key={r.id} recipe={r} foods={foods} onRemove={() => removeRecipe(r.id)} />)}
+                  {list.map((r) => <RecipeCard key={r.id} recipe={r} foods={foods} recipes={recipes} onEdit={() => setEditRecipe(r)} onRemove={() => removeRecipe(r.id)} />)}
                 </div>
               )}
             </section>
@@ -132,21 +135,43 @@ export default function Cookbook() {
       </div>
 
       {manualOpen && <AddRecipeModal onClose={() => setManualOpen(false)} />}
+      {editRecipe && <AddRecipeModal recipe={editRecipe} onClose={() => setEditRecipe(null)} />}
       {scanOpen && <RecipeScanModal mode="photo" onClose={() => setScanOpen(false)} />}
       {textOpen && <RecipeScanModal mode="text" onClose={() => setTextOpen(false)} />}
     </div>
   );
 }
 
-function RecipeCard({ recipe: r, foods, onRemove }: { recipe: Recipe; foods: Food[]; onRemove: () => void }) {
-  const perServing = recipeCaloriesPerServing(r, foods);
-  const total = recipeTotalCalories(r, foods);
-  const m = recipeTotalsPerServing(r, foods);
+function RecipeCard({ recipe: r, foods, recipes, onEdit, onRemove }: { recipe: Recipe; foods: Food[]; recipes: Recipe[]; onEdit: () => void; onRemove: () => void }) {
+  const perServing = recipeCaloriesPerServing(r, foods, recipes);
+  const total = recipeTotalCalories(r, foods, recipes);
+  const m = recipeTotalsPerServing(r, foods, recipes);
+  const [menu, setMenu] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
   return (
     <div className="flex flex-col rounded-2xl card p-5">
       <div className="flex items-start justify-between">
         <span className="text-3xl">{r.emoji}</span>
-        <button onClick={onRemove} className="text-zinc-500 hover:text-rose-500" aria-label="Delete recipe"><Trash2 size={16} /></button>
+        {/* Hamburger menu (top-right) */}
+        <div className="relative">
+          <button onClick={() => setMenu((v) => !v)} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200" aria-label="Recipe menu">
+            <Menu size={16} />
+          </button>
+          {menu && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setMenu(false)} />
+              <div className="absolute right-0 z-40 mt-1 w-36 rounded-xl border border-white/10 bg-zinc-900 p-1 shadow-xl">
+                <button onClick={() => { setMenu(false); onEdit(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-200 hover:bg-emerald-500/10">
+                  <PenLine size={15} className="text-emerald-400" /> Edit
+                </button>
+                <button onClick={() => { setMenu(false); setConfirming(true); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-rose-300 hover:bg-rose-500/10">
+                  <Trash2 size={15} /> Delete
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
       <h3 className="mt-2 font-semibold">{r.name}</h3>
       <div className="mt-2 flex items-center gap-2">
@@ -161,6 +186,19 @@ function RecipeCard({ recipe: r, foods, onRemove }: { recipe: Recipe; foods: Foo
         <span className="rounded-md bg-sky-950/40 px-2 py-0.5 font-medium text-sky-300">F {m.fat}g</span>
       </div>
       <ul className="mt-3 space-y-1 text-sm text-zinc-400">
+        {(r.components ?? []).map((c) => {
+          const sub = recipes.find((x) => x.id === c.recipeId);
+          if (!sub) return null;
+          return (
+            <li key={`c-${c.recipeId}`} className="flex justify-between gap-2">
+              <span className="truncate font-medium text-emerald-300">{sub.emoji} {sub.name}</span>
+              <span className="shrink-0 text-zinc-400">
+                {fmtQty(c.servings)} serv ·{" "}
+                <span className="text-rose-400/80">{componentCalories(c, foods, recipes)} cal</span>
+              </span>
+            </li>
+          );
+        })}
         {r.ingredients.map((ing) => {
           const f = foodById(foods, ing.foodId);
           return (
@@ -174,6 +212,16 @@ function RecipeCard({ recipe: r, foods, onRemove }: { recipe: Recipe; foods: Foo
           );
         })}
       </ul>
+
+      {confirming && (
+        <ConfirmDialog
+          title="Delete recipe?"
+          message={`“${r.name}” will be permanently removed from your cookbook and any calendar days it’s planned on. This can’t be undone.`}
+          confirmLabel="Delete recipe"
+          onConfirm={() => { setConfirming(false); onRemove(); }}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
     </div>
   );
 }
@@ -279,24 +327,35 @@ const emptyRow = (foodId: string): Row => ({
   newCalories: 50, newProtein: 0, newCarbs: 0, newFat: 0, newLocation: "fridge", newCategory: "vegetable",
 });
 
-function AddRecipeModal({ onClose }: { onClose: () => void }) {
-  const { foods, addRecipe } = useApp();
-  const [name, setName] = useState("");
-  const [emoji, setEmoji] = useState("🍽️");
-  const [servings, setServings] = useState(1);
-  const [mealCat, setMealCat] = useState<MealType>("breakfast");
-  const [rows, setRows] = useState<Row[]>([emptyRow(foods[0]?.id ?? NEW)]);
-  const [steps, setSteps] = useState("");
+function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => void }) {
+  const { foods, recipes, addRecipe, updateRecipe, addFood } = useApp();
+  const editing = !!recipe;
+  const [name, setName] = useState(recipe?.name ?? "");
+  const [emoji, setEmoji] = useState(recipe?.emoji ?? "🍽️");
+  const [servings, setServings] = useState(recipe?.servings ?? 1);
+  const [mealCat, setMealCat] = useState<MealType>(recipe?.category ?? "breakfast");
+  const [rows, setRows] = useState<Row[]>(
+    recipe && recipe.ingredients.length
+      ? recipe.ingredients.map((ing) => ({ ...emptyRow(ing.foodId), quantity: ing.quantity }))
+      : [emptyRow(foods[0]?.id ?? NEW)],
+  );
+  const [components, setComponents] = useState<RecipeComponent[]>(recipe?.components ?? []);
+  const [steps, setSteps] = useState((recipe?.steps ?? []).join("\n"));
 
   const update = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
+  // Recipes that can be folded in: everything except this one and ones already added.
+  const availableRecipes = recipes.filter((r) => r.id !== recipe?.id && !components.some((c) => c.recipeId === r.id));
+
   const { total, perServing } = useMemo(() => {
-    const t = rows.reduce((sum, row) => {
+    const ingT = rows.reduce((sum, row) => {
       const calPerUnit = row.foodId === NEW ? row.newCalories : foodById(foods, row.foodId)?.caloriesPerUnit ?? 0;
       return sum + calPerUnit * row.quantity;
     }, 0);
+    const compT = components.reduce((sum, c) => sum + componentCalories(c, foods, recipes), 0);
+    const t = ingT + compT;
     return { total: Math.round(t), perServing: Math.round(t / Math.max(1, servings)) };
-  }, [rows, servings, foods]);
+  }, [rows, components, servings, foods, recipes]);
 
   const save = () => {
     if (!name.trim()) return;
@@ -319,11 +378,21 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
       })
       .filter((x): x is { foodId: string; quantity: number } => x !== null);
 
-    if (ingredients.length === 0) return;
-    addRecipe(
-      { id: newId(), name: name.trim(), emoji, servings: Math.max(1, servings), ingredients, steps: steps.split("\n").map((s) => s.trim()).filter(Boolean), category: mealCat },
-      newFoods,
-    );
+    if (ingredients.length === 0 && components.length === 0) return;
+    const built: Recipe = {
+      id: recipe?.id ?? newId(),
+      name: name.trim(), emoji, servings: Math.max(1, servings),
+      ingredients,
+      components: components.length ? components : undefined,
+      steps: steps.split("\n").map((s) => s.trim()).filter(Boolean),
+      category: mealCat,
+    };
+    if (editing) {
+      newFoods.forEach((f) => addFood(f, 0));
+      updateRecipe(built);
+    } else {
+      addRecipe(built, newFoods);
+    }
     onClose();
   };
 
@@ -331,7 +400,7 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-0 md:items-center md:p-4">
       <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-white/10 bg-zinc-950/95 p-6 md:rounded-2xl">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">New recipe</h2>
+          <h2 className="text-lg font-semibold">{editing ? "Edit recipe" : "New recipe"}</h2>
           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200"><X size={20} /></button>
         </div>
 
@@ -352,6 +421,41 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
                 {MEAL_ORDER.map((mt) => <option key={mt} value={mt}>{MEAL_LABEL[mt]}</option>)}
               </select>
             </label>
+          </div>
+
+          {/* Include other recipes (sub-recipes) */}
+          <div>
+            <div className="mb-2 text-sm font-medium text-zinc-400">Include a recipe</div>
+            <div className="space-y-2">
+              {components.map((c, i) => {
+                const sub = recipes.find((r) => r.id === c.recipeId);
+                return (
+                  <div key={c.recipeId} className="flex items-center gap-2 rounded-xl border border-white/10 p-2 text-sm">
+                    <span className="min-w-0 flex-1 truncate">{sub?.emoji} {sub?.name ?? "Unknown recipe"}</span>
+                    <input
+                      type="number" min={0.5} step={0.5} value={c.servings}
+                      onChange={(e) => { const v = Math.max(0.5, Number(e.target.value) || 0.5); setComponents((cs) => cs.map((x, idx) => (idx === i ? { ...x, servings: v } : x))); }}
+                      className="w-16 rounded-lg field px-2 py-1 text-right text-sm"
+                    />
+                    <span className="w-12 shrink-0 text-xs text-zinc-500">serv.</span>
+                    <span className="w-14 shrink-0 text-right text-xs text-rose-400/80">{componentCalories(c, foods, recipes)} cal</span>
+                    <button onClick={() => setComponents((cs) => cs.filter((_, idx) => idx !== i))} className="shrink-0 text-zinc-500 hover:text-rose-400" aria-label="Remove recipe"><Trash2 size={14} /></button>
+                  </div>
+                );
+              })}
+              {availableRecipes.length > 0 ? (
+                <select
+                  value=""
+                  onChange={(e) => { if (e.target.value) setComponents((cs) => [...cs, { recipeId: e.target.value, servings: 1 }]); }}
+                  className="w-full rounded-lg field px-2 py-2 text-sm"
+                >
+                  <option value="">➕ Add a recipe to this meal…</option>
+                  {availableRecipes.map((r) => <option key={r.id} value={r.id}>{r.emoji} {r.name}</option>)}
+                </select>
+              ) : (
+                <p className="text-xs text-zinc-500">No other recipes available to include.</p>
+              )}
+            </div>
           </div>
 
           <div>
@@ -416,7 +520,7 @@ function AddRecipeModal({ onClose }: { onClose: () => void }) {
             <span className="text-rose-400/70">{total} cal total</span>
           </div>
 
-          <button onClick={save} className="w-full rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 py-3 font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110">Save recipe</button>
+          <button onClick={save} className="w-full rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 py-3 font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110">{editing ? "Save changes" : "Save recipe"}</button>
         </div>
       </div>
     </div>

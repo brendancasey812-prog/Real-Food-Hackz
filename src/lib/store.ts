@@ -250,40 +250,72 @@ export function ingredientCalories(
   return food ? Math.round(food.caloriesPerUnit * ing.quantity) : 0;
 }
 
-/** Total calories for the whole recipe (all servings). */
-export function recipeTotalCalories(recipe: Recipe, foods: Food[]): number {
-  return recipe.ingredients.reduce(
-    (sum, ing) => sum + ingredientCalories(ing, foods),
-    0,
-  );
+/** Raw (unrounded) macro+calorie totals for the WHOLE recipe (all servings),
+ *  expanding any sub-recipe components. `seen` guards against cycles. */
+function grossTotals(
+  recipe: Recipe,
+  foods: Food[],
+  recipes: Recipe[],
+  seen: Set<string>,
+): Totals {
+  const acc = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+  for (const ing of recipe.ingredients) {
+    const food = foodById(foods, ing.foodId);
+    if (!food) continue;
+    acc.calories += food.caloriesPerUnit * ing.quantity;
+    acc.protein += food.protein * ing.quantity;
+    acc.carbs += food.carbs * ing.quantity;
+    acc.fat += food.fat * ing.quantity;
+  }
+  for (const comp of recipe.components ?? []) {
+    if (seen.has(comp.recipeId) || comp.recipeId === recipe.id) continue;
+    const sub = recipes.find((r) => r.id === comp.recipeId);
+    if (!sub) continue;
+    const per = perServingRaw(sub, foods, recipes, new Set(seen).add(recipe.id));
+    acc.calories += per.calories * comp.servings;
+    acc.protein += per.protein * comp.servings;
+    acc.carbs += per.carbs * comp.servings;
+    acc.fat += per.fat * comp.servings;
+  }
+  return acc;
 }
 
-/** Calories for one serving of a recipe, derived from its ingredients. */
-export function recipeCaloriesPerServing(recipe: Recipe, foods: Food[]): number {
-  return Math.round(recipeTotalCalories(recipe, foods) / recipe.servings);
-}
-
-/** Full macro + calorie totals for one serving of a recipe. */
-export function recipeTotalsPerServing(recipe: Recipe, foods: Food[]): Totals {
-  const t = recipe.ingredients.reduce(
-    (acc, ing) => {
-      const food = foodById(foods, ing.foodId);
-      if (!food) return acc;
-      acc.calories += food.caloriesPerUnit * ing.quantity;
-      acc.protein += food.protein * ing.quantity;
-      acc.carbs += food.carbs * ing.quantity;
-      acc.fat += food.fat * ing.quantity;
-      return acc;
-    },
-    { calories: 0, protein: 0, carbs: 0, fat: 0 },
-  );
+function perServingRaw(recipe: Recipe, foods: Food[], recipes: Recipe[], seen: Set<string>): Totals {
+  const g = grossTotals(recipe, foods, recipes, seen);
   const s = recipe.servings || 1;
+  return { calories: g.calories / s, protein: g.protein / s, carbs: g.carbs / s, fat: g.fat / s };
+}
+
+/** Total calories for the whole recipe (all servings), including sub-recipes. */
+export function recipeTotalCalories(recipe: Recipe, foods: Food[], recipes: Recipe[] = []): number {
+  return Math.round(grossTotals(recipe, foods, recipes, new Set()).calories);
+}
+
+/** Calories for one serving of a recipe, including sub-recipes. */
+export function recipeCaloriesPerServing(recipe: Recipe, foods: Food[], recipes: Recipe[] = []): number {
+  return Math.round(perServingRaw(recipe, foods, recipes, new Set()).calories);
+}
+
+/** Full macro + calorie totals for one serving of a recipe, including sub-recipes. */
+export function recipeTotalsPerServing(recipe: Recipe, foods: Food[], recipes: Recipe[] = []): Totals {
+  const p = perServingRaw(recipe, foods, recipes, new Set());
   return {
-    calories: Math.round(t.calories / s),
-    protein: Math.round(t.protein / s),
-    carbs: Math.round(t.carbs / s),
-    fat: Math.round(t.fat / s),
+    calories: Math.round(p.calories),
+    protein: Math.round(p.protein),
+    carbs: Math.round(p.carbs),
+    fat: Math.round(p.fat),
   };
+}
+
+/** Calories contributed by one sub-recipe component (per-serving × servings). */
+export function componentCalories(
+  comp: { recipeId: string; servings: number },
+  foods: Food[],
+  recipes: Recipe[],
+): number {
+  const sub = recipes.find((r) => r.id === comp.recipeId);
+  if (!sub) return 0;
+  return Math.round(recipeCaloriesPerServing(sub, foods, recipes) * comp.servings);
 }
 
 /** Combined calorie + macro totals for a set of planned meals. */
@@ -296,7 +328,7 @@ export function plannedTotals(
   for (const meal of meals) {
     const recipe = recipes.find((r) => r.id === meal.recipeId);
     if (!recipe) continue;
-    const per = recipeTotalsPerServing(recipe, foods);
+    const per = recipeTotalsPerServing(recipe, foods, recipes);
     acc.calories += per.calories * meal.servings;
     acc.protein += per.protein * meal.servings;
     acc.carbs += per.carbs * meal.servings;
@@ -305,19 +337,29 @@ export function plannedTotals(
   return acc;
 }
 
-/** Total quantity of each food required by a set of planned meals. */
+/** Total quantity of each food required by a set of planned meals — sub-recipe
+ *  components are expanded down to their underlying foods. */
 export function neededQuantities(
   meals: PlannedMeal[],
   recipes: Recipe[],
 ): Record<string, number> {
   const need: Record<string, number> = {};
-  for (const meal of meals) {
-    const recipe = recipes.find((r) => r.id === meal.recipeId);
-    if (!recipe) continue;
-    const factor = meal.servings / recipe.servings;
+  const addRecipe = (recipe: Recipe, factor: number, seen: Set<string>) => {
     for (const ing of recipe.ingredients) {
       need[ing.foodId] = (need[ing.foodId] ?? 0) + ing.quantity * factor;
     }
+    for (const comp of recipe.components ?? []) {
+      if (seen.has(comp.recipeId) || comp.recipeId === recipe.id) continue;
+      const sub = recipes.find((r) => r.id === comp.recipeId);
+      if (!sub) continue;
+      const subFactor = (comp.servings * factor) / (sub.servings || 1);
+      addRecipe(sub, subFactor, new Set(seen).add(recipe.id));
+    }
+  };
+  for (const meal of meals) {
+    const recipe = recipes.find((r) => r.id === meal.recipeId);
+    if (!recipe) continue;
+    addRecipe(recipe, meal.servings / (recipe.servings || 1), new Set());
   }
   return need;
 }

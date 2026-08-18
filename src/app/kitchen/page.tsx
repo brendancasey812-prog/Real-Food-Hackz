@@ -9,6 +9,7 @@ import { FOOD_CATEGORIES } from "@/lib/foodcat";
 import { AddFoodModal } from "@/components/AddFoodModal";
 import { ScanReceiptModal } from "@/components/ScanReceiptModal";
 import { ConversionsModal } from "@/components/ConversionsModal";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { Food, Location, Unit } from "@/lib/types";
 
 const SECTIONS: { key: Location; title: string; icon: string; tint: string }[] = [
@@ -174,13 +175,23 @@ function FoodTile({
   const onHandCals = Math.round(have * f.caloriesPerUnit);
   const step = stepFor(f.unit);
   const sliderMax = Math.max(SLIDER_MAX[f.unit], Math.ceil(have * 1.5), Math.ceil(need * 1.5), step);
+  const [confirmDel, setConfirmDel] = useState(false);
 
   return (
     <div className="relative rounded-xl card p-3">
       {editMode && (
-        <button onClick={onDelete} aria-label={`Delete ${f.name}`} className="absolute -left-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-white shadow-lg hover:bg-rose-500">
+        <button onClick={() => setConfirmDel(true)} aria-label={`Delete ${f.name}`} className="absolute -left-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-white shadow-lg hover:bg-rose-500">
           <X size={13} />
         </button>
+      )}
+      {confirmDel && (
+        <ConfirmDialog
+          title="Delete food?"
+          message={`“${f.name}” will be removed from your kitchen, recipes, and grocery list. This can’t be undone.`}
+          confirmLabel="Delete food"
+          onConfirm={() => { setConfirmDel(false); onDelete(); }}
+          onCancel={() => setConfirmDel(false)}
+        />
       )}
 
       <div className="flex items-center justify-between gap-2">

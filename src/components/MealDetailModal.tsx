@@ -3,18 +3,19 @@
 import { useState } from "react";
 import { X, Pencil, Flame, Trash2, Plus, Search, Check, ArrowLeft } from "lucide-react";
 import {
-  useApp, newId, foodById, ingredientCalories,
+  useApp, newId, foodById, ingredientCalories, componentCalories,
 } from "@/lib/store";
 import { pluralUnit, fmtQty } from "@/lib/units";
 import { mealStart, clockLabel } from "@/lib/mealtime";
 import { MEAL_LABEL } from "@/lib/week";
-import type { Food, RecipeIngredient } from "@/lib/types";
+import type { Food, RecipeIngredient, RecipeComponent } from "@/lib/types";
 
 interface Draft {
   name: string;
   emoji: string;
   servings: number;
   ingredients: RecipeIngredient[];
+  components: RecipeComponent[];
 }
 
 export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: () => void }) {
@@ -39,6 +40,7 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
       emoji: recipe.emoji,
       servings: recipe.servings,
       ingredients: recipe.ingredients.map((i) => ({ ...i })),
+      components: (recipe.components ?? []).map((c) => ({ ...c })),
     });
     setEditing(true);
   };
@@ -55,23 +57,33 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
       ? { ...d, ingredients: [...d.ingredients, { foodId, quantity: 1 }] } : d));
     setAdding(false); setQuery("");
   };
+  const setCompServings = (i: number, s: number) =>
+    setDraft((d) => (d ? { ...d, components: d.components.map((c, idx) => (idx === i ? { ...c, servings: s } : c)) } : d));
+  const removeComp = (i: number) =>
+    setDraft((d) => (d ? { ...d, components: d.components.filter((_, idx) => idx !== i) } : d));
+  const addComp = (recipeId: string) =>
+    setDraft((d) => (d && !d.components.some((c) => c.recipeId === recipeId)
+      ? { ...d, components: [...d.components, { recipeId, servings: 1 }] } : d));
 
   const saveExisting = () => {
     if (!draft) return;
-    updateRecipe({ ...recipe, name: draft.name.trim() || recipe.name, emoji: draft.emoji || "🍽️", servings: Math.max(1, draft.servings), ingredients: draft.ingredients });
+    updateRecipe({ ...recipe, name: draft.name.trim() || recipe.name, emoji: draft.emoji || "🍽️", servings: Math.max(1, draft.servings), ingredients: draft.ingredients, components: draft.components.length ? draft.components : undefined });
     onClose();
   };
   const saveAsNew = () => {
     if (!draft) return;
     const id = newId();
-    addRecipe({ id, name: (draft.name.trim() || recipe.name), emoji: draft.emoji || "🍽️", servings: Math.max(1, draft.servings), ingredients: draft.ingredients, steps: recipe.steps, category: recipe.category });
+    addRecipe({ id, name: (draft.name.trim() || recipe.name), emoji: draft.emoji || "🍽️", servings: Math.max(1, draft.servings), ingredients: draft.ingredients, components: draft.components.length ? draft.components : undefined, steps: recipe.steps, category: recipe.category });
     updatePlannedMeal(meal.id, { recipeId: id });
     onClose();
   };
 
   // ---- rows to display (view = recipe, edit = draft) ----
   const rows = editing && draft ? draft.ingredients : recipe.ingredients;
-  const total = rows.reduce((s, ing) => s + ingredientCalories(ing, foods), 0);
+  const comps = editing && draft ? draft.components : (recipe.components ?? []);
+  const ingTotal = rows.reduce((s, ing) => s + ingredientCalories(ing, foods), 0);
+  const compTotal = comps.reduce((s, c) => s + componentCalories(c, foods, recipes), 0);
+  const total = ingTotal + compTotal;
   const servings = editing && draft ? Math.max(1, draft.servings) : recipe.servings;
   const perServing = Math.round(total / servings);
 
@@ -79,6 +91,7 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
   const addable = foods
     .filter((f) => !((editing && draft) ? draft.ingredients : recipe.ingredients).some((x) => x.foodId === f.id))
     .filter((f) => (q ? f.name.toLowerCase().includes(q) : true));
+  const addableRecipes = recipes.filter((rr) => rr.id !== recipe.id && !comps.some((c) => c.recipeId === rr.id));
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/55 p-0 backdrop-blur-sm md:items-center md:p-4">
@@ -121,6 +134,42 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
                   {meal.servings !== 1 && ` · ${meal.servings}× on the plan`}
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* Included recipes (sub-recipes) */}
+          {(comps.length > 0 || (editing && draft && addableRecipes.length > 0)) && (
+            <div className="mb-4">
+              <div className="mb-2 text-sm font-medium text-zinc-400">Included recipes</div>
+              <div className="overflow-hidden rounded-xl border border-emerald-500/20">
+                {comps.map((c, i) => {
+                  const sub = recipes.find((r) => r.id === c.recipeId);
+                  const cal = componentCalories(c, foods, recipes);
+                  return (
+                    <div key={c.recipeId} className="flex items-center gap-2 border-b border-white/[0.05] px-3 py-2.5 text-sm last:border-0">
+                      <span className="shrink-0">{sub?.emoji ?? "🍽️"}</span>
+                      <span className="min-w-0 flex-1 truncate font-medium text-emerald-200">{sub?.name ?? "Unknown recipe"}</span>
+                      {editing && draft ? (
+                        <>
+                          <input type="number" min={0.5} step={0.5} value={c.servings} onChange={(e) => setCompServings(i, Math.max(0.5, Number(e.target.value) || 0.5))} className="w-16 rounded-lg field px-2 py-1 text-right text-sm" />
+                          <span className="w-10 shrink-0 text-xs text-zinc-500">serv.</span>
+                          <span className="w-14 shrink-0 text-right text-xs text-rose-400/80">{cal} cal</span>
+                          <button onClick={() => removeComp(i)} className="shrink-0 text-zinc-500 hover:text-rose-400" aria-label="Remove recipe"><Trash2 size={14} /></button>
+                        </>
+                      ) : (
+                        <span className="shrink-0 text-right text-zinc-400">{fmtQty(c.servings)} serv · <span className="text-rose-400/80">{cal} cal</span></span>
+                      )}
+                    </div>
+                  );
+                })}
+                {comps.length === 0 && <p className="px-3 py-2.5 text-center text-xs text-zinc-500">No recipes included yet.</p>}
+              </div>
+              {editing && draft && addableRecipes.length > 0 && (
+                <select value="" onChange={(e) => { if (e.target.value) addComp(e.target.value); }} className="mt-2 w-full rounded-lg field px-2 py-2 text-sm">
+                  <option value="">➕ Add a recipe to this meal…</option>
+                  {addableRecipes.map((r) => <option key={r.id} value={r.id}>{r.emoji} {r.name}</option>)}
+                </select>
+              )}
             </div>
           )}
 
