@@ -87,6 +87,50 @@ history log for traceability. Unmatched items are added as new foods.
   **sample receipt** lets you try the whole flow with no key.
 - Model: `claude-opus-5` (vision). Change it in `src/lib/receipt.ts`.
 
+## Recipe & food-table import (Cookbook → Add recipe)
+
+**Scan recipe** reads a photo of a recipe card or a printed nutrition table;
+**Paste text** takes either an ingredient list ("6 oz firm tofu", one per line)
+or a whole **food table copied out of a spreadsheet or doc**:
+
+```
+Food                     Quantity  Unit       Serving Size  Serving Unit  Calories per Unit  Total Calories
+Farfalle Pasta De Cecco  8         cups dry   1             cup dry       200                1600
+Ground Beef 80/20        16        oz         4             oz            280                1120
+TOTAL                                                                                        2974
+PER SERVING (6 servings)                                                                     496
+```
+
+Tables are read as tables, not as sentences
+([`src/lib/foodtable.ts`](src/lib/foodtable.ts)):
+
+- **Any delimiter** — tabs, commas (quoted cells included), markdown pipes, or
+  column-aligned spacing.
+- **Columns by header**, not position — `Food`/`Item`/`Ingredient`,
+  `Qty`/`Amount`, `Unit`/`Measure`, serving size + serving unit, calories per
+  unit, total calories, and protein/carbs/fat when present.
+- **Units with qualifiers** — "cups dry", "cup chopped", "tsp minced" keep the
+  base unit and park the qualifier in the food's notes. lb, g, kg, ml, L,
+  pints, quarts, cloves, slices and cans are converted to the app's units.
+- **Serving-size calorie math** — a "Calories per Unit" column is calories per
+  *serving size*, so 40 cal per ½ cup becomes 80 cal/cup and 280 cal per 4 oz
+  becomes 70 cal/oz. When the serving unit can't be converted (oz vs. cup), the
+  row falls back to `Total Calories ÷ quantity`.
+- **Summary rows** — `TOTAL`, `SUBTOTAL` and `PER SERVING (6 servings)` never
+  become ingredients; they set the recipe's servings and are shown back as a
+  cross-check ("Matches the 2,974 cal total on your list", or an amber warning
+  when the per-item math disagrees by more than 2%).
+- **Calories land on the foods** — imported calories/macros are saved on new
+  foods and fill in blanks on existing ones, so the Cookbook, Dashboard and
+  Kitchen totals are right immediately instead of starting at zero.
+- Quantities are converted into the unit a food is already stocked in, and the
+  review screen says so when a unit can't be converted (kitchen garlic in
+  `each` vs. a recipe's `tsp`) rather than silently reinterpreting it.
+
+Pasting works **with no API key** — the table parser runs locally, and it also
+catches an API failure so a structured paste still gets through. With a key,
+Claude handles messier input (prose recipes, photos) using the same rules.
+
 ## Tech
 
 - **Next.js (App Router) + React + TypeScript**

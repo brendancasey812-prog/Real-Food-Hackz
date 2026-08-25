@@ -5,7 +5,8 @@ import { X, Camera, Upload, Loader2, Trash2, Sparkles, KeyRound, AlertCircle, Ch
 import { useApp, newId } from "@/lib/store";
 import { scanRecipe, demoScanRecipe, buildRecipeFromText, parseTextLocally, SERVER_AI, type ScannedRecipe } from "@/lib/recipescan";
 import { normalizeName, mapCategory, ReceiptError } from "@/lib/receipt";
-import { UNITS } from "@/lib/units";
+import { convertUnits } from "@/lib/foodtable";
+import { UNITS, fmtQty } from "@/lib/units";
 import { MEAL_ORDER, MEAL_LABEL } from "@/lib/week";
 import type { Food, MealType, Unit } from "@/lib/types";
 
@@ -13,15 +14,17 @@ type Step = "upload" | "loading" | "review" | "done" | "error";
 const KEY_STORE = "anthropic_api_key";
 const OK_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
 const CATS = ["Protein", "Fruit", "Veggie", "Pantry"] as const;
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => void; mode?: "photo" | "text" }) {
-  const { foods, addRecipe } = useApp();
+  const { foods, addRecipe, updateFood } = useApp();
   const [step, setStep] = useState<Step>("upload");
   const [error, setError] = useState("");
   const [recipe, setRecipe] = useState<ScannedRecipe | null>(null);
   const [apiKey, setApiKey] = useState(() => (typeof window !== "undefined" ? localStorage.getItem(KEY_STORE) ?? "" : ""));
   const [showKey, setShowKey] = useState(false);
   const [text, setText] = useState("");
+  const [notice, setNotice] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   // The server proxy handles AI when this build has one; otherwise we need the
@@ -29,8 +32,19 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
   const aiAvailable = SERVER_AI || apiKey.trim() !== "";
 
   const buildFromText = () => {
-    if (!text.trim()) { setError("Paste a recipe or ingredient list first."); setStep("error"); return; }
-    run(aiAvailable ? buildRecipeFromText(apiKey.trim(), text) : Promise.resolve(parseTextLocally(text)));
+    if (!text.trim()) { setError("Paste a recipe, ingredient list, or food table first."); setStep("error"); return; }
+    setNotice("");
+    if (!aiAvailable) { run(Promise.resolve(parseTextLocally(text))); return; }
+    // If Claude can't be reached, a structured paste can still be read locally
+    // rather than dead-ending the user on an error screen.
+    run(
+      buildRecipeFromText(apiKey.trim(), text).catch((e) => {
+        const local = parseTextLocally(text);
+        if (local.ingredients.length < 2) throw e;
+        setNotice("Couldn't reach Claude, so this was read locally from the table. Check the numbers below.");
+        return local;
+      }),
+    );
   };
 
   const saveKey = (k: string) => { setApiKey(k); if (typeof window !== "undefined") localStorage.setItem(KEY_STORE, k.trim()); };
@@ -62,10 +76,38 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
       .filter((i) => i.food.trim() && i.quantity > 0)
       .map((ing) => {
         const existing = foods.find((f) => normalizeName(f.name) === normalizeName(ing.food));
-        if (existing) return { foodId: existing.id, quantity: ing.quantity };
+        if (existing) {
+          // The scan's unit and the stocked food's unit needn't agree (3 tsp
+          // scanned, the food lives in tbsp) — convert instead of mixing them.
+          const factor = convertUnits(1, ing.unit, existing.unit);
+          const quantity = round2(ing.quantity * (factor ?? 1));
+          // Fill in nutrition the kitchen is missing, scaled to the food's unit.
+          if (factor && ing.caloriesPerUnit && !existing.caloriesPerUnit) {
+            updateFood(existing.id, {
+              caloriesPerUnit: round2(ing.caloriesPerUnit / factor),
+              protein: existing.protein || round2((ing.protein ?? 0) / factor),
+              carbs: existing.carbs || round2((ing.carbs ?? 0) / factor),
+              fat: existing.fat || round2((ing.fat ?? 0) / factor),
+            });
+          }
+          return { foodId: existing.id, quantity };
+        }
         const id = newId();
         const map = mapCategory(ing.category);
-        newFoods.push({ id, name: ing.food.trim(), unit: ing.unit, caloriesPerUnit: 0, protein: 0, carbs: 0, fat: 0, location: map.location, category: map.category, emoji: map.emoji, source: "manual" });
+        newFoods.push({
+          id,
+          name: ing.food.trim(),
+          unit: ing.unit,
+          caloriesPerUnit: round2(ing.caloriesPerUnit ?? 0),
+          protein: round2(ing.protein ?? 0),
+          carbs: round2(ing.carbs ?? 0),
+          fat: round2(ing.fat ?? 0),
+          location: map.location,
+          category: map.category,
+          emoji: map.emoji,
+          source: "manual",
+          notes: ing.note,
+        });
         return { foodId: id, quantity: ing.quantity };
       });
     addRecipe(
@@ -88,12 +130,12 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
             <div className="space-y-5">
               {mode === "text" ? (
                 <>
-                  <p className="text-sm text-zinc-400">Paste a recipe or ingredient list — one item per line (e.g. “2 eggs”, “1 cup oats”, “handful spinach”). Claude turns it into a built-out recipe, defaulting to a single serving.</p>
+                  <p className="text-sm text-zinc-400">Paste an ingredient list — one item per line (“2 eggs”, “1 cup oats”) — or a whole food table copied out of a spreadsheet or doc. Columns for quantity, unit, serving size and calories are read as columns, TOTAL and PER SERVING rows set the servings, and the calories land on each food.</p>
                   <textarea
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     rows={7}
-                    placeholder={"Tofu scramble\n\n6 oz firm tofu\n1 cup spinach\n2 corn tortillas\n1 tbsp olive oil\nsalt and pepper"}
+                    placeholder={"6 oz firm tofu\n1 cup spinach\n2 corn tortillas\n\n— or paste a table —\n\nFood\tQuantity\tUnit\tCalories per Unit\nGround Beef 80/20\t16\toz\t70\nMarinara Sauce\t2.5\tcups\t80"}
                     className="w-full rounded-xl field px-3 py-2 text-sm"
                   />
                   <button onClick={buildFromText} className="w-full rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110">
@@ -143,6 +185,9 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
 
           {step === "review" && recipe && (
             <div className="space-y-4">
+              {notice && (
+                <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{notice}</p>
+              )}
               <div className="flex gap-3">
                 <input value={recipe.emoji} onChange={(e) => patch({ emoji: e.target.value })} className="w-14 rounded-lg field px-2 py-2 text-center text-xl" />
                 <input value={recipe.name} onChange={(e) => patch({ name: e.target.value })} className="flex-1 rounded-lg field px-3 py-2 font-medium" />
@@ -177,7 +222,38 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
                       <select value={ing.category} onChange={(e) => patchIng(i, { category: e.target.value as (typeof CATS)[number] })} className="rounded-lg field px-2 py-1.5 text-sm">
                         {CATS.map((c) => <option key={c} value={c}>{c}</option>)}
                       </select>
+                      <label className="flex items-center gap-1 text-[11px] text-zinc-500" title={`Calories in one ${ing.unit}`}>
+                        <input
+                          type="number"
+                          value={ing.caloriesPerUnit ?? ""}
+                          placeholder="—"
+                          onChange={(e) => patchIng(i, { caloriesPerUnit: e.target.value === "" ? undefined : Number(e.target.value) })}
+                          className="w-16 rounded-lg field px-2 py-1.5 text-sm"
+                        />
+                        cal/{ing.unit}
+                      </label>
                       <button onClick={() => setRecipe((r) => (r ? { ...r, ingredients: r.ingredients.filter((_, idx) => idx !== i) } : r))} className="text-zinc-500 hover:text-rose-400"><Trash2 size={14} /></button>
+                      {(() => {
+                        // Say so when the kitchen already stocks this food in a
+                        // different unit — silently reinterpreting "1 tsp" as
+                        // "1 each" is how a list stops adding up.
+                        const existing = foods.find((f) => normalizeName(f.name) === normalizeName(ing.food));
+                        const factor = existing && existing.unit !== ing.unit ? convertUnits(1, ing.unit, existing.unit) : null;
+                        const clash = existing && existing.unit !== ing.unit;
+                        return (
+                          <span className="w-full pl-1 text-[11px] text-zinc-500">
+                            {ing.note}
+                            {ing.note && clash ? " · " : ""}
+                            {clash && (
+                              <span className={factor ? "text-zinc-500" : "text-amber-300/90"}>
+                                {factor
+                                  ? `your kitchen stocks ${existing!.name} in ${existing!.unit} — saving ${fmtQty(round2(ing.quantity * factor))} ${existing!.unit}`
+                                  : `your kitchen stocks ${existing!.name} in ${existing!.unit}, which can't convert from ${ing.unit} — it will be saved as ${fmtQty(ing.quantity)} ${existing!.unit}`}
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
@@ -192,8 +268,28 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
 
               {(() => {
                 const blanks = recipe.ingredients.filter((i) => i.quantity <= 0).length;
+                const total = recipe.ingredients.reduce((sum, i) => sum + (i.caloriesPerUnit ?? 0) * i.quantity, 0);
+                const servings = Math.max(1, recipe.servings || 1);
+                const claimed = recipe.declaredTotalCalories;
+                // Flag a >2% gap between our math and the total the source printed.
+                const off = total > 0 && claimed ? Math.abs(total - claimed) / claimed > 0.02 : false;
                 return (
                   <>
+                    {total > 0 && (
+                      <div className="rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2 text-xs">
+                        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                          <span className="font-medium text-zinc-200">{Math.round(total).toLocaleString()} cal total</span>
+                          <span className="text-zinc-400">{Math.round(total / servings).toLocaleString()} per serving × {fmtQty(servings)}</span>
+                        </div>
+                        {claimed !== undefined && (
+                          <div className={`mt-1 ${off ? "text-amber-300" : "text-zinc-500"}`}>
+                            {off
+                              ? `Your list says ${Math.round(claimed).toLocaleString()} cal — ${Math.round(Math.abs(total - claimed)).toLocaleString()} off from the per-item math. Check the highlighted quantities.`
+                              : `Matches the ${Math.round(claimed).toLocaleString()} cal total on your list.`}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {blanks > 0 && (
                       <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
                         {blanks} ingredient{blanks > 1 ? "s need" : " needs"} a quantity (highlighted in amber). Enter or delete them to save.
@@ -212,7 +308,7 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
                   </>
                 );
               })()}
-              <p className="text-[11px] text-zinc-500">New ingredients are added to your kitchen with 0 nutrition — set their calories/macros in the Kitchen afterward.</p>
+              <p className="text-[11px] text-zinc-500">New ingredients join your kitchen with the calories shown above; leave one blank and you can set it in the Kitchen later.</p>
             </div>
           )}
 
