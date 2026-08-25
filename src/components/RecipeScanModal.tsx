@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { X, Camera, Upload, Loader2, Trash2, Sparkles, KeyRound, AlertCircle, Check } from "lucide-react";
 import { useApp, newId } from "@/lib/store";
-import { scanRecipe, demoScanRecipe, buildRecipeFromText, parseTextLocally, type ScannedRecipe } from "@/lib/recipescan";
+import { scanRecipe, demoScanRecipe, buildRecipeFromText, parseTextLocally, SERVER_AI, type ScannedRecipe } from "@/lib/recipescan";
 import { normalizeName, mapCategory, ReceiptError } from "@/lib/receipt";
 import { UNITS } from "@/lib/units";
 import { MEAL_ORDER, MEAL_LABEL } from "@/lib/week";
@@ -24,9 +24,13 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
   const [text, setText] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
 
+  // The server proxy handles AI when this build has one; otherwise we need the
+  // user's own key, and failing that we fall back to the local parser.
+  const aiAvailable = SERVER_AI || apiKey.trim() !== "";
+
   const buildFromText = () => {
     if (!text.trim()) { setError("Paste a recipe or ingredient list first."); setStep("error"); return; }
-    run(apiKey.trim() ? buildRecipeFromText(apiKey.trim(), text) : Promise.resolve(parseTextLocally(text)));
+    run(aiAvailable ? buildRecipeFromText(apiKey.trim(), text) : Promise.resolve(parseTextLocally(text)));
   };
 
   const saveKey = (k: string) => { setApiKey(k); if (typeof window !== "undefined") localStorage.setItem(KEY_STORE, k.trim()); };
@@ -40,7 +44,7 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
   const onFile = (file: File | undefined) => {
     if (!file) return;
     if (!OK_TYPES.includes(file.type as (typeof OK_TYPES)[number])) { setError("Use a JPG, PNG, or WebP photo."); setStep("error"); return; }
-    if (!apiKey.trim()) { setError("Add your Anthropic API key in Settings to scan a photo — or tap “Try a sample”."); setStep("error"); return; }
+    if (!aiAvailable) { setError("Add your Anthropic API key in Settings to scan a photo — or tap “Try a sample”."); setStep("error"); return; }
     const reader = new FileReader();
     reader.onload = () => run(scanRecipe(apiKey.trim(), String(reader.result).split(",")[1] ?? "", file.type as (typeof OK_TYPES)[number]));
     reader.onerror = () => { setError("Couldn't read that file."); setStep("error"); };
@@ -93,7 +97,7 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
                     className="w-full rounded-xl field px-3 py-2 text-sm"
                   />
                   <button onClick={buildFromText} className="w-full rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110">
-                    Build recipe {apiKey.trim() ? "with Claude" : "(basic, no key)"}
+                    Build recipe {aiAvailable ? "with Claude" : "(basic, no key)"}
                   </button>
                 </>
               ) : (

@@ -3,10 +3,18 @@
 import { useState } from "react";
 import {
   X, ChevronDown, User, Target, CreditCard, ShieldCheck, Info,
-  Check,
+  Check, LogIn, LogOut, Cloud, CloudOff, RefreshCw,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
+import { useCloud, type SyncStatus } from "@/lib/cloud";
 import type { FocusArea, Sex } from "@/lib/types";
+
+function SyncBadge({ status }: { status: SyncStatus }) {
+  if (status === "syncing") return <span className="inline-flex items-center gap-1 text-xs text-zinc-400"><RefreshCw size={12} className="animate-spin" /> Syncing…</span>;
+  if (status === "synced") return <span className="inline-flex items-center gap-1 text-xs text-emerald-300"><Cloud size={12} /> Synced</span>;
+  if (status === "error") return <span className="inline-flex items-center gap-1 text-xs text-rose-300"><CloudOff size={12} /> Error</span>;
+  return <span className="inline-flex items-center gap-1 text-xs text-zinc-500"><CloudOff size={12} /> Offline</span>;
+}
 
 const FOCUS_AREAS: { key: FocusArea; label: string; emoji: string }[] = [
   { key: "present", label: "Be more present and focused", emoji: "🧘" },
@@ -71,6 +79,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   const { profile, focusAreas, setProfile, setFocusAreas } = useApp();
+  const cloud = useCloud();
   const ft = Math.floor(profile.heightIn / 12);
   const inch = profile.heightIn % 12;
   const derivedAge = ageFrom(profile.birthDate);
@@ -172,20 +181,51 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           </Section>
 
           {/* Account */}
-          <Section icon={CreditCard} title="Account" subtitle="Membership">
+          <Section icon={CreditCard} title="Account" subtitle={cloud.user ? (cloud.user.email ?? "Signed in") : "Membership · sign in to sync"} defaultOpen={!cloud.user && cloud.enabled}>
             <InfoRow label="Membership" value={<span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs text-emerald-300">Free plan</span>} />
-            <InfoRow label="Signed in as" value={<span className="text-zinc-400">This device</span>} />
-            <p className="mt-3 text-xs leading-5 text-zinc-500">
-              You&apos;re on the free plan — every feature is included. Your plan lives on this device; there&apos;s no account to sign into.
-            </p>
+
+            {!cloud.enabled ? (
+              <>
+                <InfoRow label="Signed in as" value={<span className="text-zinc-400">This device</span>} />
+                <p className="mt-3 text-xs leading-5 text-zinc-500">
+                  Cloud sync isn&apos;t configured for this build, so your plan lives on this device only.
+                </p>
+              </>
+            ) : cloud.user ? (
+              <>
+                <InfoRow label="Signed in as" value={<span className="text-zinc-200">{cloud.user.email ?? cloud.user.uid}</span>} />
+                <InfoRow label="Sync" value={<SyncBadge status={cloud.sync} />} />
+                <button onClick={() => cloud.signOut()} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 py-2.5 text-sm font-medium text-zinc-200 hover:bg-white/[0.06]">
+                  <LogOut size={15} /> Sign out
+                </button>
+                <p className="mt-2 text-[11px] leading-4 text-zinc-500">
+                  Your meals, kitchen, and plan sync to your account — open the app on any device and it&apos;s there.
+                </p>
+              </>
+            ) : (
+              <>
+                <InfoRow label="Signed in as" value={<span className="text-zinc-400">Not signed in</span>} />
+                <button onClick={() => cloud.signIn()} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110">
+                  <LogIn size={15} /> Sign in with Google
+                </button>
+                <p className="mt-2 text-[11px] leading-4 text-zinc-500">
+                  Signing in backs up everything you&apos;ve built here and syncs it across your devices. Your current data is uploaded — nothing is lost.
+                </p>
+              </>
+            )}
+            {cloud.error && <p className="mt-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">{cloud.error}</p>}
           </Section>
 
           {/* Security and privacy */}
           <Section icon={ShieldCheck} title="Security and privacy" subtitle="Where your data lives">
             <ul className="space-y-2 text-sm text-zinc-300">
-              <li className="flex gap-2"><span className="text-emerald-400">•</span> All of your meals, plans, and kitchen data are stored only in this browser (local storage) — never uploaded.</li>
+              {cloud.user ? (
+                <li className="flex gap-2"><span className="text-emerald-400">•</span> You&apos;re signed in, so your meals, plans, and kitchen data are stored in your private Firestore account and synced to your devices. Only you can read them.</li>
+              ) : (
+                <li className="flex gap-2"><span className="text-emerald-400">•</span> You&apos;re signed out — everything is stored only in this browser and never uploaded.</li>
+              )}
               <li className="flex gap-2"><span className="text-emerald-400">•</span> Your Anthropic API key stays on this device and is sent only to Anthropic when you scan or paste a recipe.</li>
-              <li className="flex gap-2"><span className="text-emerald-400">•</span> There&apos;s no server and no tracking — clearing your browser data removes everything.</li>
+              <li className="flex gap-2"><span className="text-emerald-400">•</span> No ads and no tracking. Signing out leaves your cloud copy untouched; clearing your browser removes the local one.</li>
             </ul>
           </Section>
 

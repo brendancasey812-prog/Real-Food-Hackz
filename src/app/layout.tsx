@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
+import { CloudProvider } from "@/lib/cloud";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,7 +23,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`dark ${geistSans.variable} h-full antialiased`}>
       <body className="min-h-full">
-        <AppShell>{children}</AppShell>
+        <CloudProvider>
+          <AppShell>{children}</AppShell>
+        </CloudProvider>
       </body>
     </html>
   );

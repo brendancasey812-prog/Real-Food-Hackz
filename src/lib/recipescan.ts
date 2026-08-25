@@ -4,6 +4,34 @@ import type { MealType, Unit } from "./types";
 
 const MODEL = "claude-opus-5";
 
+/** Set by next.config on builds that ship API routes (Vercel, not GitHub Pages). */
+export const SERVER_AI = process.env.NEXT_PUBLIC_SERVER_AI === "1";
+
+type ImagePart = { media_type: "image/jpeg" | "image/png" | "image/gif" | "image/webp"; data: string };
+
+/**
+ * Try the server-side proxy first so the API key never touches the browser.
+ * Returns null when this build has no proxy, or the server has no key set —
+ * the caller then falls back to the user's own key.
+ */
+async function viaServer(system: string, text: string, image?: ImagePart): Promise<string | null> {
+  if (!SERVER_AI) return null;
+  let resp: Response;
+  try {
+    resp = await fetch("/api/anthropic", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ system, text, image }),
+    });
+  } catch {
+    return null; // offline or route missing — fall back to the client key
+  }
+  if (resp.status === 501 || resp.status === 404) return null;
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new ReceiptError(data.error ?? "The recipe service failed. Try again.");
+  return typeof data.text === "string" ? data.text : null;
+}
+
 export interface ScannedRecipeIngredient {
   food: string;
   quantity: number;
@@ -71,6 +99,13 @@ export async function scanRecipe(
   base64: string,
   mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp",
 ): Promise<ScannedRecipe> {
+  const served = await viaServer(RECIPE_SYSTEM_PROMPT, "Extract this recipe as JSON.", {
+    media_type: mediaType,
+    data: base64,
+  });
+  if (served) return parseRecipe(served);
+
+  if (!apiKey) throw new ReceiptError("Add your Anthropic API key in Settings to scan a photo.");
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
   let resp;
   try {
@@ -113,6 +148,11 @@ const TEXT_SYSTEM_PROMPT = `You are a recipe assistant for a meal-planning app. 
 
 /** Build a recipe from pasted text via Claude. */
 export async function buildRecipeFromText(apiKey: string, text: string): Promise<ScannedRecipe> {
+  const prompt = `Here is the recipe text:\n\n${text}\n\nBuild it into a recipe as JSON.`;
+  const served = await viaServer(TEXT_SYSTEM_PROMPT, prompt);
+  if (served) return parseRecipe(served);
+
+  if (!apiKey) throw new ReceiptError("Add your Anthropic API key in Settings to use AI parsing.");
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
   let resp;
   try {

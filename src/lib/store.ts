@@ -241,6 +241,36 @@ export const useApp = create<AppState>()(
   ),
 );
 
+// ---- Cloud sync helpers ----
+
+/** The persisted data slice, without the action functions. */
+export function exportData(s: AppState = useApp.getState()): AppData {
+  return {
+    foods: s.foods,
+    inventory: s.inventory,
+    recipes: s.recipes,
+    plan: s.plan,
+    events: s.events ?? [],
+    manualGroceries: s.manualGroceries,
+    goals: s.goals,
+    profile: s.profile,
+    focusAreas: s.focusAreas ?? [],
+    history: s.history,
+  };
+}
+
+/** Replace local data wholesale (used when pulling from the cloud). */
+export function importData(data: Partial<AppData>) {
+  useApp.setState({
+    ...seedData,
+    ...data,
+    events: data.events ?? [],
+    focusAreas: data.focusAreas ?? seedData.focusAreas,
+    goals: { ...seedData.goals, ...(data.goals ?? {}) },
+    profile: { ...seedData.profile, ...(data.profile ?? {}) },
+  });
+}
+
 // ---- Derived selectors (the "everything stays in sync" logic) ----
 
 export function foodById(foods: Food[], id: string) {
