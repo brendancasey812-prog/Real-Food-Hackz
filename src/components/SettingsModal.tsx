@@ -3,11 +3,17 @@
 import { useState } from "react";
 import {
   X, ChevronDown, User, Target, CreditCard, ShieldCheck, Info,
-  Check, LogIn, LogOut, Cloud, CloudOff, RefreshCw,
+  Check, LogIn, LogOut, Cloud, CloudOff, RefreshCw, Users, Trash2, Plus,
 } from "lucide-react";
-import { useApp } from "@/lib/store";
+import { useApp, blankMember } from "@/lib/store";
 import { useCloud, type SyncStatus } from "@/lib/cloud";
-import type { FocusArea, Sex } from "@/lib/types";
+import type { FocusArea, HouseholdMode, Sex } from "@/lib/types";
+
+export const HOUSEHOLD_LABEL: Record<HouseholdMode, string> = {
+  individual: "Individual",
+  couple: "Couple",
+  family: "Family",
+};
 
 function SyncBadge({ status }: { status: SyncStatus }) {
   if (status === "syncing") return <span className="inline-flex items-center gap-1 text-xs text-zinc-400"><RefreshCw size={12} className="animate-spin" /> Syncing…</span>;
@@ -78,7 +84,10 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
-  const { profile, focusAreas, setProfile, setFocusAreas } = useApp();
+  const {
+    profile, focusAreas, goals, householdMode, members,
+    setProfile, setFocusAreas, setHouseholdMode, addMember, updateMember, removeMember,
+  } = useApp();
   const cloud = useCloud();
   const ft = Math.floor(profile.heightIn / 12);
   const inch = profile.heightIn % 12;
@@ -154,6 +163,83 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
             </div>
+          </Section>
+
+          {/* User — individual / couple / family */}
+          <Section icon={Users} title="User" subtitle={HOUSEHOLD_LABEL[householdMode]} defaultOpen>
+            <div className="mb-3 flex gap-2">
+              {(["individual", "couple", "family"] as HouseholdMode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setHouseholdMode(m)}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize transition-colors ${
+                    householdMode === m
+                      ? "border-emerald-500/60 bg-emerald-500/15 text-emerald-200"
+                      : "border-white/10 text-zinc-300 hover:bg-white/[0.05]"
+                  }`}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+
+            {householdMode === "individual" ? (
+              <p className="text-xs leading-5 text-zinc-500">
+                Planning for just you. Switch to Couple or Family to plan meals and calories for more people.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <InfoRow label="You" value={<span className="text-zinc-400">{goals.dailyCalorieTarget.toLocaleString()} cal/day</span>} />
+                {members.map((m) => (
+                  <div key={m.id} className="rounded-xl border border-white/10 bg-white/[0.02] p-2.5">
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={m.name}
+                        onChange={(e) => updateMember(m.id, { name: e.target.value })}
+                        placeholder="Name"
+                        className="min-w-0 flex-1 rounded-lg field px-2 py-1.5 text-sm"
+                      />
+                      {householdMode === "family" && (
+                        <button onClick={() => removeMember(m.id)} className="shrink-0 text-zinc-500 hover:text-rose-400" aria-label={`Remove ${m.name}`}>
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
+                    <label className="mt-2 flex items-center justify-between gap-2 text-xs">
+                      <span className="text-zinc-400">Daily calories</span>
+                      <input
+                        type="number" min={0} value={m.goals.dailyCalorieTarget}
+                        onChange={(e) => updateMember(m.id, { goals: { ...m.goals, dailyCalorieTarget: Math.max(0, Number(e.target.value) || 0) } })}
+                        className="w-24 rounded-md field px-2 py-1 text-right"
+                      />
+                    </label>
+                    <div className="mt-1.5 grid grid-cols-3 gap-2 text-[11px]">
+                      {(["proteinTarget", "carbsTarget", "fatTarget"] as const).map((k, i) => (
+                        <label key={k} className="flex items-center justify-between gap-1">
+                          <span className={["text-rose-300/80", "text-amber-300/80", "text-sky-300/80"][i]}>{["P", "C", "F"][i]} g</span>
+                          <input
+                            type="number" min={0} value={m.goals[k]}
+                            onChange={(e) => updateMember(m.id, { goals: { ...m.goals, [k]: Math.max(0, Number(e.target.value) || 0) } })}
+                            className="w-14 rounded-md field px-1.5 py-1 text-right"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                {householdMode === "family" && (
+                  <button
+                    onClick={() => addMember(blankMember(`Member ${members.length + 2}`, goals))}
+                    className="flex items-center gap-1.5 text-sm font-medium text-emerald-400 hover:text-emerald-300"
+                  >
+                    <Plus size={15} /> Add member
+                  </button>
+                )}
+                <p className="pt-1 text-[11px] leading-4 text-zinc-500">
+                  The dashboard adds these targets together, and new meals default to {members.length + 1} servings so one recipe feeds everyone.
+                </p>
+              </div>
+            )}
           </Section>
 
           {/* Goals and focus areas */}

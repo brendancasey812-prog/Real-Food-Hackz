@@ -101,6 +101,10 @@ export interface Recipe {
   components?: RecipeComponent[];
   steps: string[];
   emoji: string;
+  /** Downscaled data-URL photo shown in Cookbook V2. */
+  image?: string;
+  /** Total cook time in minutes. */
+  cookTimeMin?: number;
   /** Which meal slot this recipe belongs to (groups the "add" picker). */
   category: MealType;
 }
@@ -166,6 +170,25 @@ export interface Profile {
   sex?: Sex;
 }
 
+/** Who the app is planning for. "couple" is a family of exactly two. */
+export type HouseholdMode = "individual" | "couple" | "family";
+
+/**
+ * An extra person the plan feeds, beyond the primary user (whose body and
+ * goals live in `profile` / `goals`). So individual = 0 members here,
+ * couple = 1, family = however many were added.
+ */
+export interface Member {
+  id: string;
+  name: string;
+  heightIn: number;
+  weightLb: number;
+  age: number;
+  birthDate?: string;
+  sex?: Sex;
+  goals: Goals;
+}
+
 export interface AppData {
   foods: Food[];
   inventory: InventoryItem[];
@@ -175,6 +198,10 @@ export interface AppData {
   manualGroceries: ManualGrocery[];
   goals: Goals;
   profile: Profile;
+  /** Individual / couple / family — drives household totals across the app. */
+  householdMode: HouseholdMode;
+  /** Extra people beyond the primary user; empty when mode is "individual". */
+  members: Member[];
   focusAreas: FocusArea[];
   history: PurchaseHistoryEntry[];
 }

@@ -5,6 +5,8 @@ import { persist } from "zustand/middleware";
 import type {
   AppData,
   CalendarEvent,
+  HouseholdMode,
+  Member,
   Food,
   Macros,
   PlannedMeal,
@@ -36,6 +38,10 @@ interface AppState extends AppData {
   removeManualGrocery: (id: string) => void;
   setGoals: (patch: Partial<AppData["goals"]>) => void;
   setProfile: (patch: Partial<AppData["profile"]>) => void;
+  setHouseholdMode: (mode: HouseholdMode) => void;
+  addMember: (member: Member) => void;
+  updateMember: (id: string, patch: Partial<Member>) => void;
+  removeMember: (id: string) => void;
   setFocusAreas: (focusAreas: AppData["focusAreas"]) => void;
   /** Merge receipt-scanned items into the kitchen; returns a summary. */
   commitScan: (items: ScannedItem[]) => { merged: number; added: number; skipped: number };
@@ -45,6 +51,18 @@ interface AppState extends AppData {
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 export const newId = uid;
+
+/** A new household member seeded from the primary user's goals. */
+export function blankMember(name: string, goals: AppData["goals"]): Member {
+  return {
+    id: uid(),
+    name,
+    heightIn: 66,
+    weightLb: 150,
+    age: 30,
+    goals: { ...goals },
+  };
+}
 
 export const useApp = create<AppState>()(
   persist(
@@ -146,6 +164,28 @@ export const useApp = create<AppState>()(
 
       setFocusAreas: (focusAreas) => set({ focusAreas }),
 
+      setHouseholdMode: (mode) =>
+        set((s) => {
+          // Couple means exactly one other person; trim or seed to match so the
+          // dashboard totals can't disagree with the chosen mode.
+          if (mode === "individual") return { householdMode: mode, members: [] };
+          const members = s.members ?? [];
+          if (mode === "couple") {
+            return {
+              householdMode: mode,
+              members: members.length ? [members[0]] : [blankMember("Partner", s.goals)],
+            };
+          }
+          return { householdMode: mode, members: members.length ? members : [blankMember("Member 2", s.goals)] };
+        }),
+
+      addMember: (member) => set((s) => ({ members: [...(s.members ?? []), member] })),
+
+      updateMember: (id, patch) =>
+        set((s) => ({ members: (s.members ?? []).map((m) => (m.id === id ? { ...m, ...patch } : m)) })),
+
+      removeMember: (id) => set((s) => ({ members: (s.members ?? []).filter((m) => m.id !== id) })),
+
       commitScan: (items) => {
         const s = get();
         const foods = [...s.foods];
@@ -235,11 +275,38 @@ export const useApp = create<AppState>()(
           goals: { ...seedData.goals, ...(s.goals ?? {}) },
           profile: { ...seedData.profile, ...(s.profile ?? {}) },
           focusAreas: s.focusAreas ?? seedData.focusAreas,
+          householdMode: s.householdMode ?? "individual",
+          members: s.members ?? [],
         } as AppData;
       },
     },
   ),
 );
+
+// ---- Household helpers ----
+
+/** Everyone the plan feeds: the primary user first, then any added members. */
+export interface Eater { id: string; name: string; goals: AppData["goals"] }
+
+export function household(s: Pick<AppData, "goals" | "profile" | "members">): Eater[] {
+  return [
+    { id: "me", name: "You", goals: s.goals },
+    ...(s.members ?? []).map((m) => ({ id: m.id, name: m.name, goals: m.goals })),
+  ];
+}
+
+/** Summed daily targets for a set of eaters — the household's goal line. */
+export function combinedGoals(eaters: Eater[]): AppData["goals"] {
+  return eaters.reduce(
+    (acc, e) => ({
+      dailyCalorieTarget: acc.dailyCalorieTarget + e.goals.dailyCalorieTarget,
+      proteinTarget: acc.proteinTarget + e.goals.proteinTarget,
+      carbsTarget: acc.carbsTarget + e.goals.carbsTarget,
+      fatTarget: acc.fatTarget + e.goals.fatTarget,
+    }),
+    { dailyCalorieTarget: 0, proteinTarget: 0, carbsTarget: 0, fatTarget: 0 },
+  );
+}
 
 // ---- Cloud sync helpers ----
 
@@ -255,6 +322,8 @@ export function exportData(s: AppState = useApp.getState()): AppData {
     goals: s.goals,
     profile: s.profile,
     focusAreas: s.focusAreas ?? [],
+    householdMode: s.householdMode ?? "individual",
+    members: s.members ?? [],
     history: s.history,
   };
 }
@@ -266,6 +335,8 @@ export function importData(data: Partial<AppData>) {
     ...data,
     events: data.events ?? [],
     focusAreas: data.focusAreas ?? seedData.focusAreas,
+    householdMode: data.householdMode ?? "individual",
+    members: data.members ?? [],
     goals: { ...seedData.goals, ...(data.goals ?? {}) },
     profile: { ...seedData.profile, ...(data.profile ?? {}) },
   });

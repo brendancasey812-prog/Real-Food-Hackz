@@ -34,8 +34,10 @@ export default function Planner() {
   const {
     recipes, foods, plan, events,
     addPlannedMeal, updatePlannedMeal, removePlannedMeal,
-    addEvent, updateEvent, removeEvent,
+    addEvent, updateEvent, removeEvent, members, householdMode,
   } = useApp();
+  // Couple/family: one recipe should feed everyone, so default the servings.
+  const householdSize = householdMode === "individual" ? 1 : 1 + (members?.length ?? 0);
   const [view, setView] = useState<View>("week");
   const [anchor, setAnchor] = useState<Date>(new Date());
   const [picking, setPicking] = useState<{ iso: string; hour: number | null; durH: number } | null>(null);
@@ -162,7 +164,7 @@ export default function Planner() {
           foods={foods}
           onClose={() => setPicking(null)}
           onPickMeal={(r) => {
-            const base = { id: newId(), date: picking.iso, mealType: r.category, recipeId: r.id, servings: r.servings };
+            const base = { id: newId(), date: picking.iso, mealType: r.category, recipeId: r.id, servings: Math.max(householdSize, 1) };
             addPlannedMeal(
               picking.hour != null
                 ? { ...base, start: snapHour(picking.hour), end: snapHour(picking.hour) + picking.durH }

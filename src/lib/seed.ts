@@ -247,4 +247,6 @@ export const seedData: AppData = {
     sex: "male",
   },
   focusAreas: ["athletic", "health"],
+  householdMode: "individual",
+  members: [],
 };

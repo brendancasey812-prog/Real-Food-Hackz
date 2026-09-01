@@ -18,6 +18,7 @@ import { MEAL_ORDER, MEAL_LABEL } from "@/lib/week";
 import { RecipeScanModal } from "@/components/RecipeScanModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SearchFilterBar } from "@/components/SearchFilterBar";
+import { RecipeCardV2 } from "@/components/RecipeCardV2";
 import type { Food, FoodCategory, Location, MealType, Recipe, RecipeComponent, Unit } from "@/lib/types";
 
 export default function Cookbook() {
@@ -32,6 +33,7 @@ export default function Cookbook() {
   const [collapsed, setCollapsed] = useState<Set<MealType>>(new Set());
   const [search, setSearch] = useState("");
   const [secFilter, setSecFilter] = useState("all");
+  const [tab, setTab] = useState<"classic" | "v2">("classic");
   const q = search.trim().toLowerCase();
 
   const toggleMeal = (m: MealType) =>
@@ -108,6 +110,21 @@ export default function Cookbook() {
         </div>
       </header>
 
+      {/* Cookbook / Cookbook V2 */}
+      <div className="mb-4 flex w-fit rounded-xl border border-white/10 bg-white/[0.03] p-0.5 text-sm">
+        {([["classic", "Cookbook"], ["v2", "Cookbook V2"]] as const).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setTab(k)}
+            className={`rounded-lg px-4 py-1.5 font-medium transition-colors ${
+              tab === k ? "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white shadow shadow-emerald-950/40" : "text-zinc-400 hover:text-zinc-100"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <SearchFilterBar
         query={search}
         onQuery={setSearch}
@@ -136,7 +153,10 @@ export default function Cookbook() {
               </button>
               {!isCollapsed && (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {list.map((r) => <RecipeCard key={r.id} recipe={r} foods={foods} recipes={recipes} onEdit={() => setEditRecipe(r)} onRemove={() => removeRecipe(r.id)} />)}
+                  {list.map((r) => (tab === "v2"
+                    ? <RecipeCardV2 key={r.id} recipe={r} foods={foods} recipes={recipes} onEdit={() => setEditRecipe(r)} onRemove={() => removeRecipe(r.id)} />
+                    : <RecipeCard key={r.id} recipe={r} foods={foods} recipes={recipes} onEdit={() => setEditRecipe(r)} onRemove={() => removeRecipe(r.id)} />
+                  ))}
                 </div>
               )}
             </section>
