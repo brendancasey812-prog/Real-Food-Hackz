@@ -19,6 +19,7 @@ import { RecipeScanModal } from "@/components/RecipeScanModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SearchFilterBar } from "@/components/SearchFilterBar";
 import { RecipeCardV2 } from "@/components/RecipeCardV2";
+import { RecipeDetailModal } from "@/components/RecipeDetailModal";
 import type { Food, FoodCategory, Location, MealType, Recipe, RecipeComponent, Unit } from "@/lib/types";
 
 export default function Cookbook() {
@@ -34,6 +35,7 @@ export default function Cookbook() {
   const [search, setSearch] = useState("");
   const [secFilter, setSecFilter] = useState("all");
   const [tab, setTab] = useState<"classic" | "v2">("classic");
+  const [openRecipeId, setOpenRecipeId] = useState<string | null>(null);
   const q = search.trim().toLowerCase();
 
   const toggleMeal = (m: MealType) =>
@@ -154,8 +156,8 @@ export default function Cookbook() {
               {!isCollapsed && (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {list.map((r) => (tab === "v2"
-                    ? <RecipeCardV2 key={r.id} recipe={r} foods={foods} recipes={recipes} onEdit={() => setEditRecipe(r)} onRemove={() => removeRecipe(r.id)} />
-                    : <RecipeCard key={r.id} recipe={r} foods={foods} recipes={recipes} onEdit={() => setEditRecipe(r)} onRemove={() => removeRecipe(r.id)} />
+                    ? <RecipeCardV2 key={r.id} recipe={r} foods={foods} recipes={recipes} onOpen={() => setOpenRecipeId(r.id)} onEdit={() => setEditRecipe(r)} onRemove={() => removeRecipe(r.id)} />
+                    : <RecipeCard key={r.id} recipe={r} foods={foods} recipes={recipes} onOpen={() => setOpenRecipeId(r.id)} onEdit={() => setEditRecipe(r)} onRemove={() => removeRecipe(r.id)} />
                   ))}
                 </div>
               )}
@@ -167,6 +169,19 @@ export default function Cookbook() {
         )}
       </div>
 
+      {openRecipeId && (
+        <RecipeDetailModal
+          recipeId={openRecipeId}
+          onClose={() => setOpenRecipeId(null)}
+          onEdit={() => {
+            const r = recipes.find((x) => x.id === openRecipeId);
+            setOpenRecipeId(null);
+            if (r) setEditRecipe(r);
+          }}
+          onRemove={() => removeRecipe(openRecipeId)}
+        />
+      )}
+
       {manualOpen && <AddRecipeModal onClose={() => setManualOpen(false)} />}
       {editRecipe && <AddRecipeModal recipe={editRecipe} onClose={() => setEditRecipe(null)} />}
       {scanOpen && <RecipeScanModal mode="photo" onClose={() => setScanOpen(false)} />}
@@ -175,7 +190,7 @@ export default function Cookbook() {
   );
 }
 
-function RecipeCard({ recipe: r, foods, recipes, onEdit, onRemove }: { recipe: Recipe; foods: Food[]; recipes: Recipe[]; onEdit: () => void; onRemove: () => void }) {
+function RecipeCard({ recipe: r, foods, recipes, onOpen, onEdit, onRemove }: { recipe: Recipe; foods: Food[]; recipes: Recipe[]; onOpen: () => void; onEdit: () => void; onRemove: () => void }) {
   const perServing = recipeCaloriesPerServing(r, foods, recipes);
   const total = recipeTotalCalories(r, foods, recipes);
   const m = recipeTotalsPerServing(r, foods, recipes);
@@ -183,11 +198,11 @@ function RecipeCard({ recipe: r, foods, recipes, onEdit, onRemove }: { recipe: R
   const [confirming, setConfirming] = useState(false);
 
   return (
-    <div className="flex flex-col rounded-2xl card p-5">
+    <div onClick={onOpen} className="flex cursor-pointer flex-col rounded-2xl card p-5 transition-colors hover:border-emerald-400/40">
       <div className="flex items-start justify-between">
         <span className="text-3xl">{r.emoji}</span>
         {/* Hamburger menu (top-right) */}
-        <div className="relative">
+        <div className="relative" onClick={(e) => e.stopPropagation()}>
           <button onClick={() => setMenu((v) => !v)} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200" aria-label="Recipe menu">
             <Menu size={16} />
           </button>

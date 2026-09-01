@@ -12,11 +12,12 @@ import type { Food, Recipe } from "@/lib/types";
  * then servings / calories / macros / cook time. No emoji by design.
  */
 export function RecipeCardV2({
-  recipe: r, foods, recipes, onEdit, onRemove,
+  recipe: r, foods, recipes, onOpen, onEdit, onRemove,
 }: {
   recipe: Recipe;
   foods: Food[];
   recipes: Recipe[];
+  onOpen: () => void;
   onEdit: () => void;
   onRemove: () => void;
 }) {
@@ -44,7 +45,10 @@ export function RecipeCardV2({
   };
 
   return (
-    <div className="group/card flex flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02] transition-colors hover:border-white/[0.14]">
+    <div
+      onClick={onOpen}
+      className="group/card flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02] transition-colors hover:border-emerald-400/40"
+    >
       {/* Large photo */}
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-zinc-900">
         {r.image ? (
@@ -59,7 +63,7 @@ export function RecipeCardV2({
 
         {/* Upload / replace */}
         <button
-          onClick={() => fileRef.current?.click()}
+          onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
           disabled={busy}
           className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-lg bg-black/70 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-sm transition hover:bg-black/85 disabled:opacity-60"
         >
@@ -71,11 +75,12 @@ export function RecipeCardV2({
           type="file"
           accept="image/*"
           className="hidden"
+          onClick={(e) => e.stopPropagation()}
           onChange={(e) => { pickImage(e.target.files?.[0]); e.target.value = ""; }}
         />
 
         {/* Menu */}
-        <div className="absolute right-2 top-2">
+        <div className="absolute right-2 top-2" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => setMenu((v) => !v)}
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/60 text-zinc-200 backdrop-blur-sm hover:bg-black/80"
@@ -112,7 +117,7 @@ export function RecipeCardV2({
             <Flame size={13} />
             {perServing.toLocaleString()} cal
           </span>
-          <CookTime recipe={r} />
+          <span onClick={(e) => e.stopPropagation()}><CookTime recipe={r} /></span>
         </div>
 
         <div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/[0.06] pt-3 text-center">
