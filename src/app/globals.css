@@ -116,3 +116,35 @@ optgroup {
   background-color: #16181d;
   color: var(--foreground);
 }
+
+/* Leaflet ships a light-mode UI; restyle its chrome to match the dark theme. */
+.leaflet-container {
+  background: #17181c;
+  font-family: inherit;
+}
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  background: #1c1e24;
+  color: var(--foreground);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+.leaflet-bar a:hover {
+  background: #262931;
+}
+.leaflet-control-attribution {
+  background: rgba(0, 0, 0, 0.6) !important;
+  color: var(--muted);
+  font-size: 10px;
+}
+.leaflet-control-attribution a {
+  color: #6ee7b7;
+}
+.leaflet-tooltip {
+  background: #1c1e24;
+  border: 1px solid var(--border-strong);
+  color: var(--foreground);
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.9);
+}
+.leaflet-tooltip-top::before {
+  border-top-color: var(--border-strong);
+}

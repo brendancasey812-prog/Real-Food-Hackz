@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import { format, isToday } from "date-fns";
-import { Flame, Beef, Wheat, Droplet, User, Settings } from "lucide-react";
+import Link from "next/link";
+import { Flame, Beef, Wheat, Droplet, User, Settings, DollarSign } from "lucide-react";
 import { useApp, plannedTotals, household, combinedGoals } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
 import { SettingsModal, HOUSEHOLD_LABEL } from "@/components/SettingsModal";
+import { BASE_STORE_ID, plannedCost, fmtMoney } from "@/lib/cost";
 
 export default function Dashboard() {
-  const { recipes, foods, plan, goals, profile, members, householdMode, setGoals } = useApp();
+  const { recipes, foods, plan, goals, profile, members, householdMode, setGoals,
+    prices, stores, selectedStoreId } = useApp();
   const [settingsOpen, setSettingsOpen] = useState(false);
   // "all" = the whole household; otherwise a single eater's id ("me" or member id).
   const [scope, setScope] = useState<string>("all");
@@ -29,6 +32,15 @@ export default function Dashboard() {
   });
 
   const todayCol = perDay.find((d) => isToday(d.date)) ?? perDay[0];
+
+  // Money twin of the calorie roll-up above, costed at the selected store.
+  const weekIsos = days.map(isoOf);
+  const weekCost = plannedCost(plan.filter((m) => weekIsos.includes(m.date)), recipes, prices, selectedStoreId);
+  const todayCost = plannedCost(plan.filter((m) => m.date === todayCol.iso), recipes, prices, selectedStoreId);
+  const costStore =
+    selectedStoreId === BASE_STORE_ID
+      ? "base prices"
+      : (stores.find((st) => st.id === selectedStoreId)?.name ?? "base prices");
   const weekTotal = perDay.reduce((s, d) => s + d.calories, 0);
   const maxBar = Math.max(target, ...perDay.map((d) => d.calories)) * 1.12;
   const targetPct = (target / maxBar) * 100;
@@ -139,6 +151,37 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {/* Food spend — the same plan, costed */}
+      <section className="mt-6 rounded-2xl card p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="font-semibold">Food spend</h2>
+            <p className="text-xs text-zinc-500">
+              This week&apos;s plan at {costStore}
+              {weekCost.lines - weekCost.priced > 0 && (
+                <span className="text-amber-400/90">
+                  {" "}· {weekCost.lines - weekCost.priced} ingredient lines still unpriced
+                </span>
+              )}
+            </p>
+          </div>
+          <Link
+            href="/costs"
+            className="rounded-lg px-3 py-1.5 text-xs font-medium field hover:brightness-125"
+          >
+            Edit prices
+          </Link>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <SpendStat label="This week" value={weekCost.priced > 0 ? fmtMoney(weekCost.cost) : "—"} />
+          <SpendStat label="Today" value={todayCost.priced > 0 ? fmtMoney(todayCost.cost) : "—"} />
+          <SpendStat
+            label="Avg / day"
+            value={weekCost.priced > 0 ? fmtMoney(weekCost.cost / 7) : "—"}
+          />
+        </div>
+      </section>
+
       {/* Weekly calorie bar chart with target line */}
       <section className="mt-6 rounded-2xl card p-5">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -218,6 +261,17 @@ export default function Dashboard() {
       </section>
 
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+    </div>
+  );
+}
+
+function SpendStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-white/[0.03] px-4 py-3">
+      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+        <DollarSign size={12} /> {label}
+      </div>
+      <div className="mt-1 text-xl font-semibold tabular-nums text-emerald-400">{value}</div>
     </div>
   );
 }

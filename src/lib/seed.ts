@@ -1,5 +1,6 @@
 import { startOfMonth, endOfMonth, addDays, format } from "date-fns";
-import type { AppData, Food, FoodCategory, Recipe, MealType, PlannedMeal } from "./types";
+import type { AppData, Food, FoodCategory, Recipe, MealType, PlannedMeal, Price } from "./types";
+import { BASE_STORE_ID } from "./cost";
 import { mondayIndex } from "./week";
 
 // Which food-type bucket each food id belongs to (groups the Kitchen).
@@ -223,6 +224,53 @@ const RECEIPT_STOCK: Record<string, number> = {
 };
 const inventory = foods.map((f) => ({ foodId: f.id, quantity: RECEIPT_STOCK[f.id] ?? 0 }));
 
+// Typical US grocery prices, in dollars per one of the food's OWN unit (chicken
+// per oz, milk per cup, olive oil per tbsp). These seed the BASE price row —
+// the fallback used for any store the user hasn't priced individually — and are
+// meant to be edited in the Costs tab to match what you actually pay.
+const BASE_PRICE: Record<string, number> = {
+  // Protein (per oz unless noted)
+  chicken: 0.28, chickenthigh: 0.22, salmon: 0.75, whitefish: 0.56,
+  beef937: 0.44, groundbeef80: 0.34, sirloin: 0.69, groundturkey: 0.31,
+  turkeydeli: 0.62, shrimp: 0.69, tuna: 0.42, tofu: 0.16, cheese: 0.38,
+  egg: 0.32, eggwhite: 0.22, stringcheese: 0.45, turkeysausage: 0.75,
+  proteinpowder: 1.1, proteinshake: 2.6,
+  // Dairy & drinks (per cup)
+  greekyogurt: 1.45, cottagecheese: 1.2, milk: 0.28, oatmilk: 0.45,
+  oj: 0.55, coffee: 0.25,
+  // Grains & starch
+  oats: 0.55, brownrice: 0.45, whiterice: 0.35, quinoa: 0.95, farro: 0.85,
+  granola: 1.3, jasminerice: 0.09, wwbread: 0.22, wrap: 0.55, roll: 0.6,
+  crackers: 0.06, englishmuffin: 0.6, corntortillas: 0.14,
+  potato: 0.85, sweetpotato: 0.95,
+  // Legumes & nuts
+  blackbeans: 0.85, beans: 0.9, hummus: 0.22, peanutbutter: 0.18,
+  almondbutter: 0.42, almonds: 0.62, walnuts: 0.75, mixednuts: 0.7, trailmix: 0.55,
+  // Fats
+  oliveoil: 0.3, sesameoil: 0.55, butter: 0.16, vinaigrette: 0.2,
+  caesar: 0.24, avocado: 1.35,
+  // Vegetables (per cup)
+  broccoli: 0.75, spinach: 0.6, mushrooms: 0.9, peppers: 1.1, onion: 0.5,
+  carrots: 0.45, greens: 1.1, brussels: 0.95, greenbeans: 0.7, asparagus: 1.4,
+  tomatoes: 0.95, rootveg: 0.7, arugula: 1.2, garlic: 0.1,
+  // Fruit
+  banana: 0.3, berries: 2.2, apple: 0.85, orange: 0.8, grapes: 1.3,
+  pineapple: 1.15, fruitsalad: 1.8, blueberries: 2.4, frozenstrawberries: 0.95,
+  // Condiments
+  honey: 0.28, salsa: 0.15, cinnamon: 0.09, yangnyeom: 0.35,
+};
+
+const SEED_PRICED_ON = "2026-09-01";
+
+const prices: Price[] = foods
+  .filter((f) => BASE_PRICE[f.id] != null)
+  .map((f) => ({
+    storeId: BASE_STORE_ID,
+    foodId: f.id,
+    pricePerUnit: BASE_PRICE[f.id],
+    updatedAt: SEED_PRICED_ON,
+  }));
+
 export const seedData: AppData = {
   foods,
   recipes,
@@ -231,6 +279,12 @@ export const seedData: AppData = {
   events: [],
   manualGroceries: [],
   history: [],
+  // Stores start empty on purpose: the Stores tab finds real ones near you
+  // (or you add your own) rather than shipping made-up addresses.
+  stores: [],
+  prices,
+  selectedStoreId: BASE_STORE_ID,
+  home: { city: "", state: "", zip: "" },
   goals: {
     dailyCalorieTarget: 2900,
     proteinTarget: 180,
