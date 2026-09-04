@@ -10,6 +10,8 @@ import {
   ShoppingCart,
   Refrigerator,
   Salad,
+  DollarSign,
+  MapPin,
 } from "lucide-react";
 
 /** True only after client hydration — avoids SSR/persisted-store mismatch. */
@@ -27,6 +29,8 @@ const nav = [
   { href: "/planner", label: "Planner", icon: CalendarDays },
   { href: "/groceries", label: "Groceries", icon: ShoppingCart },
   { href: "/kitchen", label: "Kitchen", icon: Refrigerator },
+  { href: "/costs", label: "Costs", icon: DollarSign },
+  { href: "/stores", label: "Stores", icon: MapPin },
 ];
 
 function Logo({ small }: { small?: boolean }) {
@@ -112,12 +116,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               key={href}
               href={href}
-              className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
+              className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
                 active ? "text-emerald-400" : "text-zinc-500"
               }`}
             >
-              <span className={`flex h-7 w-12 items-center justify-center rounded-full transition-all ${active ? "bg-emerald-500/15" : ""}`}>
-                <Icon size={19} />
+              <span className={`flex h-6 w-10 items-center justify-center rounded-full transition-all ${active ? "bg-emerald-500/15" : ""}`}>
+                <Icon size={17} />
               </span>
               {label}
             </Link>

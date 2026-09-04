@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ImagePlus, Clock, Users, Flame, Menu, PenLine, Trash2, Loader2 } from "lucide-react";
+import { ImagePlus, Clock, Users, Flame, Menu, PenLine, Trash2, Loader2, DollarSign } from "lucide-react";
 import { useApp, recipeCaloriesPerServing, recipeTotalsPerServing } from "@/lib/store";
+import { recipeCostPerServing, fmtMoney } from "@/lib/cost";
 import { fileToThumbnail } from "@/lib/image";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { Food, Recipe } from "@/lib/types";
@@ -21,7 +22,7 @@ export function RecipeCardV2({
   onEdit: () => void;
   onRemove: () => void;
 }) {
-  const { updateRecipe } = useApp();
+  const { updateRecipe, prices, selectedStoreId } = useApp();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [imgError, setImgError] = useState("");
@@ -30,6 +31,7 @@ export function RecipeCardV2({
 
   const perServing = recipeCaloriesPerServing(r, foods, recipes);
   const m = recipeTotalsPerServing(r, foods, recipes);
+  const cost = recipeCostPerServing(r, recipes, prices, selectedStoreId);
 
   const pickImage = async (file: File | undefined) => {
     if (!file) return;
@@ -117,6 +119,12 @@ export function RecipeCardV2({
             <Flame size={13} />
             {perServing.toLocaleString()} cal
           </span>
+          {cost.priced > 0 && (
+            <span className="inline-flex items-center gap-1.5 font-medium text-emerald-300">
+              <DollarSign size={13} />
+              {fmtMoney(cost.cost)}
+            </span>
+          )}
           <span onClick={(e) => e.stopPropagation()}><CookTime recipe={r} /></span>
         </div>
 

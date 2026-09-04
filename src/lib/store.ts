@@ -12,9 +12,12 @@ import type {
   PlannedMeal,
   Recipe,
   ScannedItem,
+  Store,
+  HomeLocation,
 } from "./types";
 import { seedData } from "./seed";
 import { normalizeName, mapCategory, unitForNewFood, convertToUnit } from "./receipt";
+import { BASE_STORE_ID } from "./cost";
 
 interface Totals extends Macros {
   calories: number;
@@ -43,6 +46,15 @@ interface AppState extends AppData {
   updateMember: (id: string, patch: Partial<Member>) => void;
   removeMember: (id: string) => void;
   setFocusAreas: (focusAreas: AppData["focusAreas"]) => void;
+  addStore: (store: Store) => void;
+  updateStore: (id: string, patch: Partial<Store>) => void;
+  removeStore: (id: string) => void;
+  selectStore: (id: string) => void;
+  /** Set (or clear, with null) the unit price of a food at a store. */
+  setPrice: (storeId: string, foodId: string, pricePerUnit: number | null) => void;
+  /** Copy every base price onto a store, as a starting point to tweak. */
+  seedStorePricesFromBase: (storeId: string) => number;
+  setHome: (patch: Partial<HomeLocation>) => void;
   /** Merge receipt-scanned items into the kitchen; returns a summary. */
   commitScan: (items: ScannedItem[]) => { merged: number; added: number; skipped: number };
   resetToSeed: () => void;
@@ -86,6 +98,7 @@ export const useApp = create<AppState>()(
           inventory: s.inventory.filter((i) => i.foodId !== foodId),
           manualGroceries: s.manualGroceries.filter((m) => m.foodId !== foodId),
           history: s.history.filter((h) => h.foodId !== foodId),
+          prices: s.prices.filter((pr) => pr.foodId !== foodId),
           recipes: s.recipes.map((r) => ({ ...r, ingredients: r.ingredients.filter((ing) => ing.foodId !== foodId) })),
         })),
 
@@ -186,6 +199,60 @@ export const useApp = create<AppState>()(
 
       removeMember: (id) => set((s) => ({ members: (s.members ?? []).filter((m) => m.id !== id) })),
 
+      addStore: (store) => set((s) => ({ stores: [...(s.stores ?? []), store] })),
+
+      updateStore: (id, patch) =>
+        set((s) => ({
+          stores: (s.stores ?? []).map((st) => (st.id === id ? { ...st, ...patch } : st)),
+        })),
+
+      removeStore: (id) =>
+        set((s) => ({
+          stores: (s.stores ?? []).filter((st) => st.id !== id),
+          // Drop that store's prices, and fall back to base prices if it was selected.
+          prices: (s.prices ?? []).filter((pr) => pr.storeId !== id),
+          selectedStoreId: s.selectedStoreId === id ? BASE_STORE_ID : s.selectedStoreId,
+        })),
+
+      selectStore: (id) => set({ selectedStoreId: id }),
+
+      setPrice: (storeId, foodId, pricePerUnit) =>
+        set((s) => {
+          const prices = s.prices ?? [];
+          const rest = prices.filter((pr) => !(pr.storeId === storeId && pr.foodId === foodId));
+          if (pricePerUnit == null || !Number.isFinite(pricePerUnit) || pricePerUnit < 0) {
+            return { prices: rest };
+          }
+          return {
+            prices: [
+              ...rest,
+              {
+                storeId,
+                foodId,
+                pricePerUnit: Math.round(pricePerUnit * 1e4) / 1e4,
+                updatedAt: new Date().toISOString().slice(0, 10),
+              },
+            ],
+          };
+        }),
+
+      seedStorePricesFromBase: (storeId) => {
+        const s = get();
+        if (storeId === BASE_STORE_ID) return 0;
+        const prices = s.prices ?? [];
+        const today = new Date().toISOString().slice(0, 10);
+        const existing = new Set(
+          prices.filter((pr) => pr.storeId === storeId).map((pr) => pr.foodId),
+        );
+        const copied = prices
+          .filter((pr) => pr.storeId === BASE_STORE_ID && !existing.has(pr.foodId))
+          .map((pr) => ({ ...pr, storeId, updatedAt: today }));
+        if (copied.length) set({ prices: [...prices, ...copied] });
+        return copied.length;
+      },
+
+      setHome: (patch) => set((s) => ({ home: { ...s.home, ...patch } })),
+
       commitScan: (items) => {
         const s = get();
         const foods = [...s.foods];
@@ -242,7 +309,7 @@ export const useApp = create<AppState>()(
     }),
     {
       name: "mealplan-store-v6",
-      version: 1,
+      version: 2,
       // Preserve the user's own data across app updates; only fill in missing
       // defaults and restore items that earlier resets dropped.
       migrate: (persisted) => {
@@ -277,6 +344,12 @@ export const useApp = create<AppState>()(
           focusAreas: s.focusAreas ?? seedData.focusAreas,
           householdMode: s.householdMode ?? "individual",
           members: s.members ?? [],
+          // Costs & stores arrived in v2 — existing users get the seed base
+          // prices and an empty store list, keeping any they already had.
+          stores: s.stores ?? [],
+          prices: s.prices?.length ? s.prices : seedData.prices,
+          selectedStoreId: s.selectedStoreId ?? seedData.selectedStoreId,
+          home: { ...seedData.home, ...(s.home ?? {}) },
         } as AppData;
       },
     },
@@ -325,6 +398,10 @@ export function exportData(s: AppState = useApp.getState()): AppData {
     householdMode: s.householdMode ?? "individual",
     members: s.members ?? [],
     history: s.history,
+    stores: s.stores ?? [],
+    prices: s.prices ?? [],
+    selectedStoreId: s.selectedStoreId ?? BASE_STORE_ID,
+    home: s.home ?? { city: "", state: "", zip: "" },
   };
 }
 
@@ -339,6 +416,10 @@ export function importData(data: Partial<AppData>) {
     members: data.members ?? [],
     goals: { ...seedData.goals, ...(data.goals ?? {}) },
     profile: { ...seedData.profile, ...(data.profile ?? {}) },
+    stores: data.stores ?? [],
+    prices: data.prices?.length ? data.prices : seedData.prices,
+    selectedStoreId: data.selectedStoreId ?? BASE_STORE_ID,
+    home: { ...seedData.home, ...(data.home ?? {}) },
   });
 }
 

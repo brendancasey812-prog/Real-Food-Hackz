@@ -14,17 +14,74 @@ list, and fridge/pantry levels all update together.
 | **Planner** | Google-Calendar-style weekly grid — drop recipes onto breakfast/lunch/dinner/snack slots. |
 | **Groceries** | Auto-built list = what the week's plan needs − what's already in your kitchen. |
 | **Kitchen** | Visual fridge, freezer & pantry with live stock bars showing how much the week's plan will use. |
+| **Costs** | The cost repository — every ingredient priced per its own unit, rolling up to per-recipe and per-week spend. |
+| **Stores** | Map of the grocery stores near you. Pick one and the whole app re-prices against it. |
 
 ## How it stays in sync
 
 ```
-RECIPES ──▶ PLANNER ──▶ DASHBOARD (calories vs goal)
-                   ├──▶ GROCERIES (need − have)
+RECIPES ──▶ PLANNER ──▶ DASHBOARD (calories vs goal, food spend)
+                   ├──▶ GROCERIES (need − have, basket cost)
                    └──▶ KITCHEN   (stock depletion)
+
+STORES ──▶ (selected store) ──▶ COSTS ──▶ every dollar figure above
 ```
 
 One shared store ([`src/lib/store.ts`](src/lib/store.ts)) holds foods, inventory,
 recipes, the plan, and goals. Every tab is a live, reactive view of it.
+
+## Cost tracking
+
+Money works exactly like calories: priced at the **individual food-unit level**
+and rolled up everywhere from that one number.
+
+- Every **food** can carry a `pricePerUnit` — the cost of one of its own units
+  (chicken per `oz`, milk per `cup`, olive oil per `tbsp`), so an ingredient line
+  costs `quantity x pricePerUnit`, mirroring `ingredientCalories` exactly.
+- A **recipe's** cost is *derived*, never hand-entered, and sub-recipe components
+  are expanded down to their underlying foods just like calories are.
+- The **Costs** tab is the repository: search/filter every ingredient, type a
+  price, and watch the week's spend move.
+- The **Groceries** list totals what the basket will cost; the **Dashboard**
+  shows this week / today / average-per-day spend.
+
+### Prices are per store
+
+Prices live against a store, with a **base price** row as the fallback:
+
+```
+price at selected store  →  else base price  →  else "unpriced"
+```
+
+Pick a store in the **Stores** tab and every dollar figure in the app re-costs
+against it. A store with no price of its own for a food quietly falls back to
+your base price, so you only have to fill in what actually differs.
+
+**Unpriced ingredients are never silently treated as $0.** Any total that is
+missing a price says so (`+3 unpriced`), because a confident dollar figure that
+is quietly missing half its ingredients is worse than no figure at all.
+
+Helpers live in [`src/lib/cost.ts`](src/lib/cost.ts) (`priceFor`,
+`ingredientCost`, `recipeTotalCost`, `recipeCostPerServing`, `plannedCost`).
+Run the cost math tests with:
+
+```bash
+npm run test:cost
+```
+
+## Store locator
+
+The **Stores** tab maps where you shop, using two free, key-less services called
+straight from the browser:
+
+- **[Nominatim](https://nominatim.openstreetmap.org/)** turns a typed
+  `City, ST` or ZIP into coordinates.
+- **[Overpass](https://overpass-api.de/)** finds the real supermarkets within
+  8 miles of that point.
+
+Map tiles are OpenStreetMap via [Leaflet](https://leafletjs.com/). All three are
+best-effort: if any is unreachable, the tab says so and you can still add a
+store by hand and price it. Nothing about costing depends on the network.
 
 ## Nutrition & calorie tracking
 

@@ -2,12 +2,15 @@
 
 import { useRef, useState } from "react";
 import {
-  X, Clock, Users, Flame, PenLine, Trash2, ImagePlus, Loader2, ListChecks, UtensilsCrossed,
+  X, Clock, Users, Flame, PenLine, Trash2, ImagePlus, Loader2, ListChecks, UtensilsCrossed, DollarSign,
 } from "lucide-react";
 import {
   useApp, foodById, ingredientCalories, componentCalories,
   recipeCaloriesPerServing, recipeTotalCalories, recipeTotalsPerServing,
 } from "@/lib/store";
+import {
+  recipeTotalCost, recipeCostPerServing, ingredientCost, fmtMoney,
+} from "@/lib/cost";
 import { pluralUnit, fmtQty } from "@/lib/units";
 import { MEAL_LABEL } from "@/lib/week";
 import { MEAL_COLOR } from "@/lib/mealtime";
@@ -27,7 +30,7 @@ export function RecipeDetailModal({
   onEdit: () => void;
   onRemove: () => void;
 }) {
-  const { recipes, foods, updateRecipe } = useApp();
+  const { recipes, foods, updateRecipe, prices, selectedStoreId } = useApp();
   const recipe = recipes.find((r) => r.id === recipeId);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
@@ -38,6 +41,9 @@ export function RecipeDetailModal({
 
   const perServing = recipeCaloriesPerServing(recipe, foods, recipes);
   const total = recipeTotalCalories(recipe, foods, recipes);
+  const costTotal = recipeTotalCost(recipe, recipes, prices, selectedStoreId);
+  const costPer = recipeCostPerServing(recipe, recipes, prices, selectedStoreId);
+  const missingPrices = costTotal.lines - costTotal.priced;
   const m = recipeTotalsPerServing(recipe, foods, recipes);
   const comps = recipe.components ?? [];
   const color = MEAL_COLOR[recipe.category];
@@ -101,6 +107,19 @@ export function RecipeDetailModal({
               <span className="inline-flex items-center gap-1.5"><Users size={14} className="text-zinc-500" /> {recipe.servings} serving{recipe.servings === 1 ? "" : "s"}</span>
               <span className="inline-flex items-center gap-1.5 font-medium text-rose-300"><Flame size={14} /> {perServing.toLocaleString()} cal / serving</span>
               <span className="text-zinc-500">{total.toLocaleString()} cal total</span>
+              {costTotal.priced > 0 && (
+                <>
+                  <span className="inline-flex items-center gap-1.5 font-medium text-emerald-300">
+                    <DollarSign size={14} /> {fmtMoney(costPer.cost)} / serving
+                  </span>
+                  <span className="text-zinc-500">
+                    {fmtMoney(costTotal.cost)} total
+                    {missingPrices > 0 && (
+                      <span className="ml-1 text-amber-400/90">+{missingPrices} unpriced</span>
+                    )}
+                  </span>
+                </>
+              )}
               <span className="inline-flex items-center gap-1.5"><Clock size={14} className="text-zinc-500" /> {recipe.cookTimeMin ? `${recipe.cookTimeMin} min` : "No cook time set"}</span>
             </div>
 
@@ -145,6 +164,14 @@ export function RecipeDetailModal({
                         <span className="shrink-0 text-zinc-400">
                           {fmtQty(ing.quantity)} {f ? pluralUnit(ing.quantity, f.unit) : ""} ·{" "}
                           <span className="text-rose-400/80">{ingredientCalories(ing, foods)} cal</span>
+                          {(() => {
+                            const c = ingredientCost(ing, prices, selectedStoreId);
+                            return c != null ? (
+                              <span className="text-emerald-400/80"> · {fmtMoney(c)}</span>
+                            ) : (
+                              <span className="text-amber-400/70"> · no price</span>
+                            );
+                          })()}
                         </span>
                       </div>
                     );

@@ -1,15 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { addWeeks, format } from "date-fns";
 import { ChevronLeft, ChevronRight, Check, Plus } from "lucide-react";
 import { useApp, neededQuantities, foodById } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
 import { fmtQty, pluralUnit } from "@/lib/units";
 import { AddFoodModal } from "@/components/AddFoodModal";
+import { BASE_STORE_ID, quantityCost, quantitiesCost, fmtMoney } from "@/lib/cost";
 
 export default function Groceries() {
-  const { recipes, foods, plan, inventory, manualGroceries, setInventory, removeManualGrocery } = useApp();
+  const { recipes, foods, plan, inventory, manualGroceries, prices, stores, selectedStoreId,
+    setInventory, removeManualGrocery } = useApp();
   const [offset, setOffset] = useState(0);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [adding, setAdding] = useState(false);
@@ -50,6 +53,17 @@ export default function Groceries() {
     0,
   );
 
+  // What this list costs at whichever store the app is currently costing against.
+  const basket = quantitiesCost(
+    Object.fromEntries(items.map((x) => [x.food!.id, x.buy])),
+    prices,
+    selectedStoreId,
+  );
+  const storeName =
+    selectedStoreId === BASE_STORE_ID
+      ? "base prices"
+      : (stores.find((st) => st.id === selectedStoreId)?.name ?? "base prices");
+
   const markBought = (foodId: string, have: number, buy: number) => {
     setInventory(foodId, have + buy);
     manualGroceries.filter((m) => m.foodId === foodId).forEach((m) => removeManualGrocery(m.id));
@@ -85,7 +99,17 @@ export default function Groceries() {
             <ChevronRight size={16} />
           </button>
         </div>
-        <span className="text-zinc-400">{totalCals.toLocaleString()} cal to buy</span>
+        <div className="flex items-center gap-3">
+          <span className="text-zinc-400">{totalCals.toLocaleString()} cal</span>
+          <span className="font-medium text-emerald-400 tabular-nums">
+            {basket.priced > 0 ? fmtMoney(basket.cost) : "—"}
+            {basket.lines - basket.priced > 0 && (
+              <span className="ml-1 text-[11px] font-normal text-amber-400">
+                +{basket.lines - basket.priced} unpriced
+              </span>
+            )}
+          </span>
+        </div>
       </div>
 
       {items.length === 0 ? (
@@ -104,6 +128,7 @@ export default function Groceries() {
                   const f = item.food!;
                   const isChecked = checked[f.id];
                   const lineCals = Math.round(item.buy * f.caloriesPerUnit);
+                  const lineCost = quantityCost(f.id, item.buy, prices, selectedStoreId);
                   return (
                     <div
                       key={f.id}
@@ -121,7 +146,14 @@ export default function Groceries() {
                       </button>
                       <div className={`flex-1 ${isChecked ? "text-zinc-400 line-through" : ""}`}>
                         <div>{f.emoji} {f.name}</div>
-                        <div className="text-[11px] text-zinc-400">{lineCals} cal</div>
+                        <div className="text-[11px] text-zinc-400">
+                          {lineCals} cal
+                          {lineCost != null ? (
+                            <span className="ml-2 text-emerald-400/90">{fmtMoney(lineCost)}</span>
+                          ) : (
+                            <span className="ml-2 text-amber-400/80">no price</span>
+                          )}
+                        </div>
                       </div>
                       <span className="text-sm text-zinc-500">
                         buy {fmtQty(Math.ceil(item.buy * 4) / 4)} {pluralUnit(item.buy, f.unit)}
@@ -133,6 +165,15 @@ export default function Groceries() {
             </div>
           ))}
         </div>
+      )}
+
+      {items.length > 0 && (
+        <p className="mt-4 text-center text-xs text-zinc-500">
+          Costed at <span className="text-zinc-300">{storeName}</span> —{" "}
+          <Link href="/stores" className="text-emerald-400 hover:underline">change store</Link>
+          {" or "}
+          <Link href="/costs" className="text-emerald-400 hover:underline">edit prices</Link>.
+        </p>
       )}
 
       {adding && <AddFoodModal context="grocery" onClose={() => setAdding(false)} />}

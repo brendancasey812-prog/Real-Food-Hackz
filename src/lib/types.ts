@@ -189,6 +189,54 @@ export interface Member {
   goals: Goals;
 }
 
+// ---- Cost & stores ----
+
+/**
+ * A grocery store the user shops at. `lat`/`lng` are optional because a store
+ * can be added by hand before (or without) geocoding — it just won't appear on
+ * the map or get a distance until coordinates are known.
+ */
+export interface Store {
+  id: string;
+  name: string;
+  /** Street line, e.g. "1450 Ocean Ave". Optional — city/state/zip is enough. */
+  address?: string;
+  city: string;
+  state: string;
+  zip: string;
+  lat?: number;
+  lng?: number;
+  emoji: string;
+  /** How the store got here: typed in, or pulled from the nearby-store search. */
+  source?: "manual" | "search";
+}
+
+/**
+ * What one `unit` of a food costs at one store — e.g. chicken is priced per
+ * `oz`, milk per `cup`, so the cost of an ingredient line is simply
+ * `quantity x pricePerUnit`, exactly mirroring how calories work.
+ *
+ * `storeId` may be BASE_STORE_ID, which is the fallback price used for any
+ * store that has no price of its own for that food.
+ */
+export interface Price {
+  storeId: string;
+  foodId: string;
+  /** US dollars per one `unit` of the food. */
+  pricePerUnit: number;
+  /** ISO date string (yyyy-MM-dd) — when this price was last touched. */
+  updatedAt: string;
+}
+
+/** Where the user is shopping from, used to sort stores by distance. */
+export interface HomeLocation {
+  city: string;
+  state: string;
+  zip: string;
+  lat?: number;
+  lng?: number;
+}
+
 export interface AppData {
   foods: Food[];
   inventory: InventoryItem[];
@@ -204,4 +252,12 @@ export interface AppData {
   members: Member[];
   focusAreas: FocusArea[];
   history: PurchaseHistoryEntry[];
+  /** Stores the user shops at (the base price row is not one of these). */
+  stores: Store[];
+  /** Per-store, per-food unit prices. */
+  prices: Price[];
+  /** Which store's prices the whole app is costed against. */
+  selectedStoreId: string;
+  /** Where 'nearby' is measured from. */
+  home: HomeLocation;
 }
