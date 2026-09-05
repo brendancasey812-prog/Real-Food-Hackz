@@ -14,6 +14,7 @@ import {
 } from "@/lib/store";
 import { UNITS, unitLabel, pluralUnit, fmtQty } from "@/lib/units";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
+import { householdSize, portionsFor, portionNote } from "@/lib/household";
 import { MEAL_ORDER, MEAL_LABEL } from "@/lib/week";
 import { RecipeScanModal } from "@/components/RecipeScanModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -205,6 +206,8 @@ export default function Cookbook() {
 }
 
 function RecipeCard({ recipe: r, foods, recipes, onOpen, onEdit, onRemove }: { recipe: Recipe; foods: Food[]; recipes: Recipe[]; onOpen: () => void; onEdit: () => void; onRemove: () => void }) {
+  const { householdMode, members } = useApp();
+  const size = householdSize({ householdMode, members });
   const perServing = recipeCaloriesPerServing(r, foods, recipes);
   const total = recipeTotalCalories(r, foods, recipes);
   const m = recipeTotalsPerServing(r, foods, recipes);
@@ -243,7 +246,7 @@ function RecipeCard({ recipe: r, foods, recipes, onOpen, onEdit, onRemove }: { r
         <span className="inline-flex items-center gap-1 rounded-full bg-cal/12 px-2.5 py-1 text-xs font-semibold text-cal-soft">
           <Flame size={12} /> {perServing} cal / serving
         </span>
-        <span className="text-xs text-muted">{total} total · {r.servings} servings</span>
+        <span className="text-xs text-muted">{total} total · {portionNote(portionsFor(r, size))}</span>
       </div>
       <div className="mt-2 flex gap-1.5 text-[11px]">
         <span className="rounded-md bg-protein/15 px-2 py-0.5 font-medium text-protein-soft">P {m.protein}g</span>

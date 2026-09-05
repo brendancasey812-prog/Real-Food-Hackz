@@ -14,6 +14,8 @@ import {
 } from "@/lib/cost";
 import { pluralUnit, fmtQty } from "@/lib/units";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
+import { householdSize, householdName, portionsFor, portionNote, scaleRecipe } from "@/lib/household";
+import { ServingsStepper } from "./ServingsStepper";
 import { MEAL_LABEL } from "@/lib/week";
 import { MEAL_COLOR } from "@/lib/mealtime";
 import { fileToThumbnail } from "@/lib/image";
@@ -33,7 +35,7 @@ export function RecipeDetailModal({
   onEdit: () => void;
   onRemove: () => void;
 }) {
-  const { recipes, foods, updateRecipe, prices, selectedStoreId } = useApp();
+  const { recipes, foods, updateRecipe, prices, selectedStoreId, householdMode, members } = useApp();
   const recipe = recipes.find((r) => r.id === recipeId);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
@@ -51,6 +53,12 @@ export function RecipeDetailModal({
   const m = recipeTotalsPerServing(recipe, foods, recipes);
   const comps = recipe.components ?? [];
   const color = MEAL_COLOR[recipe.category];
+
+  // What a batch is worth to the people actually eating it. Changing the
+  // servings here rescales the ingredients with it, so a portion stays the
+  // size it was and there is simply more of it.
+  const size = householdSize({ householdMode, members });
+  const portions = portionsFor(recipe, size);
 
   // A long shopping-style list is hard to read straight through, so the
   // ingredients are split the way the kitchen is: proteins together, produce
@@ -125,7 +133,9 @@ export function RecipeDetailModal({
 
             {/* Facts */}
             <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted">
-              <span className="inline-flex items-center gap-1.5"><Users size={14} className="text-muted" /> {recipe.servings} serving{recipe.servings === 1 ? "" : "s"}</span>
+              <span className="inline-flex items-center gap-1.5">
+                <Users size={14} className="text-muted" /> {portionNote(portions)}
+              </span>
               <span className="inline-flex items-center gap-1.5 font-medium text-cal-soft"><Flame size={14} /> {perServing.toLocaleString()} cal / serving</span>
               <span className="text-muted">{total.toLocaleString()} cal total</span>
               {costTotal.priced > 0 && (
@@ -142,6 +152,18 @@ export function RecipeDetailModal({
                 </>
               )}
               <span className="inline-flex items-center gap-1.5"><Clock size={14} className="text-muted" /> {recipe.cookTimeMin ? `${recipe.cookTimeMin} min` : "No cook time set"}</span>
+            </div>
+
+            {/* Portions: the recipe's own size, in this household's terms */}
+            <div className="mt-4">
+              <ServingsStepper
+                label="Makes"
+                value={recipe.servings}
+                onChange={(v) => updateRecipe(scaleRecipe(recipe, v))}
+                hint={`${perServing.toLocaleString()} cal each · ingredients scale with it`}
+                household={portions.suggested}
+                householdLabel={size === 1 ? undefined : householdName({ householdMode, members })}
+              />
             </div>
 
             {/* Macros */}

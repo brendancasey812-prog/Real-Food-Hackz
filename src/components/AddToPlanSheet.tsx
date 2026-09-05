@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { addDays, format } from "date-fns";
-import { X, Check, Minus, Plus, CalendarDays } from "lucide-react";
+import { X, Check, CalendarDays } from "lucide-react";
 import { useApp, newId, recipeCaloriesPerServing } from "@/lib/store";
+import { householdSize, householdName } from "@/lib/household";
+import { ServingsStepper } from "./ServingsStepper";
 import { weekDays, isoOf, MEAL_ORDER, MEAL_LABEL } from "@/lib/week";
 import { MEAL_COLOR } from "@/lib/mealtime";
 import type { MealType, Recipe } from "@/lib/types";
@@ -27,12 +29,12 @@ export function AddToPlanSheet({
   const { foods, recipes, plan, addPlannedMeal, householdMode, members } = useApp();
 
   // Couple/family: one recipe should feed everyone, so default the servings.
-  const householdSize = householdMode === "individual" ? 1 : 1 + (members?.length ?? 0);
+  const size = householdSize({ householdMode, members });
 
   const [weekOffset, setWeekOffset] = useState(0);
   const [date, setDate] = useState(isoOf(new Date()));
   const [meal, setMeal] = useState<MealType>(recipe.category);
-  const [servings, setServings] = useState(Math.max(1, householdSize));
+  const [servings, setServings] = useState(size);
   const [added, setAdded] = useState<string | null>(null);
 
   const days = weekDays(addDays(new Date(), weekOffset * 7));
@@ -147,22 +149,15 @@ export function AddToPlanSheet({
               </div>
 
               {/* How many servings */}
-              <div className="mt-4 flex items-center justify-between rounded-xl border border-line bg-surface px-4 py-2.5">
-                <span className="text-sm text-ink-2">
-                  {servingNoun}
-                  <span className="ml-2 text-xs text-muted">
-                    {(perServing * servings).toLocaleString()} cal
-                  </span>
-                </span>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setServings((s) => Math.max(1, s - 1))} aria-label="Fewer servings" className="flex h-8 w-8 items-center justify-center rounded-lg border border-line text-muted hover:bg-surface-3 hover:text-ink active:scale-95">
-                    <Minus size={14} />
-                  </button>
-                  <span className="w-8 text-center text-sm font-semibold tabular-nums">{servings}</span>
-                  <button onClick={() => setServings((s) => s + 1)} aria-label="More servings" className="flex h-8 w-8 items-center justify-center rounded-lg border border-line text-muted hover:bg-surface-3 hover:text-ink active:scale-95">
-                    <Plus size={14} />
-                  </button>
-                </div>
+              <div className="mt-4">
+                <ServingsStepper
+                  label={servingNoun}
+                  value={servings}
+                  onChange={setServings}
+                  hint={`${(perServing * servings).toLocaleString()} cal`}
+                  household={size}
+                  householdLabel={size === 1 ? undefined : householdName({ householdMode, members })}
+                />
               </div>
 
               {alreadyThere && (

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { ImagePlus, Clock, Users, Flame, Menu, PenLine, Trash2, Loader2, DollarSign, CalendarPlus } from "lucide-react";
 import { AddToPlanSheet } from "./AddToPlanSheet";
+import { householdSize, portionsFor, portionNote } from "@/lib/household";
 import { useApp, recipeCaloriesPerServing, recipeTotalsPerServing } from "@/lib/store";
 import { recipeCostPerServing, fmtMoney } from "@/lib/cost";
 import { fileToThumbnail } from "@/lib/image";
@@ -23,7 +24,7 @@ export function RecipeCardV2({
   onEdit: () => void;
   onRemove: () => void;
 }) {
-  const { updateRecipe, prices, selectedStoreId } = useApp();
+  const { updateRecipe, prices, selectedStoreId, householdMode, members } = useApp();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [imgError, setImgError] = useState("");
@@ -31,6 +32,7 @@ export function RecipeCardV2({
   const [planning, setPlanning] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
+  const size = householdSize({ householdMode, members });
   const perServing = recipeCaloriesPerServing(r, foods, recipes);
   const m = recipeTotalsPerServing(r, foods, recipes);
   const cost = recipeCostPerServing(r, recipes, prices, selectedStoreId);
@@ -118,7 +120,7 @@ export function RecipeCardV2({
         <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted">
           <span className="inline-flex items-center gap-1.5">
             <Users size={13} className="text-muted" />
-            {r.servings} serving{r.servings === 1 ? "" : "s"}
+            {portionNote(portionsFor(r, size))}
           </span>
           <span className="inline-flex items-center gap-1.5 font-medium text-cal-soft">
             <Flame size={13} />

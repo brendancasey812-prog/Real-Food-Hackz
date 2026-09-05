@@ -9,13 +9,8 @@ import {
 import { useApp, blankMember } from "@/lib/store";
 import { useCloud, type SyncStatus } from "@/lib/cloud";
 import { useTheme, THEME_OPTIONS, type Theme } from "@/lib/theme";
+import { HOUSEHOLD_LABEL } from "@/lib/household";
 import type { FocusArea, HouseholdMode, Sex } from "@/lib/types";
-
-export const HOUSEHOLD_LABEL: Record<HouseholdMode, string> = {
-  individual: "Individual",
-  couple: "Couple",
-  family: "Family"
-};
 
 function SyncBadge({ status }: { status: SyncStatus }) {
   if (status === "syncing") return <span className="inline-flex items-center gap-1 text-xs text-muted"><RefreshCw size={12} className="animate-spin" /> Syncing…</span>;

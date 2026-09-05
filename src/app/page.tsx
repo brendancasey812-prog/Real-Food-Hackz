@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Flame, Beef, Wheat, Droplet, User, DollarSign, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp, plannedTotals, household, combinedGoals } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
-import { HOUSEHOLD_LABEL } from "@/components/SettingsModal";
+import { HOUSEHOLD_LABEL } from "@/lib/household";
 import { SettingsButton } from "@/components/SettingsButton";
 import { BASE_STORE_ID, plannedCost, fmtMoney } from "@/lib/cost";
 

@@ -5,6 +5,8 @@ import { X, Pencil, Flame, Trash2, Plus, Search, Check, ArrowLeft } from "lucide
 import {
   useApp, newId, foodById, ingredientCalories, componentCalories
 } from "@/lib/store";
+import { householdSize, householdName, portionsFor, portionNote, scaleRecipe } from "@/lib/household";
+import { ServingsStepper } from "./ServingsStepper";
 import { pluralUnit, fmtQty } from "@/lib/units";
 import { mealStart, clockLabel } from "@/lib/mealtime";
 import { MEAL_LABEL } from "@/lib/week";
@@ -18,7 +20,7 @@ interface Draft {
 }
 
 export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: () => void }) {
-  const { plan, recipes, foods, addRecipe, updateRecipe, updatePlannedMeal } = useApp();
+  const { plan, recipes, foods, addRecipe, updateRecipe, updatePlannedMeal, householdMode, members } = useApp();
   const meal = plan.find((m) => m.id === mealId);
   const recipe = recipes.find((r) => r.id === meal?.recipeId);
 
@@ -42,6 +44,9 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
     });
     setEditing(true);
   };
+
+  const size = householdSize({ householdMode, members });
+  const portions = portionsFor(recipe, size);
 
   const cancelEdit = () => { setEditing(false); setDraft(null); setSavePrompt(false); setAdding(false); setQuery(""); };
 
@@ -122,14 +127,39 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
               </label>
             </div>
           ) : (
-            <div className="mb-4 flex items-center gap-3">
+            <div className="mb-4 space-y-3">
               <div className="min-w-0">
                 <h3 className="truncate font-semibold">{recipe.name}</h3>
                 <p className="text-xs text-muted">
-                  {clockLabel(mealStart(meal))} · {recipe.servings} serving{recipe.servings > 1 ? "s" : ""}
-                  {meal.servings !== 1 && ` · ${meal.servings}× on the plan`}
+                  {clockLabel(mealStart(meal))} · the recipe makes {portionNote(portions)}
                 </p>
               </div>
+
+              {/* Portions, right here — the number you actually change most */}
+              <ServingsStepper
+                label="Portions on this day"
+                value={meal.servings}
+                onChange={(v) => updatePlannedMeal(meal.id, { servings: Math.max(1, Math.round(v)) })}
+                hint={
+                  <>
+                    {(perServing * meal.servings).toLocaleString()} cal
+                    {size > 1 && ` · ${Math.round((perServing * meal.servings) / size).toLocaleString()} each`}
+                  </>
+                }
+                household={size}
+                householdLabel={size === 1 ? undefined : householdName({ householdMode, members })}
+              />
+
+              {/* And the recipe's own yield, if a batch doesn't cover the table */}
+              {size > 1 && recipe.servings !== portions.suggested && (
+                <button
+                  onClick={() => updateRecipe(scaleRecipe(recipe, portions.suggested))}
+                  className="w-full rounded-xl border border-line px-3 py-2 text-xs font-medium text-ink-2 hover:bg-surface-3"
+                >
+                  Scale the recipe itself to {portions.suggested} servings — enough for{" "}
+                  {householdName({ householdMode, members })}
+                </button>
+              )}
             </div>
           )}
 

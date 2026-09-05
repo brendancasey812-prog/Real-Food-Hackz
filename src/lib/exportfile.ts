@@ -6,7 +6,7 @@
 // into a message.
 
 import { format } from "date-fns";
-import type { Food, PlannedMeal, Recipe, Unit } from "./types";
+import type { Food, PlannedMeal, Recipe } from "./types";
 import { FOOD_CATEGORY_LABEL } from "./foodcat";
 import { fmtQty, pluralUnit } from "./units";
 import { fmtMoney } from "./cost";
