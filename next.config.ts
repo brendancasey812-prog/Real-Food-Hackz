@@ -4,7 +4,7 @@ import type { NextConfig } from "next";
  * Two deployment targets from one codebase:
  *
  *  - BUILD_TARGET=pages  → static export for GitHub Pages, served from
- *    https://<user>.github.io/Web-app/. No server, so no API routes; the
+ *    https://<user>.github.io/Real-Food-Hackz/. No server, so no API routes; the
  *    workflow removes src/app/api before building and AI features fall back
  *    to the user's own Anthropic key.
  *
@@ -13,7 +13,7 @@ import type { NextConfig } from "next";
  *
  * Firebase auth + Firestore are client-side, so cloud sync works on both.
  */
-const repo = "Web-app";
+const repo = "Real-Food-Hackz";
 const isPages = process.env.BUILD_TARGET === "pages";
 
 const nextConfig: NextConfig = {

@@ -67,7 +67,7 @@ These rules are what protect your data: a signed-in user can read and write
 ## 2. Deploy to Vercel
 
 1. Go to <https://vercel.com> → **Continue with GitHub** → authorize.
-2. **Add New… → Project** → find `Web-app` → **Import**.
+2. **Add New… → Project** → find `Real-Food-Hackz` → **Import**.
 3. Framework preset should auto-detect **Next.js**. Leave build settings alone.
 4. Expand **Environment Variables** and add these, using the values from step 15:
 
