@@ -27,8 +27,8 @@ function useHydrated() {
 /** `short` is what the phone tab bar uses, where seven labels have to fit. */
 const nav = [
   { href: "/", label: "Dashboard", short: "Home", icon: LayoutDashboard },
-  { href: "/recipes", label: "Cookbook", short: "Cookbook", icon: BookOpen },
   { href: "/planner", label: "Meal Plan", short: "Plan", icon: CalendarDays },
+  { href: "/recipes", label: "Cookbook", short: "Cookbook", icon: BookOpen },
   { href: "/groceries", label: "Groceries", short: "Grocery", icon: ShoppingCart },
   { href: "/kitchen", label: "Food Tracker", short: "Food", icon: Refrigerator },
   { href: "/costs", label: "Costs", short: "Costs", icon: DollarSign },

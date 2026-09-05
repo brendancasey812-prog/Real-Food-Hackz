@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { format, isToday } from "date-fns";
+import { addWeeks, format, isToday } from "date-fns";
 import Link from "next/link";
-import { Flame, Beef, Wheat, Droplet, User, DollarSign } from "lucide-react";
+import { Flame, Beef, Wheat, Droplet, User, DollarSign, ChevronLeft, ChevronRight } from "lucide-react";
 import { useApp, plannedTotals, household, combinedGoals } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
 import { HOUSEHOLD_LABEL } from "@/components/SettingsModal";
@@ -15,13 +15,19 @@ export default function Dashboard() {
     prices, stores, selectedStoreId } = useApp();
   // "all" = the whole household; otherwise a single eater's id ("me" or member id).
   const [scope, setScope] = useState<string>("all");
+  // Which week the whole page is reporting on, like the Meal Plan.
+  const [weekOffset, setWeekOffset] = useState(0);
+  // Which day the "today" panels describe. Null follows today; clicking a bar
+  // in the chart pins another day, which is the only way to inspect a day on a
+  // week that doesn't contain today.
+  const [focusIso, setFocusIso] = useState<string | null>(null);
 
   const eaters = household({ goals, profile, members });
   const multi = householdMode !== "individual" && eaters.length > 1;
   const shown = !multi || scope === "all" ? eaters : eaters.filter((e) => e.id === scope);
   const activeGoals = multi ? combinedGoals(shown) : goals;
 
-  const days = weekDays(new Date());
+  const days = weekDays(addWeeks(new Date(), weekOffset));
   const target = activeGoals.dailyCalorieTarget;
 
   // Per-day calorie + macro totals for this week (derived live from the calendar).
@@ -31,12 +37,22 @@ export default function Dashboard() {
     return { date: d, iso, meals: meals.length, ...plannedTotals(meals, recipes, foods) };
   });
 
-  const todayCol = perDay.find((d) => isToday(d.date)) ?? perDay[0];
+  const focusCol =
+    perDay.find((d) => d.iso === focusIso) ??
+    perDay.find((d) => isToday(d.date)) ??
+    perDay[0];
+  const focusIsToday = isToday(focusCol.date);
+  const thisWeek = weekOffset === 0;
+
+  const goWeek = (dir: number) => {
+    setWeekOffset((w) => w + dir);
+    setFocusIso(null);
+  };
 
   // Money twin of the calorie roll-up above, costed at the selected store.
   const weekIsos = days.map(isoOf);
   const weekCost = plannedCost(plan.filter((m) => weekIsos.includes(m.date)), recipes, prices, selectedStoreId);
-  const todayCost = plannedCost(plan.filter((m) => m.date === todayCol.iso), recipes, prices, selectedStoreId);
+  const focusCost = plannedCost(plan.filter((m) => m.date === focusCol.iso), recipes, prices, selectedStoreId);
   const costStore =
     selectedStoreId === BASE_STORE_ID
       ? "base prices"
@@ -46,9 +62,9 @@ export default function Dashboard() {
   const targetPct = (target / maxBar) * 100;
 
   const macros = [
-    { key: "protein", label: "Protein", value: todayCol.protein, target: activeGoals.proteinTarget, icon: Beef, bar: "bg-gradient-to-r from-protein-deep to-protein", text: "text-protein-soft" },
-    { key: "carbs", label: "Carbs", value: todayCol.carbs, target: activeGoals.carbsTarget, icon: Wheat, bar: "bg-gradient-to-r from-carbs-deep to-carbs", text: "text-carbs-soft" },
-    { key: "fat", label: "Fat", value: todayCol.fat, target: activeGoals.fatTarget, icon: Droplet, bar: "bg-gradient-to-r from-fat-deep to-fat", text: "text-fat-soft" },
+    { key: "protein", label: "Protein", value: focusCol.protein, target: activeGoals.proteinTarget, icon: Beef, bar: "bg-gradient-to-r from-protein-deep to-protein", text: "text-protein-soft" },
+    { key: "carbs", label: "Carbs", value: focusCol.carbs, target: activeGoals.carbsTarget, icon: Wheat, bar: "bg-gradient-to-r from-carbs-deep to-carbs", text: "text-carbs-soft" },
+    { key: "fat", label: "Fat", value: focusCol.fat, target: activeGoals.fatTarget, icon: Droplet, bar: "bg-gradient-to-r from-fat-deep to-fat", text: "text-fat-soft" },
   ];
 
   const ft = Math.floor(profile.heightIn / 12);
@@ -59,9 +75,28 @@ export default function Dashboard() {
       <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Dashboard</h1>
-          <p className="mt-1 text-sm text-muted">
-            Week of {format(days[0], "MMM d")} — updates live as you change the plan.
-          </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-0.5">
+              <button onClick={() => goWeek(-1)} aria-label="Previous week" className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-3 hover:text-ink">
+                <ChevronLeft size={16} />
+              </button>
+              <button onClick={() => goWeek(1)} aria-label="Next week" className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-3 hover:text-ink">
+                <ChevronRight size={16} />
+              </button>
+            </div>
+            <span className="text-sm text-muted">
+              Week of {format(days[0], "MMM d")}
+              {!thisWeek && <span className="text-faint"> · {format(days[6], "MMM d, yyyy")}</span>}
+            </span>
+            {!thisWeek && (
+              <button
+                onClick={() => { setWeekOffset(0); setFocusIso(null); }}
+                className="rounded-lg border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-surface-3"
+              >
+                This week
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex items-start gap-3">
           <div className="flex flex-col items-end gap-2">
@@ -117,10 +152,12 @@ export default function Dashboard() {
       <section className="rounded-2xl card p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-semibold">
-            Today · {format(todayCol.date, "EEEE")}
+            {focusIsToday
+              ? `Today · ${format(focusCol.date, "EEEE")}`
+              : format(focusCol.date, "EEEE, MMM d")}
           </h2>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-cal/12 px-3 py-1 text-sm font-semibold text-cal-soft">
-            <Flame size={14} /> {todayCol.calories.toLocaleString()} / {target.toLocaleString()} cal
+            <Flame size={14} /> {focusCol.calories.toLocaleString()} / {target.toLocaleString()} cal
           </span>
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
@@ -151,7 +188,7 @@ export default function Dashboard() {
           <div>
             <h2 className="font-semibold">Food spend</h2>
             <p className="text-xs text-muted">
-              This week&apos;s plan at {costStore}
+              {thisWeek ? "This week" : "That week"}&apos;s plan at {costStore}
               {weekCost.lines - weekCost.priced > 0 && (
                 <span className="text-warn-soft">
                   {" "}· {weekCost.lines - weekCost.priced} ingredient lines still unpriced
@@ -168,7 +205,7 @@ export default function Dashboard() {
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           <SpendStat label="This week" value={weekCost.priced > 0 ? fmtMoney(weekCost.cost) : "—"} />
-          <SpendStat label="Today" value={todayCost.priced > 0 ? fmtMoney(todayCost.cost) : "—"} />
+          <SpendStat label={focusIsToday ? "Today" : format(focusCol.date, "EEE d")} value={focusCost.priced > 0 ? fmtMoney(focusCost.cost) : "—"} />
           <SpendStat
             label="Avg / day"
             value={weekCost.priced > 0 ? fmtMoney(weekCost.cost / 7) : "—"}
@@ -226,21 +263,29 @@ export default function Dashboard() {
                 : under
                 ? "bg-gradient-to-t from-under-deep to-under"
                 : "bg-gradient-to-t from-accent-deep to-accent";
+              const isFocus = d.iso === focusCol.iso;
+              const marked = isToday(d.date) || isFocus;
               return (
-                <div key={d.iso} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
-                  <div className={`text-[10px] font-medium ${isToday(d.date) ? "text-accent-soft" : "text-muted"}`}>
+                <button
+                  key={d.iso}
+                  onClick={() => setFocusIso(d.iso)}
+                  aria-pressed={isFocus}
+                  title={`Show ${format(d.date, "EEEE, MMM d")}`}
+                  className="flex h-full flex-1 flex-col items-center justify-end gap-2"
+                >
+                  <span className={`text-[10px] font-medium ${marked ? "text-accent-soft" : "text-muted"}`}>
                     {d.calories > 0 ? d.calories.toLocaleString() : ""}
-                  </div>
-                  <div
-                    className={`w-full rounded-t-lg transition-all ${d.calories === 0 ? "bg-surface-2" : color}`}
+                  </span>
+                  <span
+                    className={`w-full rounded-t-lg transition-all ${d.calories === 0 ? "bg-surface-2" : color} ${
+                      isFocus ? "ring-2 ring-accent ring-offset-2 ring-offset-transparent" : ""
+                    }`}
                     style={{ height: `${Math.max(pct, 1)}%` }}
                   />
-                  <div
-                    className={`text-xs font-medium ${isToday(d.date) ? "text-accent-soft" : "text-muted"}`}
-                  >
+                  <span className={`text-xs font-medium ${marked ? "text-accent-soft" : "text-muted"}`}>
                     {format(d.date, "EEEEE")}
-                  </div>
-                </div>
+                  </span>
+                </button>
               );
             })}
           </div>
