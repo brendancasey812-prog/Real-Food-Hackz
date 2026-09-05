@@ -13,6 +13,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SearchFilterBar } from "@/components/SearchFilterBar";
 import type { Food, Location, Unit } from "@/lib/types";
 import { SettingsButton } from "@/components/SettingsButton";
+import { Fridge } from "@/components/Fridge";
 
 const SECTIONS: { key: Location; title: string; icon: string; tint: string }[] = [
   { key: "fridge", title: "Fridge", icon: "🧊", tint: "from-tint-fridge to-transparent" },
@@ -31,6 +32,8 @@ export default function Kitchen() {
   const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [locFilter, setLocFilter] = useState("all");
+  // The fridge is the front door; the list stays a tap away for bulk editing.
+  const [view, setView] = useState<"fridge" | "list">("fridge");
   const q = search.trim().toLowerCase();
 
   const days = weekDays(new Date()).map(isoOf);
@@ -51,7 +54,11 @@ export default function Kitchen() {
       <header className="mb-6 flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Your kitchen</h1>
-          <p className="mt-1 text-sm text-muted">Grouped by food type · drag a slider or type to set amounts.</p>
+          <p className="mt-1 text-sm text-muted">
+            {view === "fridge"
+              ? "Open a shelf to see what's in it · tap a food to set how much you have."
+              : "Grouped by food type · drag a slider or type to set amounts."}
+          </p>
         </div>
         {/* Hamburger menu + settings (top-right) */}
         <div className="flex shrink-0 items-start gap-2">
@@ -86,6 +93,26 @@ export default function Kitchen() {
         </div>
       )}
 
+      <div className="mb-4 flex w-fit rounded-xl border border-line bg-surface p-0.5 text-sm">
+        {([["fridge", "Fridge"], ["list", "List"]] as const).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setView(k)}
+            className={`rounded-lg px-4 py-1.5 font-medium transition-colors ${
+              view === k
+                ? "bg-gradient-to-b from-accent to-accent-deep text-on-accent shadow"
+                : "text-muted hover:text-ink"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === "fridge" && <Fridge />}
+
+      {view === "list" && (
+      <>
       <SearchFilterBar
         query={search}
         onQuery={setSearch}
@@ -168,6 +195,8 @@ export default function Kitchen() {
           );
         })}
       </div>
+      </>
+      )}
 
       {adding && <AddFoodModal context="kitchen" defaultLocation={adding} onClose={() => setAdding(null)} />}
       {scanning && <ScanReceiptModal onClose={() => setScanning(false)} />}

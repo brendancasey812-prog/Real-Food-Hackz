@@ -13,9 +13,33 @@ list, and fridge/pantry levels all update together.
 | **Cookbook** | Browse recipes (calories auto-calculated from ingredients) and add your own. |
 | **Planner** | Google-Calendar-style weekly grid — drop recipes onto breakfast/lunch/dinner/snack slots. |
 | **Groceries** | Auto-built list = what the week's plan needs − what's already in your kitchen. |
-| **Kitchen** | Visual fridge, freezer & pantry with live stock bars showing how much the week's plan will use. |
+| **Kitchen** | A fridge you can open — glass shelves and crisper drawers of food icons, each showing its amount. Also a List view with stock bars. |
 | **Costs** | The cost repository — every ingredient priced per its own unit, rolling up to per-recipe and per-week spend. |
 | **Stores** | Map of the grocery stores near you. Pick one and the whole app re-prices against it. |
+
+## The fridge
+
+The Kitchen opens on a steel cabinet with glass shelves, a door bin and crisper
+drawers ([`src/components/Fridge.tsx`](src/components/Fridge.tsx)). Tap a
+section to slide it open; inside, every food is an app icon — the food on top,
+its name and **quantity + unit** underneath, and a badge with the amount on
+hand. Anything at zero is dimmed. Shelves follow a real fridge: produce in the
+crispers, condiments in the door, everything else on a shelf.
+
+Tapping a food opens a sheet to set how much you have, with its calories and
+macros alongside.
+
+### Cook from what you have
+
+Flip **Pick ingredients** on and the icons become selectable — out-of-stock
+foods are greyed out, because you can't cook with them. Choose what you want,
+tap **Build recipe**, and a sheet lets you set an amount for each one (capped at
+what's actually in the fridge), name it, pick a meal slot and servings, and
+watch the calories total up. Saving drops it straight into the Cookbook, where
+it costs and plans itself like any other recipe.
+
+The old dense view is still there under the **List** toggle — sliders, per-unit
+nutrition editing, and bulk delete.
 
 ## Light & dark
 
