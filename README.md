@@ -187,6 +187,25 @@ history log for traceability. Unmatched items are added as new foods.
   **sample receipt** lets you try the whole flow with no key.
 - Model: `claude-opus-5` (vision). Change it in `src/lib/receipt.ts`.
 
+## Nutrition label scanner (AI)
+
+**Food Tracker → Menu → Scan nutrition label.** Photograph or upload a Nutrition
+Facts panel; Claude reads the serving size, calories and macros
+([`src/lib/nutritionscan.ts`](src/lib/nutritionscan.ts)).
+
+Labels are per *serving* and this app stores everything per *unit*, so the
+middle of the flow is one number: how many of the food's units a serving is. It
+is derived from the label when the units can be bridged — "0.75 cup" against a
+food stocked in cups is 0.75, "85 g" against one stocked in oz is ~3 — and the
+review screen says where the number came from. When they can't be bridged
+(grams against a food measured in cups needs a density), it says so in amber and
+asks you to type it, rather than quietly writing per-serving numbers into a
+per-unit field.
+
+Every number stays editable before saving, and the screen shows exactly what
+will be written and what it replaces. Pick an existing food or create a new one
+on the spot. A built-in sample label runs the whole flow with no API key.
+
 ## Recipe & food-table import (Cookbook → Add recipe)
 
 **Scan recipe** reads a photo of a recipe card or a printed nutrition table;

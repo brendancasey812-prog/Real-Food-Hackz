@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Minus, Plus, ScanLine, Menu, Pencil, Calculator, X, ChevronDown } from "lucide-react";
+import { Minus, Plus, ScanLine, Menu, Pencil, Calculator, X, ChevronDown, Sparkles } from "lucide-react";
 import { useApp, neededQuantities } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
 import { fmtQty, unitLabel, pluralUnit, stepFor } from "@/lib/units";
@@ -9,6 +9,7 @@ import { FOOD_CATEGORIES } from "@/lib/foodcat";
 import { AddFoodModal } from "@/components/AddFoodModal";
 import { ScanReceiptModal } from "@/components/ScanReceiptModal";
 import { ConversionsModal } from "@/components/ConversionsModal";
+import { NutritionScanModal } from "@/components/NutritionScanModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SearchFilterBar } from "@/components/SearchFilterBar";
 import type { Food, Location, Unit } from "@/lib/types";
@@ -26,6 +27,7 @@ export default function Kitchen() {
   const [adding, setAdding] = useState<Location | null>(null);
   const [scanning, setScanning] = useState(false);
   const [convOpen, setConvOpen] = useState(false);
+  const [labelOpen, setLabelOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [hidden, setHidden] = useState<Set<Location>>(new Set());
@@ -45,6 +47,7 @@ export default function Kitchen() {
   const menuItems = [
     { label: "Add food", icon: Plus, run: () => setAdding("fridge") },
     { label: "Scan receipt", icon: ScanLine, run: () => setScanning(true) },
+    { label: "Scan nutrition label", icon: Sparkles, run: () => setLabelOpen(true) },
     { label: editMode ? "Done editing" : "Edit (delete items)", icon: Pencil, run: () => setEditMode((v) => !v) },
     { label: "Conversions chart", icon: Calculator, run: () => setConvOpen(true) },
   ];
@@ -201,6 +204,7 @@ export default function Kitchen() {
       {adding && <AddFoodModal context="kitchen" defaultLocation={adding} onClose={() => setAdding(null)} />}
       {scanning && <ScanReceiptModal onClose={() => setScanning(false)} />}
       {convOpen && <ConversionsModal onClose={() => setConvOpen(false)} />}
+      {labelOpen && <NutritionScanModal onClose={() => setLabelOpen(false)} />}
     </div>
   );
 }
