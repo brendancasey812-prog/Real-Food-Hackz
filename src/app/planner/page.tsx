@@ -15,8 +15,9 @@ import {
   getHours,
   getMinutes
 } from "date-fns";
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, CalendarDays, Search, CalendarPlus, UtensilsCrossed, Eraser } from "lucide-react";
-import { useApp, recipeTotalsPerServing, newId } from "@/lib/store";
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, CalendarDays, Search, CalendarPlus, UtensilsCrossed, Eraser, Share } from "lucide-react";
+import { useApp, recipeTotalsPerServing, recipeCaloriesPerServing, newId } from "@/lib/store";
+import { recipeCostPerServing } from "@/lib/cost";
 import { weekDays, isoOf, monthGrid, MEAL_ORDER, MEAL_LABEL } from "@/lib/week";
 import {
   MEAL_COLOR, EVENT_COLOR, mealStart, mealEnd, snapHour,
@@ -28,6 +29,8 @@ import { ClearMealsSheet } from "@/components/ClearMealsSheet";
 import { SearchFilterBar } from "@/components/SearchFilterBar";
 import type { MealType, PlannedMeal, CalendarEvent, Recipe, Food } from "@/lib/types";
 import { SettingsButton } from "@/components/SettingsButton";
+import { ExportSheet } from "@/components/ExportSheet";
+import { planText, planCsv, planIcs, exportName } from "@/lib/exportfile";
 
 type View = "day" | "week" | "month" | "year";
 const VIEWS: View[] = ["day", "week", "month", "year"];
@@ -36,7 +39,8 @@ export default function Planner() {
   const {
     recipes, foods, plan, events,
     addPlannedMeal, updatePlannedMeal, removePlannedMeal, clearMeals,
-    addEvent, updateEvent, removeEvent, members, householdMode
+    addEvent, updateEvent, removeEvent, members, householdMode,
+    prices, selectedStoreId,
   } = useApp();
   // Couple/family: one recipe should feed everyone, so default the servings.
   const householdSize = householdMode === "individual" ? 1 : 1 + (members?.length ?? 0);
@@ -51,6 +55,7 @@ export default function Planner() {
   >(null);
   const [search, setSearch] = useState("");
   const [mealFilter, setMealFilter] = useState("all");
+  const [exporting, setExporting] = useState(false);
   const q = search.trim().toLowerCase();
 
   const shift = (dir: number) => {
@@ -70,6 +75,33 @@ export default function Planner() {
     if (view === "month") return format(anchor, "MMMM yyyy");
     return format(anchor, "yyyy");
   })();
+
+  // The week on screen, resolved for export: every planned meal with the
+  // recipe it points at, what it comes to in calories, and what it costs.
+  const exportDays = weekDays(anchor);
+  const exportLines = () => {
+    const isos = new Set(exportDays.map(isoOf));
+    return plan
+      .filter((m) => isos.has(m.date))
+      .map((meal) => {
+        const recipe = recipes.find((r) => r.id === meal.recipeId);
+        if (!recipe) return null;
+        const per = recipeCostPerServing(recipe, recipes, prices, selectedStoreId);
+        return {
+          meal,
+          recipe,
+          calories: Math.round(
+            recipeCaloriesPerServing(recipe, foods, recipes) * meal.servings,
+          ),
+          cost: per.priced > 0 ? per.cost * meal.servings : null,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+      .sort((a, b) =>
+        a.meal.date.localeCompare(b.meal.date) ||
+        MEAL_ORDER.indexOf(a.meal.mealType) - MEAL_ORDER.indexOf(b.meal.mealType),
+      );
+  };
 
   const dayMeals = (iso: string) => plan.filter((m) => m.date === iso);
   const dayEvents = (iso: string) => (events ?? []).filter((e) => e.date === iso);
@@ -142,6 +174,16 @@ export default function Planner() {
           ))}
         </div>
 
+        {/* Take the week with you: text, spreadsheet, or real calendar events */}
+        <button
+          onClick={() => setExporting(true)}
+          aria-label="Export this week's meals"
+          title="Export this week's meals"
+          className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-sm font-medium text-ink-2 transition-colors hover:bg-surface-3"
+        >
+          <Share size={15} /> Export
+        </button>
+
         {/* Clear meals — day, week, month, year, chosen days, or a range */}
         <button
           onClick={() => setClearOpen(true)}
@@ -199,6 +241,32 @@ export default function Planner() {
       )}
 
       {openMealId && <MealDetailModal mealId={openMealId} onClose={() => setOpenMealId(null)} />}
+
+      {exporting && (
+        <ExportSheet
+          title="Export this week's meals"
+          subtitle={`${format(exportDays[0], "MMM d")} – ${format(exportDays[6], "MMM d, yyyy")} · ${exportLines().length} meals`}
+          onClose={() => setExporting(false)}
+          filenameFor={(f) => exportName("meal-plan", exportDays[0], f.ext)}
+          formats={[
+            {
+              key: "text", label: "Day by day", ext: "txt", mime: "text/plain",
+              hint: "The week written out, with each day's calories — readable anywhere.",
+              build: () => planText(exportLines(), exportDays),
+            },
+            {
+              key: "csv", label: "Spreadsheet", ext: "csv", mime: "text/csv",
+              hint: "One row per meal, with servings, calories and cost.",
+              build: () => planCsv(exportLines()),
+            },
+            {
+              key: "ics", label: "Calendar", ext: "ics", mime: "text/calendar",
+              hint: "Open it to drop every meal into Apple, Google or Outlook Calendar at its usual hour.",
+              build: () => planIcs(exportLines()),
+            },
+          ]}
+        />
+      )}
 
       {clearOpen && (
         <ClearMealsSheet

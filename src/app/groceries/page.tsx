@@ -3,14 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { addWeeks, format } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Share } from "lucide-react";
 import { useApp, neededQuantities, foodById } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
 import { AddFoodModal } from "@/components/AddFoodModal";
 import type { Food } from "@/lib/types";
-import { BASE_STORE_ID, quantitiesCost, fmtMoney } from "@/lib/cost";
+import { BASE_STORE_ID, quantityCost, quantitiesCost, fmtMoney } from "@/lib/cost";
 import { SettingsButton } from "@/components/SettingsButton";
 import { FoodShelves } from "@/components/FoodShelves";
+import { ExportSheet } from "@/components/ExportSheet";
+import { groceryText, groceryCsv, exportName } from "@/lib/exportfile";
 
 export default function Groceries() {
   const { recipes, foods, plan, inventory, manualGroceries, prices, stores, selectedStoreId,
@@ -22,6 +24,7 @@ export default function Groceries() {
   // out and undoable, until the week is changed.
   const [bought, setBought] = useState<Record<string, { food: Food; buy: number; have: number }>>({});
   const [adding, setAdding] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const changeWeek = (dir: number) => {
     setOffset((o) => o + dir);
@@ -92,6 +95,16 @@ export default function Groceries() {
     ...Object.values(bought).filter((bt) => !items.some((i) => i.food!.id === bt.food.id)),
   ];
 
+  // What an export sees: the list as it stands, priced at the current store.
+  const exportLines = () =>
+    shelfItems
+      .map((i) => ({
+        food: i.food,
+        buy: i.buy,
+        cost: quantityCost(i.food.id, i.buy, prices, selectedStoreId),
+      }))
+      .sort((a, b) => a.food.name.localeCompare(b.food.name));
+
   const toggleBought = (item: { food: Food; buy: number; have: number }) =>
     checked[item.food.id]
       ? undoBought(item.food.id)
@@ -107,6 +120,13 @@ export default function Groceries() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <button
+            onClick={() => setExporting(true)}
+            disabled={shelfItems.length === 0}
+            className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-3 disabled:opacity-40"
+          >
+            <Share size={16} /> Export
+          </button>
           <button
             onClick={() => setAdding(true)}
             className="flex items-center gap-2 rounded-xl bg-gradient-to-b from-accent to-accent-deep shadow-lg px-4 py-2.5 text-sm font-medium text-on-accent hover:brightness-110"
@@ -169,6 +189,27 @@ export default function Groceries() {
       )}
 
       {adding && <AddFoodModal context="grocery" onClose={() => setAdding(false)} />}
+
+      {exporting && (
+        <ExportSheet
+          title="Export grocery list"
+          subtitle={`Week of ${format(weekDays(addWeeks(new Date(), offset))[0], "MMM d")} · ${shelfItems.length} items`}
+          onClose={() => setExporting(false)}
+          filenameFor={(f) => exportName("groceries", weekDays(addWeeks(new Date(), offset))[0], f.ext)}
+          formats={[
+            {
+              key: "text", label: "Checklist", ext: "txt", mime: "text/plain",
+              hint: "A tick-box list grouped by aisle — paste it into a message or print it.",
+              build: () => groceryText(exportLines(), weekDays(addWeeks(new Date(), offset))[0]),
+            },
+            {
+              key: "csv", label: "Spreadsheet", ext: "csv", mime: "text/csv",
+              hint: "One row per item, with quantity, cost and calories.",
+              build: () => groceryCsv(exportLines()),
+            },
+          ]}
+        />
+      )}
     </div>
   );
 }
