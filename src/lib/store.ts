@@ -10,6 +10,7 @@ import type {
   Food,
   Macros,
   PlannedMeal,
+  PriceQuote,
   Recipe,
   ScannedItem,
   Store,
@@ -57,6 +58,12 @@ interface AppState extends AppData {
   setPrice: (storeId: string, foodId: string, pricePerUnit: number | null) => void;
   /** Copy every base price onto a store, as a starting point to tweak. */
   seedStorePricesFromBase: (storeId: string) => number;
+  /** File live-source quotes in the cache, replacing any for the same food. */
+  cacheQuotes: (quotes: PriceQuote[]) => void;
+  /** Adopt cached quotes as the store's actual prices; returns how many. */
+  applyQuotes: (storeId: string, foodIds?: string[]) => number;
+  /** Forget cached quotes — all of them, or one store's. */
+  clearQuotes: (storeId?: string) => void;
   setHome: (patch: Partial<HomeLocation>) => void;
   /** Merge receipt-scanned items into the kitchen; returns a summary. */
   commitScan: (items: ScannedItem[]) => { merged: number; added: number; skipped: number };
@@ -246,6 +253,60 @@ export const useApp = create<AppState>()(
           };
         }),
 
+      cacheQuotes: (quotes) =>
+        set((s) => {
+          const fresh = new Set(quotes.map((q) => `${q.storeId}|${q.foodId}`));
+          return {
+            priceQuotes: [
+              ...(s.priceQuotes ?? []).filter((q) => !fresh.has(`${q.storeId}|${q.foodId}`)),
+              ...quotes,
+            ],
+          };
+        }),
+
+      /**
+       * Turn quotes into prices. Deliberately a separate step from fetching:
+       * a lookup should never silently overwrite a number the user set, so
+       * adopting one is always something they do.
+       */
+      applyQuotes: (storeId, foodIds) => {
+        const s = get();
+        const wanted = foodIds ? new Set(foodIds) : null;
+        const usable = (s.priceQuotes ?? []).filter(
+          (q) =>
+            q.storeId === storeId &&
+            q.available &&
+            q.pricePerUnit != null &&
+            q.pricePerUnit > 0 &&
+            (!wanted || wanted.has(q.foodId)),
+        );
+        if (usable.length === 0) return 0;
+        const taken = new Set(usable.map((q) => q.foodId));
+        set((st) => ({
+          prices: [
+            ...(st.prices ?? []).filter(
+              (pr) => !(pr.storeId === storeId && taken.has(pr.foodId)),
+            ),
+            ...usable.map((q) => ({
+              storeId,
+              foodId: q.foodId,
+              pricePerUnit: q.pricePerUnit as number,
+              updatedAt: q.lastRefreshed,
+              zip: q.zip,
+              source: q.source,
+            })),
+          ],
+        }));
+        return usable.length;
+      },
+
+      clearQuotes: (storeId) =>
+        set((s) => ({
+          priceQuotes: storeId
+            ? (s.priceQuotes ?? []).filter((q) => q.storeId !== storeId)
+            : [],
+        })),
+
       seedStorePricesFromBase: (storeId) => {
         const s = get();
         if (storeId === BASE_STORE_ID) return 0;
@@ -321,7 +382,7 @@ export const useApp = create<AppState>()(
       name: "mealplan-store-v6",
       // Bump whenever seed content is added that existing data should receive —
       // zustand only runs `migrate` when the stored version differs.
-      version: 4,
+      version: 5,
       // Preserve the user's own data across app updates; only fill in missing
       // defaults and restore items that earlier resets dropped.
       migrate: (persisted) => {
@@ -401,6 +462,7 @@ export const useApp = create<AppState>()(
           // Costs & stores arrived in v2 — existing users get the seed base
           // prices and an empty store list, keeping any they already had.
           stores: s.stores ?? [],
+          priceQuotes: s.priceQuotes ?? [],
           prices: s.prices?.length ? s.prices : seedData.prices,
           selectedStoreId: s.selectedStoreId ?? seedData.selectedStoreId,
           home: { ...seedData.home, ...(s.home ?? {}) }
@@ -454,6 +516,7 @@ export function exportData(s: AppState = useApp.getState()): AppData {
     history: s.history,
     stores: s.stores ?? [],
     prices: s.prices ?? [],
+    priceQuotes: s.priceQuotes ?? [],
     selectedStoreId: s.selectedStoreId ?? BASE_STORE_ID,
     home: s.home ?? { city: "", state: "", zip: "" }
   };

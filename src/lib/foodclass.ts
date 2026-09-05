@@ -66,7 +66,10 @@ const RULES: { category: FoodCategory; location: Location; words: string[] }[] =
   {
     category: "dairy", location: "fridge",
     words: [
-      "milk", "yogurt", "yoghurt", "kefir", "cheese", "cheddar", "mozzarella",
+      "milk", "oatmilk", "oat milk", "almondmilk", "almond milk", "soymilk",
+      "soy milk", "yogurt", "yoghurt", "kefir", "cheese", "cheddar", "mozzarella",
+      // Brands that only ever mean one thing on a receipt.
+      "oikos", "chobani", "fage", "siggi", "skyr",
       "parmesan", "feta", "brie", "gouda", "ricotta", "mascarpone", "boursin",
       "cream cheese", "sour cream", "heavy cream", "half and half", "cottage",
       "half-and-half", "creamer", "whipped cream", "ghee",
@@ -150,11 +153,20 @@ const RULES: { category: FoodCategory; location: Location; words: string[] }[] =
   },
 ];
 
+/**
+ * Match on whole words, so "Clover" is not a clove and "Grapefruit" is not a
+ * grape. Plurals and possessives still count, since a receipt says "Apples".
+ */
+function hasWord(haystack: string, phrase: string): boolean {
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z])${escaped}(e?s)?([^a-z]|$)`, "i").test(haystack);
+}
+
 /** Reads a food's name and says where it belongs, or null if it can't tell. */
 export function classifyByName(name: string): FoodPlacement | null {
   const n = name.toLowerCase();
   for (const rule of RULES) {
-    if (rule.words.some((w) => n.includes(w))) {
+    if (rule.words.some((w) => hasWord(n, w))) {
       return { category: rule.category, location: rule.location };
     }
   }

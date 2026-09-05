@@ -218,6 +218,10 @@ export interface Store {
   zip: string;
   lat?: number;
   lng?: number;
+  /** The store's site, for checking hours or ordering — opened from the tab. */
+  website?: string;
+  /** This store's id at a live price source, when it was matched to one. */
+  krogerLocationId?: string;
   /** How the store got here: typed in, or pulled from the nearby-store search. */
   source?: "manual" | "search";
 }
@@ -237,6 +241,41 @@ export interface Price {
   pricePerUnit: number;
   /** ISO date string (yyyy-MM-dd) — when this price was last touched. */
   updatedAt: string;
+  /** The zip the price was observed in, when it came from a live lookup. */
+  zip?: string;
+  /** Where the number came from. Absent means it was typed in. */
+  source?: PriceSourceId;
+}
+
+/** Where a price came from. */
+export type PriceSourceId = "kroger" | "manual" | "base";
+
+/**
+ * One observed price for one ingredient at one store, as a live source
+ * reported it. Cached rather than re-fetched, and kept separate from `Price`
+ * so a lookup never silently overwrites a number you set yourself.
+ */
+export interface PriceQuote {
+  foodId: string;
+  /** Normalized ingredient name — no brand, no pack size. */
+  ingredient: string;
+  /** Dollars per one of the food's own unit. Null when unavailable. */
+  pricePerUnit: number | null;
+  unit: Unit;
+  /** The shelf price, before dividing by pack size. */
+  packagePrice?: number;
+  /** The pack size as the source described it. */
+  packageSize?: string;
+  /** The product the source matched, for checking its work. */
+  matchedProduct?: string;
+  storeId: string;
+  zip: string;
+  /** ISO date string (yyyy-MM-dd). */
+  lastRefreshed: string;
+  source: PriceSourceId;
+  /** False when the store carries no price for it. */
+  available: boolean;
+  note?: string;
 }
 
 /** Where the user is shopping from, used to sort stores by distance. */
@@ -267,6 +306,8 @@ export interface AppData {
   stores: Store[];
   /** Per-store, per-food unit prices. */
   prices: Price[];
+  /** Cached live-source quotes, refreshed daily rather than per request. */
+  priceQuotes: PriceQuote[];
   /** Which store's prices the whole app is costed against. */
   selectedStoreId: string;
   /** Where 'nearby' is measured from. */

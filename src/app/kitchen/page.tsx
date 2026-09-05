@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, ScanLine, Menu, Calculator, Sparkles, BookMarked } from "lucide-react";
+import { Plus, ScanLine, Menu, Calculator, Sparkles, BookMarked, ClipboardList } from "lucide-react";
 import { AddFoodModal } from "@/components/AddFoodModal";
 import { ScanReceiptModal } from "@/components/ScanReceiptModal";
+import { ReceiptTextModal } from "@/components/ReceiptTextModal";
 import { ConversionsModal } from "@/components/ConversionsModal";
 import { NutritionScanModal } from "@/components/NutritionScanModal";
 import { UsdaFillModal } from "@/components/UsdaFillModal";
@@ -14,6 +15,7 @@ import { Fridge } from "@/components/Fridge";
 export default function Kitchen() {
   const [adding, setAdding] = useState<Location | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [pasting, setPasting] = useState(false);
   const [convOpen, setConvOpen] = useState(false);
   const [labelOpen, setLabelOpen] = useState(false);
   const [usdaOpen, setUsdaOpen] = useState(false);
@@ -21,7 +23,8 @@ export default function Kitchen() {
 
   const menuItems = [
     { label: "Add food", icon: Plus, run: () => setAdding("fridge") },
-    { label: "Scan receipt", icon: ScanLine, run: () => setScanning(true) },
+    { label: "Paste a receipt", icon: ClipboardList, run: () => setPasting(true) },
+    { label: "Scan receipt (photo)", icon: ScanLine, run: () => setScanning(true) },
     { label: "Scan nutrition label", icon: Sparkles, run: () => setLabelOpen(true) },
     { label: "Fill macros from USDA", icon: BookMarked, run: () => setUsdaOpen(true) },
     { label: "Conversions chart", icon: Calculator, run: () => setConvOpen(true) },
@@ -67,6 +70,7 @@ export default function Kitchen() {
 
       {adding && <AddFoodModal context="kitchen" defaultLocation={adding} onClose={() => setAdding(null)} />}
       {scanning && <ScanReceiptModal onClose={() => setScanning(false)} />}
+      {pasting && <ReceiptTextModal onClose={() => setPasting(false)} />}
       {convOpen && <ConversionsModal onClose={() => setConvOpen(false)} />}
       {labelOpen && <NutritionScanModal onClose={() => setLabelOpen(false)} />}
       {usdaOpen && <UsdaFillModal onClose={() => setUsdaOpen(false)} />}

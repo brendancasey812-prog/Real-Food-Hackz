@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   MapPin, Crosshair, Search, Plus, Trash2, Check, LocateFixed,
-  TriangleAlert, Store as StoreIcon, X
+  TriangleAlert, Store as StoreIcon, X, ExternalLink, DollarSign
 } from "lucide-react";
 import { useApp, newId } from "@/lib/store";
 import { BASE_STORE_ID, priceFor, fmtMoney, plannedCost } from "@/lib/cost";
@@ -17,6 +17,8 @@ import { weekDays, isoOf } from "@/lib/week";
 import type { Store } from "@/lib/types";
 import type { MapMarker } from "@/components/StoreMap";
 import { SettingsButton } from "@/components/SettingsButton";
+import { PriceMapper } from "@/components/PriceMapper";
+import { LivePricingLookup } from "@/components/LivePricingLookup";
 
 // Leaflet is browser-only; keep it out of the export's prerender pass entirely.
 const StoreMap = dynamic(() => import("@/components/StoreMap").then((m) => m.StoreMap), {
@@ -28,7 +30,7 @@ const StoreMap = dynamic(() => import("@/components/StoreMap").then((m) => m.Sto
   )
 });
 
-const BLANK = { name: "", address: "", city: "", state: "", zip: "" };
+const BLANK = { name: "", address: "", city: "", state: "", zip: "", website: "" };
 
 export default function Stores() {
   const {
@@ -47,6 +49,7 @@ export default function Stores() {
   const [note, setNote] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<NearbyStore[]>([]);
   const [form, setForm] = useState<typeof BLANK | null>(null);
+  const costingStore = (stores ?? []).find((s) => s.id === selectedStoreId);
   const abort = useRef<AbortController | null>(null);
 
   const savedKeys = useMemo(
@@ -138,6 +141,7 @@ export default function Stores() {
       city: form.city.trim(),
       state: form.state.trim(),
       zip: form.zip.trim(),
+      website: normalizeUrl(form.website),
       source: "manual"
     };
     addStore(store);
@@ -319,6 +323,8 @@ export default function Stores() {
               <input value={form.zip} onChange={(e) => setForm({ ...form, zip: e.target.value })}
                 placeholder="ZIP" className="field rounded-xl px-3 py-2 text-sm" />
             </div>
+            <input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })}
+              placeholder="Website (optional) — safeway.com/…" className="field col-span-2 rounded-xl px-3 py-2 text-sm md:col-span-6" />
           </div>
           <div className="mt-3 flex items-center gap-2">
             <button onClick={submitForm} disabled={!form.name.trim()}
@@ -331,6 +337,9 @@ export default function Stores() {
           </div>
         </div>
       )}
+
+      {/* --- Live pricing: match a store to a source that quotes prices --- */}
+      <LivePricingLookup />
 
       {/* --- Nearby search results --- */}
       {candidates.length > 0 && (
@@ -416,6 +425,7 @@ export default function Stores() {
                       <div className="truncate text-sm">{s.name}</div>
                       <div className="truncate text-[11px] text-muted">
                         {[s.address, s.city, s.state, s.zip].filter(Boolean).join(", ") || "No address yet"}
+                        {s.website && ` · ${hostOf(s.website)}`}
                         {s.lat == null && " · not on map"}
                       </div>
                     </div>
@@ -437,6 +447,27 @@ export default function Stores() {
                     ) : (
                       <span className="pr-1 text-[11px] text-muted">{coverage} priced</span>
                     )}
+                    {s.website && (
+                      <a
+                        href={s.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Open ${s.name}'s website`}
+                        aria-label={`Open ${s.name}'s website`}
+                        className="rounded-lg p-1.5 text-muted hover:bg-surface-3 hover:text-ink"
+                      >
+                        <ExternalLink size={15} />
+                      </a>
+                    )}
+                    <Link
+                      href="/costs"
+                      onClick={() => selectStore(s.id)}
+                      title={`Price food at ${s.name}`}
+                      aria-label={`Price food at ${s.name}`}
+                      className="rounded-lg p-1.5 text-muted hover:bg-surface-3 hover:text-accent-soft"
+                    >
+                      <DollarSign size={15} />
+                    </Link>
                     {s.lat == null && (
                       <button onClick={() => locateStore(s)} title="Place on map"
                         className="rounded-lg p-1.5 text-muted hover:bg-surface-3 hover:text-ink">
@@ -455,6 +486,9 @@ export default function Stores() {
         )}
       </section>
 
+      {/* --- What the costing store charges, ingredient by ingredient --- */}
+      {costingStore && <PriceMapper store={costingStore} />}
+
       <p className="mt-6 text-center text-xs text-muted">
         Prices live in the{" "}
         <Link href="/costs" className="text-accent-soft hover:underline">
@@ -464,4 +498,20 @@ export default function Stores() {
       </p>
     </div>
   );
+}
+
+/** Accept "safeway.com" as readily as a full URL; blank stays blank. */
+function normalizeUrl(raw: string): string | undefined {
+  const v = raw.trim();
+  if (!v) return undefined;
+  return /^https?:\/\//i.test(v) ? v : `https://${v}`;
+}
+
+/** Just the domain, for the one line under a store's name. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
 }

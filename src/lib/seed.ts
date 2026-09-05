@@ -359,6 +359,7 @@ export const seedData: AppData = {
   // (or you add your own) rather than shipping made-up addresses.
   stores: [],
   prices,
+  priceQuotes: [],
   selectedStoreId: BASE_STORE_ID,
   home: { city: "", state: "", zip: "" },
   goals: {
