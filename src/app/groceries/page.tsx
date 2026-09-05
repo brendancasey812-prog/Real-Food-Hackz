@@ -7,12 +7,20 @@ import { ChevronLeft, ChevronRight, Check, Plus } from "lucide-react";
 import { useApp, neededQuantities, foodById } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
 import { fmtQty, pluralUnit } from "@/lib/units";
+import { FOOD_CATEGORIES } from "@/lib/foodcat";
 import { AddFoodModal } from "@/components/AddFoodModal";
-import type { Food } from "@/lib/types";
+import type { Food, Location } from "@/lib/types";
 import { BASE_STORE_ID, quantityCost, quantitiesCost, fmtMoney } from "@/lib/cost";
 import { SettingsButton } from "@/components/SettingsButton";
 import { GroceryShelves } from "@/components/GroceryShelves";
 import { ViewToggle } from "@/components/shelf";
+
+/** The order you actually walk a kitchen when you get home from the shop. */
+const LOCATIONS: { key: Location; label: string; icon: string }[] = [
+  { key: "fridge", label: "Fridge", icon: "🧊" },
+  { key: "freezer", label: "Freezer", icon: "❄️" },
+  { key: "pantry", label: "Pantry", icon: "🫙" },
+];
 
 export default function Groceries() {
   const { recipes, foods, plan, inventory, manualGroceries, prices, stores, selectedStoreId,
@@ -58,12 +66,6 @@ export default function Groceries() {
     })
     .filter((x) => x.food && x.buy > 0.001);
 
-  const grouped = items.reduce<Record<string, typeof items>>((acc, item) => {
-    const loc = item.food!.location;
-    (acc[loc] ??= []).push(item);
-    return acc;
-  }, {});
-
   const totalCals = items.reduce(
     (s, x) => s + Math.round(x.buy * x.food!.caloriesPerUnit),
     0,
@@ -101,6 +103,32 @@ export default function Groceries() {
     ...items.map((i) => ({ food: i.food!, buy: i.buy, have: i.have })),
     ...Object.values(bought).filter((bt) => !items.some((i) => i.food!.id === bt.food.id)),
   ];
+
+  // The list is grouped the way you shop and then unpack: where it goes when
+  // you get home, and within that the aisle it came from. A flat run of
+  // twenty lines is what makes a list easy to lose your place in.
+  const listGroups = LOCATIONS.map((loc) => {
+    const here = shelfItems.filter((i) => i.food.location === loc.key);
+    return {
+      ...loc,
+      left: here.filter((i) => !checked[i.food.id]).length,
+      cost: here.reduce(
+        (sum, i) => sum + (quantityCost(i.food.id, i.buy, prices, selectedStoreId) ?? 0),
+        0,
+      ),
+      types: FOOD_CATEGORIES.map((cat) => ({
+        ...cat,
+        items: here
+          .filter((i) => i.food.category === cat.key)
+          .sort((a, b) => a.food.name.localeCompare(b.food.name)),
+      })).filter((t) => t.items.length > 0),
+    };
+  }).filter((l) => l.types.length > 0);
+
+  const toggleBought = (item: { food: Food; buy: number; have: number }) =>
+    checked[item.food.id]
+      ? undoBought(item.food.id)
+      : markBought(item.food.id, item.have, item.buy);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -153,7 +181,7 @@ export default function Groceries() {
         options={[["shelves", "Shelves"], ["list", "List"]] as const}
       />
 
-      {items.length === 0 ? (
+      {shelfItems.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line-2 py-16 text-center text-sm text-muted">
           🎉 Your kitchen already has everything for this week&apos;s plan.
         </div>
@@ -161,55 +189,72 @@ export default function Groceries() {
         <GroceryShelves
           items={shelfItems}
           checked={checked}
-          onBuy={(i) => (checked[i.food.id] ? undoBought(i.food.id) : markBought(i.food.id, i.have, i.buy))}
+          onBuy={toggleBought}
           prices={prices}
           selectedStoreId={selectedStoreId}
         />
       ) : (
         <div className="space-y-5">
-          {Object.entries(grouped).map(([loc, list]) => (
-            <div key={loc}>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
-                {loc}
+          {listGroups.map((loc) => (
+            <div key={loc.key}>
+              <h2 className="mb-2 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
+                <span className="text-sm">{loc.icon}</span>
+                {loc.label}
+                <span className="font-normal normal-case text-faint">
+                  {loc.left === 0
+                    ? "all picked up"
+                    : `${loc.left} to buy`}
+                  {loc.cost > 0 && ` · ${fmtMoney(loc.cost)}`}
+                </span>
               </h2>
               <div className="overflow-hidden rounded-2xl card">
-                {list.map((item) => {
-                  const f = item.food!;
-                  const isChecked = checked[f.id];
-                  const lineCals = Math.round(item.buy * f.caloriesPerUnit);
-                  const lineCost = quantityCost(f.id, item.buy, prices, selectedStoreId);
-                  return (
-                    <div
-                      key={f.id}
-                      className="flex items-center gap-3 border-b border-line-2 px-4 py-3 last:border-0 border-line-2"
-                    >
-                      <button
-                        onClick={() => markBought(f.id, item.have, item.buy)}
-                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${
-                          isChecked
-                            ? "border-accent bg-accent text-on-accent"
-                            : "border-line-2 border-line-2"
-                        }`}
-                      >
-                        {isChecked && <Check size={14} />}
-                      </button>
-                      <div className={`flex-1 ${isChecked ? "text-muted line-through" : ""}`}>
-                        <div>{f.emoji} {f.name}</div>
-                        <div className="text-[11px] text-muted">
-                          {lineCals} cal
-                          {lineCost != null ? (
-                            <span className="ml-2 text-accent-soft">{fmtMoney(lineCost)}</span>
-                          ) : (
-                            <span className="ml-2 text-warn-soft">no price</span>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-sm text-muted">
-                        buy {fmtQty(Math.ceil(item.buy * 4) / 4)} {pluralUnit(item.buy, f.unit)}
-                      </span>
+                {loc.types.map((type) => (
+                  <div key={type.key}>
+                    {/* The aisle this part of the list comes from */}
+                    <div className="flex items-center gap-1.5 border-b border-line-2 bg-surface px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
+                      <span className="text-xs">{type.emoji}</span>
+                      {type.label}
+                      <span className="font-normal text-faint">· {type.items.length}</span>
                     </div>
-                  );
-                })}
+                    {type.items.map((item) => {
+                      const f = item.food;
+                      const isChecked = Boolean(checked[f.id]);
+                      const lineCals = Math.round(item.buy * f.caloriesPerUnit);
+                      const lineCost = quantityCost(f.id, item.buy, prices, selectedStoreId);
+                      return (
+                        <div
+                          key={f.id}
+                          className="flex items-center gap-3 border-b border-line-2 px-4 py-3 last:border-0"
+                        >
+                          <button
+                            onClick={() => toggleBought(item)}
+                            aria-pressed={isChecked}
+                            aria-label={`${isChecked ? "Undo buying" : "Buy"} ${f.name}`}
+                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${
+                              isChecked ? "border-accent bg-accent text-on-accent" : "border-line-2"
+                            }`}
+                          >
+                            {isChecked && <Check size={14} />}
+                          </button>
+                          <div className={`flex-1 ${isChecked ? "text-muted line-through" : ""}`}>
+                            <div>{f.emoji} {f.name}</div>
+                            <div className="text-[11px] text-muted no-underline">
+                              {lineCals} cal
+                              {lineCost != null ? (
+                                <span className="ml-2 text-accent-soft">{fmtMoney(lineCost)}</span>
+                              ) : (
+                                <span className="ml-2 text-warn-soft">no price</span>
+                              )}
+                            </div>
+                          </div>
+                          <span className="shrink-0 text-sm text-muted">
+                            buy {fmtQty(Math.ceil(item.buy * 4) / 4)} {pluralUnit(item.buy, f.unit)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </div>
           ))}
