@@ -56,15 +56,16 @@ function ageFrom(birth?: string): number | null {
 }
 
 function Section({
-  icon: Icon, title, subtitle, children, defaultOpen = false,
+  icon: Icon, title, subtitle, children,
 }: {
   icon: React.ComponentType<{ size?: number; className?: string }>;
   title: string;
   subtitle?: string;
   children: React.ReactNode;
-  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  // Sections open closed, so Settings opens as a scannable list of headings
+  // rather than a wall the user has to scroll past.
+  const [open, setOpen] = useState(false);
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-surface">
       <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-surface-3">
@@ -119,7 +120,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
           {/* My Profile */}
-          <Section icon={User} title="My Profile" subtitle="Birth date, height, weight, sex" defaultOpen>
+          <Section icon={User} title="My Profile" subtitle="Birth date, height, weight, sex">
             <div className="space-y-3">
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-muted">Birth date</span>
@@ -176,7 +177,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           </Section>
 
           {/* User — individual / couple / family */}
-          <Section icon={Users} title="User" subtitle={HOUSEHOLD_LABEL[householdMode]} defaultOpen>
+          <Section icon={Users} title="User" subtitle={HOUSEHOLD_LABEL[householdMode]}>
             <div className="mb-3 flex gap-2">
               {(["individual", "couple", "family"] as HouseholdMode[]).map((m) => (
                 <button
@@ -257,7 +258,6 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             icon={Palette}
             title="Appearance"
             subtitle={THEME_OPTIONS.find((o) => o.value === theme)?.label ?? "System"}
-            defaultOpen
           >
             <div className="grid grid-cols-3 gap-2">
               {THEME_OPTIONS.map((o) => {
@@ -286,7 +286,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           </Section>
 
           {/* Goals and focus areas */}
-          <Section icon={Target} title="Goals and focus areas" subtitle={`${focusAreas.length} selected`} defaultOpen>
+          <Section icon={Target} title="Goals and focus areas" subtitle={`${focusAreas.length} selected`}>
             <div className="space-y-1.5">
               {FOCUS_AREAS.map((f) => {
                 const on = focusAreas.includes(f.key);
@@ -310,7 +310,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           </Section>
 
           {/* Account */}
-          <Section icon={CreditCard} title="Account" subtitle={cloud.user ? (cloud.user.email ?? "Signed in") : "Membership · sign in to sync"} defaultOpen={!cloud.user && cloud.enabled}>
+          <Section icon={CreditCard} title="Account" subtitle={cloud.user ? (cloud.user.email ?? "Signed in") : "Membership · sign in to sync"}>
             <InfoRow label="Membership" value={<span className="rounded-full bg-accent-wash px-2.5 py-0.5 text-xs text-accent-soft">Free plan</span>} />
 
             {!cloud.enabled ? (
