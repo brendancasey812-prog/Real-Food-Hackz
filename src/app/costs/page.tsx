@@ -22,6 +22,8 @@ import {
 } from "@/lib/cost";
 import type { FoodCategory } from "@/lib/types";
 import { SettingsButton } from "@/components/SettingsButton";
+import { CostShelves } from "@/components/CostShelves";
+import { ViewToggle } from "@/components/shelf";
 
 /** A money figure that says out loud when it is missing prices. */
 function Money({ t, className = "" }: { t: CostTotals; className?: string }) {
@@ -50,6 +52,7 @@ export default function Costs() {
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState<FoodCategory | "all">("all");
   const [copied, setCopied] = useState<number | null>(null);
+  const [view, setView] = useState<"shelves" | "list">("shelves");
 
   const storeName =
     selectedStoreId === BASE_STORE_ID
@@ -200,10 +203,24 @@ export default function Costs() {
         </select>
       </div>
 
+      <ViewToggle
+        value={view}
+        onChange={setView}
+        options={[["shelves", "Shelves"], ["list", "List"]] as const}
+      />
+
       {visible.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line-2 py-16 text-center text-sm text-muted">
           No ingredients match that search.
         </div>
+      ) : view === "shelves" ? (
+        <CostShelves
+          foods={visible}
+          prices={prices}
+          storeId={selectedStoreId}
+          storeName={storeName}
+          onSet={(foodId, v) => setPrice(selectedStoreId, foodId, v)}
+        />
       ) : (
         <div className="space-y-5">
           {FOOD_CATEGORIES.filter((c) => byCategory.has(c.key)).map((c) => (

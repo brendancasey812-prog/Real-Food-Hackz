@@ -8,15 +8,30 @@ import { useApp, neededQuantities, foodById } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
 import { fmtQty, pluralUnit } from "@/lib/units";
 import { AddFoodModal } from "@/components/AddFoodModal";
+import type { Food } from "@/lib/types";
 import { BASE_STORE_ID, quantityCost, quantitiesCost, fmtMoney } from "@/lib/cost";
 import { SettingsButton } from "@/components/SettingsButton";
+import { GroceryShelves } from "@/components/GroceryShelves";
+import { ViewToggle } from "@/components/shelf";
 
 export default function Groceries() {
   const { recipes, foods, plan, inventory, manualGroceries, prices, stores, selectedStoreId,
     setInventory, removeManualGrocery } = useApp();
   const [offset, setOffset] = useState(0);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  // Buying an item clears its shortfall, so it would otherwise vanish mid-shop.
+  // Keep a snapshot of what was ticked off so it stays on the shelf, greyed
+  // out and undoable, until the week is changed.
+  const [bought, setBought] = useState<Record<string, { food: Food; buy: number; have: number }>>({});
   const [adding, setAdding] = useState(false);
+  // Shelves match the Food Tracker; the list stays for straight-through ticking.
+  const [view, setView] = useState<"shelves" | "list">("shelves");
+
+  const changeWeek = (dir: number) => {
+    setOffset((o) => o + dir);
+    setChecked({});
+    setBought({});
+  };
 
   const days = weekDays(addWeeks(new Date(), offset)).map(isoOf);
   const need = neededQuantities(
@@ -69,7 +84,23 @@ export default function Groceries() {
     setInventory(foodId, have + buy);
     manualGroceries.filter((m) => m.foodId === foodId).forEach((m) => removeManualGrocery(m.id));
     setChecked((c) => ({ ...c, [foodId]: true }));
+    const food = foodById(foods, foodId);
+    if (food) setBought((bt) => ({ ...bt, [foodId]: { food, buy, have } }));
   };
+
+  /** Put back what a mis-tap added, and return the item to the list. */
+  const undoBought = (foodId: string) => {
+    const snap = bought[foodId];
+    if (snap) setInventory(foodId, snap.have);
+    setChecked((c) => { const n = { ...c }; delete n[foodId]; return n; });
+    setBought((bt) => { const n = { ...bt }; delete n[foodId]; return n; });
+  };
+
+  /** The live list plus anything ticked off this session, so nothing jumps. */
+  const shelfItems = [
+    ...items.map((i) => ({ food: i.food!, buy: i.buy, have: i.have })),
+    ...Object.values(bought).filter((bt) => !items.some((i) => i.food!.id === bt.food.id)),
+  ];
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -93,13 +124,13 @@ export default function Groceries() {
 
       <div className="mb-4 flex items-center justify-between rounded-xl card px-4 py-2.5 text-sm">
         <div className="flex items-center gap-1">
-          <button onClick={() => setOffset((o) => o - 1)} className="rounded-lg p-1 hover:bg-surface-3">
+          <button onClick={() => changeWeek(-1)} className="rounded-lg p-1 hover:bg-surface-3">
             <ChevronLeft size={16} />
           </button>
           <span className="px-1 text-muted">
             Week of {format(weekDays(addWeeks(new Date(), offset))[0], "MMM d")}
           </span>
-          <button onClick={() => setOffset((o) => o + 1)} className="rounded-lg p-1 hover:bg-surface-3">
+          <button onClick={() => changeWeek(1)} className="rounded-lg p-1 hover:bg-surface-3">
             <ChevronRight size={16} />
           </button>
         </div>
@@ -116,10 +147,24 @@ export default function Groceries() {
         </div>
       </div>
 
+      <ViewToggle
+        value={view}
+        onChange={setView}
+        options={[["shelves", "Shelves"], ["list", "List"]] as const}
+      />
+
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-line-2 py-16 text-center text-sm text-muted">
           🎉 Your kitchen already has everything for this week&apos;s plan.
         </div>
+      ) : view === "shelves" ? (
+        <GroceryShelves
+          items={shelfItems}
+          checked={checked}
+          onBuy={(i) => (checked[i.food.id] ? undoBought(i.food.id) : markBought(i.food.id, i.have, i.buy))}
+          prices={prices}
+          selectedStoreId={selectedStoreId}
+        />
       ) : (
         <div className="space-y-5">
           {Object.entries(grouped).map(([loc, list]) => (

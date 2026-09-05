@@ -12,9 +12,9 @@ list, and fridge/pantry levels all update together.
 | **Dashboard** | Weekly calorie tracker vs. your daily goal, plus live stats pulled from every other tab. |
 | **Cookbook** | Browse recipes (calories auto-calculated from ingredients) and add your own. |
 | **Meal Plan** | Google-Calendar-style weekly grid — drop recipes onto breakfast/lunch/dinner/snack slots, and clear a day, week, month, year, hand-picked days, or any date range. |
-| **Groceries** | Auto-built list = what the week's plan needs − what's already in your kitchen. |
+| **Groceries** | Auto-built list = what the week's plan needs − what's already in your kitchen, on the same shelves as the Food Tracker. |
 | **Food Tracker** | A fridge you can open — glass shelves and crisper drawers of food icons, each showing its amount. Also a List view with stock bars. |
-| **Costs** | The cost repository — every ingredient priced per its own unit, rolling up to per-recipe and per-week spend. |
+| **Costs** | The cost repository — every ingredient priced per its own unit, badged on its icon, rolling up to per-recipe and per-week spend. |
 | **Stores** | Map of the grocery stores near you. Pick one and the whole app re-prices against it. |
 
 ## The fridge
@@ -40,6 +40,14 @@ it costs and plans itself like any other recipe.
 
 The old dense view is still there under the **List** toggle — sliders, per-unit
 nutrition editing, and bulk delete.
+
+**Groceries and Costs use the same shelves.** The cabinet, glass shelves and app
+icons live in [`src/components/shelf.tsx`](src/components/shelf.tsx) and are
+shared by all three tabs, so they cannot drift apart. On Groceries each icon
+badges how much to buy and a tap ticks it off — the item stays put, greyed and
+struck through, and tapping again undoes it. On Costs each icon badges its
+price, and a tap opens a sheet to set it, with the base-price fallback spelled
+out. Both keep their previous dense view under a **List** toggle.
 
 ## Light & dark
 

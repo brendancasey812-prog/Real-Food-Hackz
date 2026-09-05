@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Check, Search, X, ChefHat } from "lucide-react";
+import { Check, Search, X, ChefHat } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
 import { fmtQty, pluralUnit } from "@/lib/units";
+import { Appliance, Shelf, TileGrid, AppTile, CATEGORY_TINT } from "./shelf";
 import { FoodSheet } from "./FoodSheet";
 import { RecipeBuilderSheet } from "./RecipeBuilderSheet";
 import type { Food, FoodCategory, Location } from "@/lib/types";
@@ -34,19 +35,6 @@ const FURNITURE: Record<FoodCategory, "shelf" | "drawer" | "door"> = {
   condiment: "door",
 };
 
-/** Each group's app icons are tinted with the palette color of that food. */
-const TINT: Record<FoodCategory, string> = {
-  protein: "from-protein/30 to-protein/10 ring-protein/25",
-  dairy: "from-sea/30 to-sea/10 ring-sea/25",
-  grain: "from-carbs/30 to-carbs/10 ring-carbs/25",
-  starch: "from-carbs/25 to-carbs/8 ring-carbs/20",
-  legume: "from-fat/30 to-fat/10 ring-fat/25",
-  nut: "from-fat/25 to-fat/8 ring-fat/20",
-  fat: "from-fat/30 to-fat/10 ring-fat/25",
-  vegetable: "from-accent/30 to-accent/10 ring-accent/25",
-  fruit: "from-over/30 to-over/10 ring-over/25",
-  condiment: "from-warn/30 to-warn/10 ring-warn/25",
-};
 
 export function Fridge() {
   const { foods, inventory, setInventory } = useApp();
@@ -160,28 +148,22 @@ export function Fridge() {
       )}
 
       {/* --- The cabinet --- */}
-      <div className="appliance relative rounded-[28px] p-3 md:p-4">
-        {/* Chrome pull on the door edge */}
-        <span
-          aria-hidden
-          className="handle absolute right-2.5 top-10 bottom-10 hidden w-2 rounded-full md:block"
-        />
-
-        <div className="space-y-2.5 md:pr-8">
+      <Appliance>
+        <>
           {groups.length === 0 ? (
             <p className="glass rounded-2xl px-4 py-10 text-center text-sm text-muted">
               {q ? `Nothing matching “${query}” in the ${zone}.` : "This zone is empty — add a food to fill it."}
             </p>
           ) : (
             <>
-              {shelves.map((g) => <Shelf key={g.key} {...groupProps(g)} />)}
+              {shelves.map((g) => <FoodShelf key={g.key} {...groupProps(g)} />)}
 
               {doors.length > 0 && (
                 <div className="pt-1">
                   <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted">
                     Door bin
                   </p>
-                  {doors.map((g) => <Shelf key={g.key} {...groupProps(g)} />)}
+                  {doors.map((g) => <FoodShelf key={g.key} {...groupProps(g)} />)}
                 </div>
               )}
 
@@ -191,14 +173,14 @@ export function Fridge() {
                     Crisper drawers
                   </p>
                   <div className={drawers.length > 1 ? "grid items-start gap-2.5 sm:grid-cols-2" : ""}>
-                    {drawers.map((g) => <Shelf key={g.key} {...groupProps(g)} drawer />)}
+                    {drawers.map((g) => <FoodShelf key={g.key} {...groupProps(g)} drawer />)}
                   </div>
                 </div>
               )}
             </>
           )}
-        </div>
-      </div>
+        </>
+      </Appliance>
 
       {/* Selection bar — the one action while picking */}
       {picking && chosen.length > 0 && (
@@ -260,8 +242,8 @@ export function Fridge() {
   );
 }
 
-/** A glass shelf (or crisper drawer) that opens to reveal its food icons. */
-function Shelf({
+/** A fridge section: the shared glass shelf, filled with food icons. */
+function FoodShelf({
   group, open, onToggle, qtyOf, picking, chosen, onPick, onOpenFood, drawer = false,
 }: {
   group: { key: FoodCategory; label: string; emoji: string; foods: Food[] };
@@ -278,106 +260,44 @@ function Shelf({
   const pickedHere = group.foods.filter((f) => chosen.includes(f.id)).length;
 
   return (
-    <div className={`glass overflow-hidden rounded-2xl ${open ? "glass-open" : ""}`}>
-      <button
-        onClick={onToggle}
-        aria-expanded={open}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2/40"
-      >
-        <span className="text-xl">{group.emoji}</span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-ink">{group.label}</span>
-          <span className="block text-[11px] text-muted">
-            {stocked} of {group.foods.length} stocked
-            {pickedHere > 0 && <span className="text-accent-soft"> · {pickedHere} picked</span>}
-          </span>
-        </span>
-        <ChevronDown
-          size={18}
-          className={`shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-
-      {open && (
-        <div className="shelf-open border-t border-glass-line px-3 pb-4 pt-3">
-          <div className="grid grid-cols-3 gap-x-2 gap-y-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-            {group.foods.map((f) => (
-              <FoodApp
-                key={f.id}
-                food={f}
-                quantity={qtyOf(f.id)}
-                tint={TINT[f.category]}
-                picking={picking}
-                picked={chosen.includes(f.id)}
-                onClick={() => (picking ? onPick(f.id) : onOpenFood(f))}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {drawer && <span aria-hidden className="mx-auto mb-2 block h-1 w-10 rounded-full bg-line-2" />}
-    </div>
-  );
-}
-
-/** One food, drawn like an app icon: the food on top, its amount underneath. */
-function FoodApp({
-  food: f, quantity, tint, picking, picked, onClick,
-}: {
-  food: Food;
-  quantity: number;
-  tint: string;
-  picking: boolean;
-  picked: boolean;
-  onClick: () => void;
-}) {
-  const empty = quantity <= 0;
-  // You can only cook with what you actually have.
-  const disabled = picking && empty;
-
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      aria-pressed={picking ? picked : undefined}
-      className={`app-tile flex h-full flex-col items-center gap-1.5 text-center ${
-        disabled ? "cursor-not-allowed opacity-40" : ""
-      }`}
+    <Shelf
+      emoji={group.emoji}
+      title={group.label}
+      subtitle={
+        <>
+          {stocked} of {group.foods.length} stocked
+          {pickedHere > 0 && <span className="text-accent-soft"> · {pickedHere} picked</span>}
+        </>
+      }
+      open={open}
+      onToggle={onToggle}
+      drawer={drawer}
     >
-      <span
-        className={`squircle relative flex h-16 w-16 items-center justify-center bg-gradient-to-br text-[28px] ring-1 ${tint} ${
-          picked ? "ring-2 ring-accent" : ""
-        } ${empty && !picking ? "opacity-50" : ""}`}
-      >
-        <span aria-hidden>{f.emoji}</span>
-
-        {picking ? (
-          <span
-            className={`absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border ${
-              picked
-                ? "border-accent bg-accent text-on-accent"
-                : "border-line-2 bg-page text-transparent"
-            }`}
-          >
-            <Check size={12} strokeWidth={3} />
-          </span>
-        ) : (
-          <span
-            className={`absolute -right-1.5 -top-1.5 min-w-[22px] rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
-              empty ? "bg-surface-3 text-muted" : "bg-accent text-on-accent"
-            }`}
-          >
-            {fmtQty(quantity)}
-          </span>
-        )}
-      </span>
-
-      <span className="line-clamp-2 flex-1 text-[11px] font-medium leading-tight text-ink">{f.name}</span>
-      <span className={`text-[10px] tabular-nums ${empty ? "text-faint" : "text-muted"}`}>
-        {fmtQty(quantity)} {pluralUnit(quantity, f.unit)}
-      </span>
-    </button>
+      <TileGrid>
+        {group.foods.map((f) => {
+          const quantity = qtyOf(f.id);
+          const empty = quantity <= 0;
+          // You can only cook with what you actually have.
+          const disabled = picking && empty;
+          const picked = chosen.includes(f.id);
+          return (
+            <AppTile
+              key={f.id}
+              emoji={f.emoji}
+              name={f.name}
+              tint={CATEGORY_TINT[f.category]}
+              selected={picked}
+              dimmed={empty && !picking}
+              disabled={disabled}
+              onClick={() => (picking ? onPick(f.id) : onOpenFood(f))}
+              badge={picking ? <Check size={11} strokeWidth={3} /> : fmtQty(quantity)}
+              badgeTone={picking ? (picked ? "accent" : "outline") : empty ? "muted" : "accent"}
+              sub={`${fmtQty(quantity)} ${pluralUnit(quantity, f.unit)}`}
+            />
+          );
+        })}
+      </TileGrid>
+    </Shelf>
   );
 }
 
