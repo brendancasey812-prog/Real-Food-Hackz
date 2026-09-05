@@ -94,21 +94,21 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
   const addableRecipes = recipes.filter((rr) => rr.id !== recipe.id && !comps.some((c) => c.recipeId === rr.id));
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/55 p-0 backdrop-blur-sm md:items-center md:p-4">
-      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-zinc-950/95 md:rounded-2xl">
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-4">
+      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl border border-line bg-page md:rounded-2xl">
         {/* Header: Edit (top-left) · title · Close (top-right) */}
-        <div className="flex items-center justify-between gap-2 border-b border-white/[0.07] px-4 py-3">
+        <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
           {editing ? (
-            <button onClick={cancelEdit} className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-medium text-zinc-300 hover:bg-white/[0.06]">
+            <button onClick={cancelEdit} className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-medium text-ink-2 hover:bg-surface-3">
               <ArrowLeft size={16} /> Back
             </button>
           ) : (
-            <button onClick={startEdit} className="flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-sm font-medium text-emerald-300 hover:bg-emerald-500/10">
+            <button onClick={startEdit} className="flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-sm font-medium text-accent-soft hover:bg-accent-wash">
               <Pencil size={15} /> Edit
             </button>
           )}
-          <span className="truncate text-sm font-semibold text-zinc-200">{editing ? "Edit meal" : MEAL_LABEL[meal.mealType]}</span>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200" aria-label="Close"><X size={20} /></button>
+          <span className="truncate text-sm font-semibold text-ink">{editing ? "Edit meal" : MEAL_LABEL[meal.mealType]}</span>
+          <button onClick={onClose} className="text-muted hover:text-ink" aria-label="Close"><X size={20} /></button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
@@ -120,7 +120,7 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
                 <input value={draft.name} onChange={(e) => patchDraft({ name: e.target.value })} className="flex-1 rounded-lg field px-3 py-2 font-medium" />
               </div>
               <label className="flex items-center gap-2 text-sm">
-                <span className="text-zinc-500">Servings</span>
+                <span className="text-muted">Servings</span>
                 <input type="number" min={1} value={draft.servings} onChange={(e) => patchDraft({ servings: Number(e.target.value) || 1 })} className="w-20 rounded-lg field px-2 py-1.5" />
               </label>
             </div>
@@ -129,7 +129,7 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
               <span className="text-3xl">{recipe.emoji}</span>
               <div className="min-w-0">
                 <h3 className="truncate font-semibold">{recipe.name}</h3>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-muted">
                   {clockLabel(mealStart(meal))} · {recipe.servings} serving{recipe.servings > 1 ? "s" : ""}
                   {meal.servings !== 1 && ` · ${meal.servings}× on the plan`}
                 </p>
@@ -140,29 +140,29 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
           {/* Included recipes (sub-recipes) */}
           {(comps.length > 0 || (editing && draft && addableRecipes.length > 0)) && (
             <div className="mb-4">
-              <div className="mb-2 text-sm font-medium text-zinc-400">Included recipes</div>
-              <div className="overflow-hidden rounded-xl border border-emerald-500/20">
+              <div className="mb-2 text-sm font-medium text-muted">Included recipes</div>
+              <div className="overflow-hidden rounded-xl border border-accent">
                 {comps.map((c, i) => {
                   const sub = recipes.find((r) => r.id === c.recipeId);
                   const cal = componentCalories(c, foods, recipes);
                   return (
-                    <div key={c.recipeId} className="flex items-center gap-2 border-b border-white/[0.05] px-3 py-2.5 text-sm last:border-0">
+                    <div key={c.recipeId} className="flex items-center gap-2 border-b border-line px-3 py-2.5 text-sm last:border-0">
                       <span className="shrink-0">{sub?.emoji ?? "🍽️"}</span>
-                      <span className="min-w-0 flex-1 truncate font-medium text-emerald-200">{sub?.name ?? "Unknown recipe"}</span>
+                      <span className="min-w-0 flex-1 truncate font-medium text-accent-soft">{sub?.name ?? "Unknown recipe"}</span>
                       {editing && draft ? (
                         <>
                           <input type="number" min={0.5} step={0.5} value={c.servings} onChange={(e) => setCompServings(i, Math.max(0.5, Number(e.target.value) || 0.5))} className="w-16 rounded-lg field px-2 py-1 text-right text-sm" />
-                          <span className="w-10 shrink-0 text-xs text-zinc-500">serv.</span>
-                          <span className="w-14 shrink-0 text-right text-xs text-rose-400/80">{cal} cal</span>
-                          <button onClick={() => removeComp(i)} className="shrink-0 text-zinc-500 hover:text-rose-400" aria-label="Remove recipe"><Trash2 size={14} /></button>
+                          <span className="w-10 shrink-0 text-xs text-muted">serv.</span>
+                          <span className="w-14 shrink-0 text-right text-xs text-cal-soft">{cal} cal</span>
+                          <button onClick={() => removeComp(i)} className="shrink-0 text-muted hover:text-danger-soft" aria-label="Remove recipe"><Trash2 size={14} /></button>
                         </>
                       ) : (
-                        <span className="shrink-0 text-right text-zinc-400">{fmtQty(c.servings)} serv · <span className="text-rose-400/80">{cal} cal</span></span>
+                        <span className="shrink-0 text-right text-muted">{fmtQty(c.servings)} serv · <span className="text-cal-soft">{cal} cal</span></span>
                       )}
                     </div>
                   );
                 })}
-                {comps.length === 0 && <p className="px-3 py-2.5 text-center text-xs text-zinc-500">No recipes included yet.</p>}
+                {comps.length === 0 && <p className="px-3 py-2.5 text-center text-xs text-muted">No recipes included yet.</p>}
               </div>
               {editing && draft && addableRecipes.length > 0 && (
                 <select value="" onChange={(e) => { if (e.target.value) addComp(e.target.value); }} className="mt-2 w-full rounded-lg field px-2 py-2 text-sm">
@@ -175,16 +175,16 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
 
           {/* Ingredient list */}
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-medium text-zinc-400">Ingredients</span>
-            <span className="text-xs text-zinc-500">{rows.length} item{rows.length !== 1 ? "s" : ""}</span>
+            <span className="text-sm font-medium text-muted">Ingredients</span>
+            <span className="text-xs text-muted">{rows.length} item{rows.length !== 1 ? "s" : ""}</span>
           </div>
-          <div className="overflow-hidden rounded-xl border border-white/[0.07]">
-            {rows.length === 0 && <p className="px-3 py-4 text-center text-xs text-zinc-500">No ingredients.</p>}
+          <div className="overflow-hidden rounded-xl border border-line">
+            {rows.length === 0 && <p className="px-3 py-4 text-center text-xs text-muted">No ingredients.</p>}
             {rows.map((ing, i) => {
               const f = foodById(foods, ing.foodId);
               const cal = ingredientCalories(ing, foods);
               return (
-                <div key={ing.foodId} className="flex items-center gap-2 border-b border-white/[0.05] px-3 py-2.5 text-sm last:border-0">
+                <div key={ing.foodId} className="flex items-center gap-2 border-b border-line px-3 py-2.5 text-sm last:border-0">
                   <span className="shrink-0">{f?.emoji ?? "🍽️"}</span>
                   <span className="min-w-0 flex-1 truncate">{f?.name ?? ing.foodId}</span>
                   {editing && draft ? (
@@ -194,14 +194,14 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
                         onChange={(e) => setQty(i, Math.max(0, Number(e.target.value) || 0))}
                         className="w-16 rounded-lg field px-2 py-1 text-right text-sm"
                       />
-                      <span className="w-10 shrink-0 text-xs text-zinc-500">{f ? pluralUnit(ing.quantity, f.unit) : ""}</span>
-                      <span className="w-14 shrink-0 text-right text-xs text-rose-400/80">{cal} cal</span>
-                      <button onClick={() => removeIng(i)} className="shrink-0 text-zinc-500 hover:text-rose-400" aria-label="Remove ingredient"><Trash2 size={14} /></button>
+                      <span className="w-10 shrink-0 text-xs text-muted">{f ? pluralUnit(ing.quantity, f.unit) : ""}</span>
+                      <span className="w-14 shrink-0 text-right text-xs text-cal-soft">{cal} cal</span>
+                      <button onClick={() => removeIng(i)} className="shrink-0 text-muted hover:text-danger-soft" aria-label="Remove ingredient"><Trash2 size={14} /></button>
                     </>
                   ) : (
-                    <span className="shrink-0 text-right text-zinc-400">
+                    <span className="shrink-0 text-right text-muted">
                       {fmtQty(ing.quantity)} {f ? pluralUnit(ing.quantity, f.unit) : ""}
-                      {" · "}<span className="text-rose-400/80">{cal} cal</span>
+                      {" · "}<span className="text-cal-soft">{cal} cal</span>
                     </span>
                   )}
                 </div>
@@ -213,22 +213,22 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
           {editing && draft && (
             <div className="mt-2">
               {adding ? (
-                <div className="rounded-xl border border-white/10 bg-white/[0.02] p-2">
+                <div className="rounded-xl border border-line bg-surface p-2">
                   <div className="relative mb-1.5">
-                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
                     <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search ingredients…" className="w-full rounded-lg field py-1.5 pl-8 pr-2 text-sm" />
                   </div>
                   <div className="max-h-40 overflow-y-auto">
-                    {addable.length === 0 && <p className="px-2 py-3 text-center text-xs text-zinc-500">No matching ingredients.</p>}
+                    {addable.length === 0 && <p className="px-2 py-3 text-center text-xs text-muted">No matching ingredients.</p>}
                     {addable.slice(0, 40).map((f: Food) => (
-                      <button key={f.id} onClick={() => addIng(f.id)} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-zinc-200 hover:bg-emerald-500/10">
+                      <button key={f.id} onClick={() => addIng(f.id)} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-ink hover:bg-accent-wash">
                         <span>{f.emoji}</span> <span className="truncate">{f.name}</span>
                       </button>
                     ))}
                   </div>
                 </div>
               ) : (
-                <button onClick={() => setAdding(true)} className="flex items-center gap-1.5 text-sm font-medium text-emerald-400 hover:text-emerald-300">
+                <button onClick={() => setAdding(true)} className="flex items-center gap-1.5 text-sm font-medium text-accent-soft hover:text-accent-soft">
                   <Plus size={15} /> Add ingredient
                 </button>
               )}
@@ -236,33 +236,33 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
           )}
 
           {/* Totals */}
-          <div className="mt-4 flex items-center justify-between rounded-xl bg-rose-950/30 px-4 py-3 text-sm">
-            <span className="flex items-center gap-1.5 font-medium text-rose-300"><Flame size={15} /> {perServing} cal / serving</span>
-            <span className="text-rose-400/70">{total} cal total ({servings} serving{servings > 1 ? "s" : ""})</span>
+          <div className="mt-4 flex items-center justify-between rounded-xl bg-cal/12 px-4 py-3 text-sm">
+            <span className="flex items-center gap-1.5 font-medium text-cal-soft"><Flame size={15} /> {perServing} cal / serving</span>
+            <span className="text-cal-soft">{total} cal total ({servings} serving{servings > 1 ? "s" : ""})</span>
           </div>
         </div>
 
         {/* Footer actions */}
         {editing && draft && (
-          <div className="border-t border-white/[0.07] p-4">
+          <div className="border-t border-line p-4">
             {savePrompt ? (
               <div className="space-y-2">
-                <p className="text-center text-sm text-zinc-400">Save your changes as…</p>
+                <p className="text-center text-sm text-muted">Save your changes as…</p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <button onClick={saveExisting} className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 py-2.5 text-sm font-medium text-zinc-200 hover:bg-white/[0.06]">
+                  <button onClick={saveExisting} className="flex items-center justify-center gap-1.5 rounded-xl border border-line py-2.5 text-sm font-medium text-ink hover:bg-surface-3">
                     <Check size={15} /> Update this meal
                   </button>
-                  <button onClick={saveAsNew} className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110">
+                  <button onClick={saveAsNew} className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-b from-accent to-accent-deep py-2.5 text-sm font-medium text-on-accent shadow-lg hover:brightness-110">
                     <Plus size={15} /> Save as new meal
                   </button>
                 </div>
-                <button onClick={() => setSavePrompt(false)} className="w-full py-1 text-center text-xs text-zinc-500 hover:text-zinc-300">Keep editing</button>
-                <p className="text-center text-[11px] leading-4 text-zinc-500">
+                <button onClick={() => setSavePrompt(false)} className="w-full py-1 text-center text-xs text-muted hover:text-ink-2">Keep editing</button>
+                <p className="text-center text-[11px] leading-4 text-muted">
                   “Update” changes this recipe everywhere it’s planned. “Save as new” makes a copy and points just this calendar entry at it.
                 </p>
               </div>
             ) : (
-              <button onClick={() => setSavePrompt(true)} className="w-full rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110">
+              <button onClick={() => setSavePrompt(true)} className="w-full rounded-xl bg-gradient-to-b from-accent to-accent-deep py-2.5 text-sm font-medium text-on-accent shadow-lg hover:brightness-110">
                 Save changes
               </button>
             )}

@@ -17,6 +17,25 @@ list, and fridge/pantry levels all update together.
 | **Costs** | The cost repository — every ingredient priced per its own unit, rolling up to per-recipe and per-week spend. |
 | **Stores** | Map of the grocery stores near you. Pick one and the whole app re-prices against it. |
 
+## Light & dark
+
+The whole app paints from one set of CSS variables
+([`src/app/globals.css`](src/app/globals.css)), so the theme is a single class
+swap on `<html>` — no page hardcodes a color. Pick **Light**, **Dark** or
+**System** under the gear (top-right of every tab, and in the mobile header).
+The choice is saved per device, and an inline script in the layout applies it
+before first paint so there's no flash.
+
+Colors carry meaning rather than decoration:
+
+| Role | Reads as |
+| --- | --- |
+| App accent | herb green — nav, buttons, on-target bars, spend |
+| Protein / Carbs / Fat | seared red / wheat gold / olive oil |
+| Calories | warm ember |
+| Weekly bars | cool blue (under) · green (on target) · beet (over) |
+| Meal slots | sunrise · sea · herb · night · beet |
+
 ## How it stays in sync
 
 ```

@@ -1,51 +1,278 @@
 @import "tailwindcss";
 
-/* Make `dark:` respond to the `.dark` class (committed dark theme), not the OS. */
+/* `dark:` responds to the `.dark` class on <html>, which the theme switch sets. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Committed dark theme — deep, calm, slightly cool near-black with accent glow. */
-:root {
-  color-scheme: dark;
-  --bg: #08090c;
-  --panel: rgba(255, 255, 255, 0.035);
-  --panel-strong: rgba(255, 255, 255, 0.05);
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --foreground: #e7e9ee;
-  --muted: #9aa1ad;
+/*
+ * One palette, two themes.
+ *
+ * Everything in the app paints from these tokens — no page hardcodes a hue —
+ * so light/dark is a single class swap on <html>. The mood is a clean fridge
+ * and real ingredients: deep blue-green ink, herb greens, and macro colors
+ * borrowed from the food itself (seared red, wheat gold, olive oil).
+ */
+:root,
+:root.light {
+  color-scheme: light;
+
+  --bg: #f2f6f3;
+  --glow-a: rgba(46, 125, 92, 0.1);
+  --glow-b: rgba(45, 84, 124, 0.09);
+
+  --surface: #ffffff;
+  --surface-2: #eef3f0;
+  --surface-3: #e5ece8;
+  --sunken: #f7faf8;
+
+  --line: #dde6e0;
+  --line-2: #c6d5cd;
+
+  --ink: #152521;
+  --ink-2: #2f423c;
+  --muted: #61756e;
+  --faint: #849690;
+
+  --accent: #2e7d5c;
+  --accent-deep: #245f46;
+  --accent-soft: #256349;
+  --accent-wash: rgba(46, 125, 92, 0.1);
+  --accent-ring: rgba(46, 125, 92, 0.45);
+  --on-accent: #ffffff;
+
+  /* Macros, colored like the food they come from. */
+  --protein: #a5372c;
+  --protein-deep: #7f281f;
+  --protein-soft: #93301f;
+  --carbs: #a57620;
+  --carbs-deep: #7d5814;
+  --carbs-soft: #7d5814;
+  --fat: #71773a;
+  --fat-deep: #525728;
+  --fat-soft: #565b28;
+
+  /* Weekly-calorie status scale — deliberately not the macro hues. */
+  --under: #3f6a8c;
+  --under-deep: #2f5470;
+  --over: #7a4763;
+  --over-deep: #5e344c;
+
+  --cal: #9a5044;
+  --cal-soft: #984433;
+  --cal-wash: rgba(154, 80, 68, 0.09);
+
+  --warn: #8f6329;
+  --warn-soft: #8a5f2b;
+  --warn-wash: rgba(143, 99, 41, 0.1);
+
+  --danger: #b03a2a;
+  --danger-soft: #9c3323;
+  --danger-wash: rgba(176, 58, 42, 0.09);
+
+  --sea: #2f5f8a;
+  --sea-soft: #2a5478;
+
+  --tint-fridge: rgba(63, 106, 140, 0.07);
+  --tint-freezer: rgba(70, 130, 145, 0.07);
+  --tint-pantry: rgba(143, 99, 41, 0.07);
+
+  /* Calendar slots: sunrise, sea, herb, night, beet — muted enough to stack. */
+  --meal-breakfast: #8f6329;
+  --meal-breakfast-soft: #7d5620;
+  --meal-lunch: #35648a;
+  --meal-lunch-soft: #2a5478;
+  --meal-snack: #2e7d5c;
+  --meal-snack-soft: #256349;
+  --meal-dinner: #3e4a7d;
+  --meal-dinner-soft: #363f6e;
+  --meal-extra: #7a4763;
+  --meal-extra-soft: #6b3a55;
+  --meal-event: #64766f;
+  --meal-event-soft: #4a5a54;
+
+  --shadow-card: 0 10px 26px -20px rgba(21, 37, 33, 0.35);
+  --shadow-lift: 0 18px 34px -22px rgba(21, 37, 33, 0.4);
+  --shadow-pop: 0 26px 60px -30px rgba(21, 37, 33, 0.45);
+  --track: rgba(21, 37, 33, 0.08);
+  --scrim: rgba(21, 37, 33, 0.35);
 }
 
+:root.dark {
+  color-scheme: dark;
+
+  --bg: #0b1417;
+  --glow-a: rgba(63, 143, 109, 0.13);
+  --glow-b: rgba(45, 84, 124, 0.13);
+
+  --surface: rgba(255, 255, 255, 0.035);
+  --surface-2: rgba(255, 255, 255, 0.055);
+  --surface-3: rgba(255, 255, 255, 0.085);
+  --sunken: rgba(0, 0, 0, 0.22);
+
+  --line: rgba(180, 205, 196, 0.12);
+  --line-2: rgba(180, 205, 196, 0.24);
+
+  --ink: #e2eae7;
+  --ink-2: #c2cfcb;
+  --muted: #8b9d98;
+  --faint: #6b7c78;
+
+  --accent: #3f8f6d;
+  --accent-deep: #2f6f54;
+  --accent-soft: #7bbb9b;
+  --accent-wash: rgba(63, 143, 109, 0.14);
+  --accent-ring: rgba(63, 143, 109, 0.55);
+  --on-accent: #ffffff;
+
+  --protein: #b8443a;
+  --protein-deep: #8d322b;
+  --protein-soft: #e08e83;
+  --carbs: #c69235;
+  --carbs-deep: #966920;
+  --carbs-soft: #e0b872;
+  --fat: #9aa054;
+  --fat-deep: #6e7338;
+  --fat-soft: #c3c88a;
+
+  --under: #5f87a8;
+  --under-deep: #436580;
+  --over: #8f5c78;
+  --over-deep: #6d4159;
+
+  --cal: #a5544a;
+  --cal-soft: #d08b78;
+  --cal-wash: rgba(165, 84, 74, 0.13);
+
+  --warn: #ad8250;
+  --warn-soft: #d3a874;
+  --warn-wash: rgba(173, 130, 80, 0.13);
+
+  --danger: #b8443a;
+  --danger-soft: #e08e83;
+  --danger-wash: rgba(184, 68, 58, 0.13);
+
+  --sea: #5f87a8;
+  --sea-soft: #9dbdd6;
+
+  --tint-fridge: rgba(95, 135, 168, 0.1);
+  --tint-freezer: rgba(96, 152, 165, 0.1);
+  --tint-pantry: rgba(173, 130, 80, 0.1);
+
+  --meal-breakfast: #a97a45;
+  --meal-breakfast-soft: #d3a874;
+  --meal-lunch: #4a7ba3;
+  --meal-lunch-soft: #9dbdd6;
+  --meal-snack: #3f8f6d;
+  --meal-snack-soft: #7bbb9b;
+  --meal-dinner: #55639b;
+  --meal-dinner-soft: #a6b0da;
+  --meal-extra: #8f5c78;
+  --meal-extra-soft: #d0a5bd;
+  --meal-event: #6b7c78;
+  --meal-event-soft: #b9c6c2;
+
+  --shadow-card: 0 18px 38px -26px rgba(0, 0, 0, 0.85);
+  --shadow-lift: 0 24px 46px -26px rgba(0, 0, 0, 0.9);
+  --shadow-pop: 0 30px 70px -30px rgba(0, 0, 0, 0.95);
+  --track: rgba(255, 255, 255, 0.07);
+  --scrim: rgba(3, 8, 9, 0.66);
+}
+
+/* Expose the tokens as Tailwind colors: bg-surface, text-muted, border-line, … */
 @theme inline {
   --font-sans: var(--font-geist-sans);
+
+  --color-page: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+
+  --color-accent: var(--accent);
+  --color-accent-deep: var(--accent-deep);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-wash: var(--accent-wash);
+  --color-on-accent: var(--on-accent);
+
+  --color-protein: var(--protein);
+  --color-protein-deep: var(--protein-deep);
+  --color-protein-soft: var(--protein-soft);
+  --color-carbs: var(--carbs);
+  --color-carbs-deep: var(--carbs-deep);
+  --color-carbs-soft: var(--carbs-soft);
+  --color-fat: var(--fat);
+  --color-fat-deep: var(--fat-deep);
+  --color-fat-soft: var(--fat-soft);
+
+  --color-under: var(--under);
+  --color-under-deep: var(--under-deep);
+  --color-over: var(--over);
+  --color-over-deep: var(--over-deep);
+
+  --color-cal: var(--cal);
+  --color-cal-soft: var(--cal-soft);
+  --color-cal-wash: var(--cal-wash);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-wash: var(--warn-wash);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-wash: var(--danger-wash);
+  --color-sea: var(--sea);
+  --color-sea-soft: var(--sea-soft);
+
+  --color-meal-breakfast: var(--meal-breakfast);
+  --color-meal-breakfast-soft: var(--meal-breakfast-soft);
+  --color-meal-lunch: var(--meal-lunch);
+  --color-meal-lunch-soft: var(--meal-lunch-soft);
+  --color-meal-snack: var(--meal-snack);
+  --color-meal-snack-soft: var(--meal-snack-soft);
+  --color-meal-dinner: var(--meal-dinner);
+  --color-meal-dinner-soft: var(--meal-dinner-soft);
+  --color-meal-extra: var(--meal-extra);
+  --color-meal-extra-soft: var(--meal-extra-soft);
+  --color-meal-event: var(--meal-event);
+  --color-meal-event-soft: var(--meal-event-soft);
+
+  --color-tint-fridge: var(--tint-fridge);
+  --color-tint-freezer: var(--tint-freezer);
+  --color-tint-pantry: var(--tint-pantry);
+  --color-track: var(--track);
+  --color-scrim: var(--scrim);
 }
 
 html {
-  color-scheme: dark;
+  height: 100%;
 }
 
 body {
   min-height: 100%;
-  color: var(--foreground);
+  color: var(--ink);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  /* Layered ambient glow over near-black. */
+  /* A quiet wash of herb green and deep water over the base. */
   background:
-    radial-gradient(1100px 620px at 12% -8%, rgba(16, 185, 129, 0.14), transparent 60%),
-    radial-gradient(1000px 560px at 100% 0%, rgba(56, 120, 255, 0.10), transparent 55%),
-    radial-gradient(900px 900px at 90% 110%, rgba(20, 184, 166, 0.07), transparent 60%),
+    radial-gradient(1000px 560px at 10% -10%, var(--glow-a), transparent 62%),
+    radial-gradient(900px 520px at 100% 0%, var(--glow-b), transparent 58%),
     var(--bg);
   background-attachment: fixed;
 }
 
-/* Reusable polished surfaces (used across the app). */
+/* Reusable surfaces (used across every tab). */
 @layer components {
   .card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.04) inset,
-      0 20px 40px -24px rgba(0, 0, 0, 0.8);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-card);
+  }
+  :root.dark .card {
     backdrop-filter: blur(10px);
   }
   .card-hover {
@@ -53,27 +280,25 @@ body {
   }
   .card-hover:hover {
     transform: translateY(-2px);
-    border-color: var(--border-strong);
-    box-shadow: 0 24px 50px -24px rgba(0, 0, 0, 0.9);
+    border-color: var(--line-2);
+    box-shadow: var(--shadow-lift);
   }
   .field {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--border);
-    color: var(--foreground);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--ink);
     transition: border-color 0.15s ease, background 0.15s ease;
   }
   .field:focus {
     outline: none;
-    border-color: rgba(16, 185, 129, 0.6);
-    background: rgba(16, 185, 129, 0.06);
+    border-color: var(--accent-ring);
+    background: var(--accent-wash);
   }
   .btn-accent {
-    background: linear-gradient(180deg, #10b981 0%, #059669 100%);
-    color: #04120c;
+    background: linear-gradient(180deg, var(--accent) 0%, var(--accent-deep) 100%);
+    color: var(--on-accent);
     font-weight: 600;
-    box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.25) inset,
-      0 10px 24px -10px rgba(16, 185, 129, 0.55);
+    box-shadow: var(--shadow-card);
     transition: filter 0.15s ease, transform 0.15s ease;
   }
   .btn-accent:hover {
@@ -82,69 +307,73 @@ body {
   .btn-accent:active {
     transform: translateY(1px);
   }
+  /* Translucent app chrome (mobile top bar, bottom tab bar). */
+  .bar {
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+  }
 }
 
-/* Refined dark scrollbars. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  scrollbar-color: var(--line-2) transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--line-2);
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
-*::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
-  background-clip: content-box;
-}
 
 ::selection {
-  background: rgba(16, 185, 129, 0.3);
-  color: #ffffff;
+  background: var(--accent-wash);
+  color: var(--ink);
 }
 
-/* Native <select> dropdown lists — force readable dark options (no white-on-white). */
+/* Native <select> lists follow the theme instead of the OS default. */
 select,
 option,
 optgroup {
-  background-color: #16181d;
-  color: var(--foreground);
+  background-color: var(--bg);
+  color: var(--ink);
 }
 
-/* Leaflet ships a light-mode UI; restyle its chrome to match the dark theme. */
-.leaflet-container {
-  background: #17181c;
+/* Leaflet ships its own light chrome, and its stylesheet loads after this one,
+ * so these overrides are prefixed with `body` to win the cascade. */
+body .leaflet-container {
+  background: var(--surface-2);
   font-family: inherit;
 }
-.leaflet-bar a,
-.leaflet-bar a:hover {
-  background: #1c1e24;
-  color: var(--foreground);
-  border-bottom-color: rgba(255, 255, 255, 0.1);
+body .leaflet-bar a,
+body .leaflet-bar a:hover {
+  background: var(--bg);
+  color: var(--ink);
+  border-bottom-color: var(--line);
 }
-.leaflet-bar a:hover {
-  background: #262931;
+body .leaflet-bar a:hover {
+  background: var(--surface-3);
 }
-.leaflet-control-attribution {
-  background: rgba(0, 0, 0, 0.6) !important;
+body .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
   color: var(--muted);
   font-size: 10px;
 }
-.leaflet-control-attribution a {
-  color: #6ee7b7;
+body .leaflet-control-attribution a {
+  color: var(--accent-soft);
 }
-.leaflet-tooltip {
-  background: #1c1e24;
-  border: 1px solid var(--border-strong);
-  color: var(--foreground);
-  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.9);
+body .leaflet-tooltip {
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  color: var(--ink);
+  box-shadow: var(--shadow-pop);
 }
-.leaflet-tooltip-top::before {
-  border-top-color: var(--border-strong);
+body .leaflet-tooltip-top::before {
+  border-top-color: var(--line-2);
+}
+/* Map tiles are drawn for daylight; settle them down in the dark theme. */
+:root.dark .leaflet-tile-pane {
+  filter: invert(0.92) hue-rotate(180deg) brightness(0.95) saturate(0.7);
 }

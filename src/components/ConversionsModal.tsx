@@ -31,16 +31,16 @@ const HANDY: Row[] = [
 
 function Table({ title, emoji, rows, wide }: { title: string; emoji: string; rows: Row[]; wide?: boolean }) {
   return (
-    <div className={`rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 ${wide ? "sm:col-span-2" : ""}`}>
-      <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-zinc-200">
+    <div className={`rounded-xl border border-line bg-surface p-4 ${wide ? "sm:col-span-2" : ""}`}>
+      <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink">
         <span>{emoji}</span> {title}
       </h3>
       <div>
         {rows.map(([a, b], i) => (
-          <div key={a + b} className={`grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-2 text-sm ${i < rows.length - 1 ? "border-b border-white/[0.05]" : ""}`}>
-            <span className="text-right font-medium text-zinc-100">{a}</span>
-            <span className="text-emerald-400">=</span>
-            <span className="text-left text-zinc-300">{b}</span>
+          <div key={a + b} className={`grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-2 text-sm ${i < rows.length - 1 ? "border-b border-line" : ""}`}>
+            <span className="text-right font-medium text-ink">{a}</span>
+            <span className="text-accent-soft">=</span>
+            <span className="text-left text-ink-2">{b}</span>
           </div>
         ))}
       </div>
@@ -50,11 +50,11 @@ function Table({ title, emoji, rows, wide }: { title: string; emoji: string; row
 
 export function ConversionsModal({ onClose }: { onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm md:items-center md:p-6">
-      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-zinc-950/95 md:rounded-2xl">
-        <div className="flex items-center justify-between border-b border-white/[0.07] px-6 py-4">
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-6">
+      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl border border-line bg-page md:rounded-2xl">
+        <div className="flex items-center justify-between border-b border-line px-6 py-4">
           <h2 className="text-lg font-semibold">📐 Conversions chart</h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200"><X size={20} /></button>
+          <button onClick={onClose} className="text-muted hover:text-ink"><X size={20} /></button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -63,7 +63,7 @@ export function ConversionsModal({ onClose }: { onClose: () => void }) {
             <Table title="Count" emoji="🔢" rows={COUNT} />
             <Table title="Handy equivalents" emoji="🧑‍🍳" rows={HANDY} wide />
           </div>
-          <p className="mt-4 text-[11px] leading-4 text-zinc-500">
+          <p className="mt-4 text-[11px] leading-4 text-muted">
             Volume-to-weight equivalents (like cups to ounces) depend on the ingredient, so the “handy” rows are approximate.
           </p>
         </div>

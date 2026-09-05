@@ -140,14 +140,14 @@ export function StoreMap({ markers, origin, onMarkerClick, heightClass = "h-72 m
 
   return (
     <div className={`relative overflow-hidden rounded-2xl card ${heightClass}`}>
-      <div ref={holder} className="h-full w-full bg-zinc-900" />
+      <div ref={holder} className="h-full w-full bg-page" />
       {!ready && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-zinc-500">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted">
           Loading map…
         </div>
       )}
       {failed && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-black/70 px-3 py-2 text-center text-[11px] text-amber-300">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-scrim px-3 py-2 text-center text-[11px] text-warn-soft">
           Map tiles couldn&apos;t load — the store list below still works.
         </div>
       )}

@@ -26,6 +26,7 @@ import { MealDetailModal } from "@/components/MealDetailModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SearchFilterBar } from "@/components/SearchFilterBar";
 import type { MealType, PlannedMeal, CalendarEvent, Recipe, Food } from "@/lib/types";
+import { SettingsButton } from "@/components/SettingsButton";
 
 type View = "day" | "week" | "month" | "year";
 const VIEWS: View[] = ["day", "week", "month", "year"];
@@ -95,7 +96,7 @@ export default function Planner() {
       {/* Google-Calendar-style header */}
       <header className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-3">
         <div className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-lg shadow-emerald-950/40">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-deep text-on-accent shadow-lg">
             <CalendarDays size={18} />
           </span>
           <h1 className="text-xl font-semibold tracking-tight md:text-2xl">Calendar</h1>
@@ -103,38 +104,39 @@ export default function Planner() {
 
         <button
           onClick={() => setAnchor(new Date())}
-          className="rounded-lg border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-sm font-medium hover:bg-white/[0.07]"
+          className="rounded-lg border border-line bg-surface px-3.5 py-1.5 text-sm font-medium hover:bg-surface-3"
         >
           Today
         </button>
 
         <div className="flex items-center gap-0.5">
-          <button onClick={() => shift(-1)} aria-label="Previous" className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 hover:bg-white/[0.07] hover:text-zinc-100">
+          <button onClick={() => shift(-1)} aria-label="Previous" className="flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-surface-3 hover:text-ink">
             <ChevronLeft size={20} />
           </button>
-          <button onClick={() => shift(1)} aria-label="Next" className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 hover:bg-white/[0.07] hover:text-zinc-100">
+          <button onClick={() => shift(1)} aria-label="Next" className="flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-surface-3 hover:text-ink">
             <ChevronRight size={20} />
           </button>
         </div>
 
-        <h2 className="min-w-0 flex-1 truncate text-base font-medium text-zinc-200 md:text-lg">{title}</h2>
+        <h2 className="min-w-0 flex-1 truncate text-base font-medium text-ink md:text-lg">{title}</h2>
 
         {/* View switcher (top right) — works on phone & web */}
-        <div className="ml-auto flex shrink-0 rounded-lg border border-white/10 bg-white/[0.03] p-0.5 text-xs md:text-sm">
+        <div className="ml-auto flex shrink-0 rounded-lg border border-line bg-surface p-0.5 text-xs md:text-sm">
           {VIEWS.map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
               className={`rounded-md px-2.5 py-1.5 font-medium capitalize transition-colors md:px-3.5 ${
                 view === v
-                  ? "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white shadow shadow-emerald-950/40"
-                  : "text-zinc-400 hover:text-zinc-100"
+                  ? "bg-gradient-to-b from-accent to-accent-deep text-on-accent shadow"
+                  : "text-muted hover:text-ink"
               }`}
             >
               {v}
             </button>
           ))}
         </div>
+        <SettingsButton className="hidden md:flex" />
       </header>
 
       <SearchFilterBar
@@ -399,7 +401,7 @@ function TimeGrid({
     const s = snapHour(hour);
     gestureRef.current = {
       mode: "create", durH: 1, grab: 0, dayIndex: idx, startHour: s, endHour: s + 0.5,
-      block: "bg-emerald-500/85 text-white", label: "New",
+      block: "bg-accent text-on-accent", label: "New",
       px: e.clientX, py: e.clientY, moved: false, mouse: true,
     };
     e.preventDefault();
@@ -408,12 +410,12 @@ function TimeGrid({
   return (
     <div className="overflow-hidden rounded-2xl card">
       {/* Day headers */}
-      <div className="flex border-b border-white/[0.07]" style={{ paddingRight: 8 }}>
+      <div className="flex border-b border-line" style={{ paddingRight: 8 }}>
         <div className="w-14 shrink-0 md:w-16" />
         {days.map((d) => (
-          <div key={isoOf(d)} className="flex flex-1 flex-col items-center gap-0.5 border-l border-white/[0.05] py-2">
-            <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">{format(d, "EEE")}</span>
-            <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${isToday(d) ? "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white" : "text-zinc-200"}`}>
+          <div key={isoOf(d)} className="flex flex-1 flex-col items-center gap-0.5 border-l border-line py-2">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-muted">{format(d, "EEE")}</span>
+            <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${isToday(d) ? "bg-gradient-to-b from-accent to-accent-deep text-on-accent" : "text-ink"}`}>
               {format(d, "d")}
             </span>
           </div>
@@ -427,7 +429,7 @@ function TimeGrid({
           <div className="w-14 shrink-0 md:w-16">
             {hours.slice(0, -1).map((h) => (
               <div key={h} className="relative" style={{ height: HOUR_PX }}>
-                <span className="absolute -top-2 right-2 text-[10px] text-zinc-500">{formatHour(h)}</span>
+                <span className="absolute -top-2 right-2 text-[10px] text-muted">{formatHour(h)}</span>
               </div>
             ))}
           </div>
@@ -441,7 +443,7 @@ function TimeGrid({
               <div
                 key={iso}
                 ref={(el) => { colRefs.current[ci] = el; }}
-                className="relative flex-1 touch-pan-y border-l border-white/[0.05]"
+                className="relative flex-1 touch-pan-y border-l border-line"
                 onPointerDown={startCreate}
                 onClick={(e) => {
                   if (skipClickRef.current) { skipClickRef.current = false; return; }
@@ -452,14 +454,14 @@ function TimeGrid({
               >
                 {/* Hour lines */}
                 {hours.slice(0, -1).map((h) => (
-                  <div key={h} className="border-b border-white/[0.05]" style={{ height: HOUR_PX }} />
+                  <div key={h} className="border-b border-line" style={{ height: HOUR_PX }} />
                 ))}
 
                 {/* Now indicator */}
                 {nowVisible && isToday(d) && (
                   <div className="pointer-events-none absolute inset-x-0 z-20" style={{ top: (nowH - START_HOUR) * HOUR_PX }}>
-                    <div className="relative h-0 border-t-2 border-rose-500">
-                      <span className="absolute -left-1 -top-1.5 h-3 w-3 rounded-full bg-rose-500" />
+                    <div className="relative h-0 border-t-2 border-danger">
+                      <span className="absolute -left-1 -top-1.5 h-3 w-3 rounded-full bg-danger" />
                     </div>
                   </div>
                 )}
@@ -504,7 +506,7 @@ function TimeGrid({
                 {/* Live drag / create preview */}
                 {preview && preview.dayIndex === ci && (
                   <div
-                    className={`pointer-events-none absolute inset-x-1 z-30 overflow-hidden rounded-md px-1.5 py-1 text-[11px] font-semibold shadow-2xl ring-2 ring-white/60 ${preview.block}`}
+                    className={`pointer-events-none absolute inset-x-1 z-30 overflow-hidden rounded-md px-1.5 py-1 text-[11px] font-semibold shadow-2xl ring-2 ring-line-2 ${preview.block}`}
                     style={{ top: (preview.startHour - START_HOUR) * HOUR_PX, height: Math.max(20, (preview.endHour - preview.startHour) * HOUR_PX) }}
                   >
                     <div className="truncate">{preview.mode === "create" ? "New" : preview.label}</div>
@@ -516,7 +518,7 @@ function TimeGrid({
           })}
         </div>
       </div>
-      <div className="border-t border-white/[0.07] px-4 py-2 text-center text-[11px] text-zinc-500">
+      <div className="border-t border-line px-4 py-2 text-center text-[11px] text-muted">
         Click a meal to see its ingredients · drag to move · drag the bottom edge to resize · drag empty space to add
       </div>
     </div>
@@ -553,7 +555,7 @@ function EventBlock({
         onPointerDown={onResizeDown}
         className="absolute inset-x-0 bottom-0 z-20 h-2 cursor-ns-resize"
       >
-        <div className="mx-auto mb-0.5 h-0.5 w-6 rounded-full bg-black/30 opacity-0 transition group-hover:opacity-100" />
+        <div className="mx-auto mb-0.5 h-0.5 w-6 rounded-full bg-line-2 opacity-0 transition group-hover:opacity-100" />
       </div>
     </div>
   );
@@ -583,9 +585,9 @@ function MonthView({
     (query ? e.title.toLowerCase().includes(query) : true) && (mealFilter === "all" || mealFilter === "event");
   return (
     <div className="overflow-hidden rounded-2xl card">
-      <div className="grid grid-cols-7 border-b border-white/[0.07]">
+      <div className="grid grid-cols-7 border-b border-line">
         {dow.map((d) => (
-          <div key={d} className="py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{d}</div>
+          <div key={d} className="py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-muted">{d}</div>
         ))}
       </div>
       <div className="grid grid-cols-7">
@@ -598,18 +600,18 @@ function MonthView({
           return (
             <div
               key={iso}
-              className={`group min-h-[92px] border-b border-r border-white/[0.05] p-1.5 ${i % 7 === 6 ? "border-r-0" : ""} ${inMonth ? "" : "bg-black/20"}`}
+              className={`group min-h-[92px] border-b border-r border-line p-1.5 ${i % 7 === 6 ? "border-r-0" : ""} ${inMonth ? "" : "bg-sunken"}`}
             >
               <div className="mb-1 flex items-center justify-between">
                 <button
                   onClick={() => onOpenDay(d)}
                   className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-medium ${
-                    isToday(d) ? "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white" : inMonth ? "text-zinc-300 hover:bg-white/10" : "text-zinc-600"
+                    isToday(d) ? "bg-gradient-to-b from-accent to-accent-deep text-on-accent" : inMonth ? "text-ink-2 hover:bg-surface-3" : "text-faint"
                   }`}
                 >
                   {format(d, "d")}
                 </button>
-                <button onClick={() => onAdd(iso)} className="text-zinc-600 opacity-0 transition hover:text-emerald-400 group-hover:opacity-100" aria-label="Add">
+                <button onClick={() => onAdd(iso)} className="text-faint opacity-0 transition hover:text-accent-soft group-hover:opacity-100" aria-label="Add">
                   <Plus size={13} />
                 </button>
               </div>
@@ -626,13 +628,13 @@ function MonthView({
                   );
                 })}
                 {meals.length < 3 && evs.slice(0, 3 - meals.length).map((ev) => (
-                  <button key={ev.id} onClick={() => onOpenDay(d)} className="flex w-full items-center gap-1 truncate rounded bg-zinc-500/20 px-1 py-0.5 text-left text-[10px] font-medium text-zinc-200">
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-300" />
+                  <button key={ev.id} onClick={() => onOpenDay(d)} className="flex w-full items-center gap-1 truncate rounded bg-surface-3 px-1 py-0.5 text-left text-[10px] font-medium text-ink">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-track" />
                     <span className="truncate">{ev.title}</span>
                   </button>
                 ))}
                 {items > 3 && (
-                  <button onClick={() => onOpenDay(d)} className="px-1 text-[10px] text-zinc-500 hover:text-zinc-300">
+                  <button onClick={() => onOpenDay(d)} className="px-1 text-[10px] text-muted hover:text-ink-2">
                     +{items - 3} more
                   </button>
                 )}
@@ -673,12 +675,12 @@ function YearView({
         const trimmed = cells.slice(0, weeksNeeded * 7);
         return (
           <div key={m} className="rounded-2xl card p-3">
-            <button onClick={() => onOpenMonth(monthDate)} className="mb-2 px-1 text-sm font-semibold text-emerald-400 hover:text-emerald-300">
+            <button onClick={() => onOpenMonth(monthDate)} className="mb-2 px-1 text-sm font-semibold text-accent-soft hover:text-accent-soft">
               {format(monthDate, "MMMM")}
             </button>
             <div className="grid grid-cols-7 gap-y-1 text-center">
               {dow.map((d, i) => (
-                <span key={i} className="text-[9px] font-medium text-zinc-600">{d}</span>
+                <span key={i} className="text-[9px] font-medium text-faint">{d}</span>
               ))}
               {trimmed.map((d) => {
                 const inMonth = isSameMonth(d, monthDate);
@@ -689,13 +691,13 @@ function YearView({
                     onClick={() => onOpenDay(d)}
                     className={`relative mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[11px] ${
                       isToday(d)
-                        ? "bg-gradient-to-b from-emerald-500 to-emerald-600 font-semibold text-white"
-                        : inMonth ? "text-zinc-300 hover:bg-white/10" : "text-zinc-700"
+                        ? "bg-gradient-to-b from-accent to-accent-deep font-semibold text-on-accent"
+                        : inMonth ? "text-ink-2 hover:bg-surface-3" : "text-faint"
                     }`}
                   >
                     {format(d, "d")}
                     {has && !isToday(d) && inMonth && (
-                      <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-emerald-400" />
+                      <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-accent" />
                     )}
                   </button>
                 );
@@ -732,19 +734,19 @@ function AddModal({
   const when = hour != null ? ` · ${clockLabel(snapHour(hour))}` : "";
 
   return (
-    <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm md:items-center md:p-4">
-      <div className="max-h-[82vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-white/10 bg-zinc-950/95 p-5 md:rounded-2xl">
+    <div className="fixed inset-0 z-30 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-4">
+      <div className="max-h-[82vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-line bg-page p-5 md:rounded-2xl">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-semibold">Add · {format(new Date(iso), "EEE, MMM d")}{when}</h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200"><X size={20} /></button>
+          <button onClick={onClose} className="text-muted hover:text-ink"><X size={20} /></button>
         </div>
 
         {/* Meal / Event tabs */}
-        <div className="mb-4 flex rounded-xl border border-white/10 bg-white/[0.03] p-0.5 text-sm">
-          <button onClick={() => setTab("meal")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 font-medium ${tab === "meal" ? "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white" : "text-zinc-400 hover:text-zinc-100"}`}>
+        <div className="mb-4 flex rounded-xl border border-line bg-surface p-0.5 text-sm">
+          <button onClick={() => setTab("meal")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 font-medium ${tab === "meal" ? "bg-gradient-to-b from-accent to-accent-deep text-on-accent" : "text-muted hover:text-ink"}`}>
             <UtensilsCrossed size={15} /> Meal
           </button>
-          <button onClick={() => setTab("event")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 font-medium ${tab === "event" ? "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white" : "text-zinc-400 hover:text-zinc-100"}`}>
+          <button onClick={() => setTab("event")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 font-medium ${tab === "event" ? "bg-gradient-to-b from-accent to-accent-deep text-on-accent" : "text-muted hover:text-ink"}`}>
             <CalendarPlus size={15} /> Event
           </button>
         </div>
@@ -753,7 +755,7 @@ function AddModal({
           <>
             {/* Search across every recipe — any meal can land in any slot. */}
             <div className="relative mb-3">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 autoFocus
                 value={query}
@@ -765,14 +767,14 @@ function AddModal({
 
             {q ? (
               <div className="space-y-1">
-                {matches.length === 0 && <p className="px-2 py-6 text-center text-xs text-zinc-500">No recipes match “{query}”.</p>}
+                {matches.length === 0 && <p className="px-2 py-6 text-center text-xs text-muted">No recipes match “{query}”.</p>}
                 {matches.map((r) => {
                   const cal = recipeTotalsPerServing(r, foods, recipes).calories;
                   const c = MEAL_COLOR[r.category];
                   return (
-                    <button key={r.id} onClick={() => onPickMeal(r)} className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-emerald-500/10">
+                    <button key={r.id} onClick={() => onPickMeal(r)} className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-accent-wash">
                       <span className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${c.dot}`} />{r.emoji} {r.name}</span>
-                      <span className="text-xs text-zinc-400">{MEAL_LABEL[r.category]} · {cal} cal</span>
+                      <span className="text-xs text-muted">{MEAL_LABEL[r.category]} · {cal} cal</span>
                     </button>
                   );
                 })}
@@ -784,22 +786,22 @@ function AddModal({
                   const isOpen = open === mt;
                   const c = MEAL_COLOR[mt];
                   return (
-                    <div key={mt} className="overflow-hidden rounded-xl border border-white/10">
+                    <div key={mt} className="overflow-hidden rounded-xl border border-line">
                       <button
                         onClick={() => setOpen(isOpen ? "" : mt)}
-                        className="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-white/[0.04]"
+                        className="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-surface-3"
                       >
                         <span className="flex items-center gap-2 text-sm font-medium">
                           <span className={`h-2.5 w-2.5 rounded-full ${c.dot}`} />
                           {MEAL_LABEL[mt]}
-                          <span className="text-xs font-normal text-zinc-500">{list.length}</span>
+                          <span className="text-xs font-normal text-muted">{list.length}</span>
                         </span>
-                        <ChevronDown size={16} className={`text-zinc-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                        <ChevronDown size={16} className={`text-muted transition-transform ${isOpen ? "rotate-180" : ""}`} />
                       </button>
                       {isOpen && (
-                        <div className="space-y-1 border-t border-white/[0.06] p-2">
+                        <div className="space-y-1 border-t border-line p-2">
                           {list.length === 0 && (
-                            <p className="px-2 py-3 text-center text-xs text-zinc-500">No recipes in this section yet.</p>
+                            <p className="px-2 py-3 text-center text-xs text-muted">No recipes in this section yet.</p>
                           )}
                           {list.map((r) => {
                             const cal = recipeTotalsPerServing(r, foods, recipes).calories;
@@ -807,10 +809,10 @@ function AddModal({
                               <button
                                 key={r.id}
                                 onClick={() => onPickMeal(r)}
-                                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-emerald-500/10"
+                                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-accent-wash"
                               >
                                 <span>{r.emoji} {r.name}</span>
-                                <span className="text-xs text-zinc-400">{cal} cal</span>
+                                <span className="text-xs text-muted">{cal} cal</span>
                               </button>
                             );
                           })}
@@ -824,7 +826,7 @@ function AddModal({
           </>
         ) : (
           <div className="space-y-3">
-            <label className="block text-sm text-zinc-400">Event name</label>
+            <label className="block text-sm text-muted">Event name</label>
             <input
               autoFocus
               value={eventTitle}
@@ -833,13 +835,13 @@ function AddModal({
               placeholder="e.g. Grocery run, Meal prep, Gym"
               className="w-full rounded-lg field px-3 py-2 text-sm"
             />
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-muted">
               Adds a {durH === 1 ? "1-hour" : `${durH}-hour`} event {hour != null ? `at ${clockLabel(snapHour(hour))}` : "at noon"}. Drag it on the day or week grid to move or resize it.
             </p>
             <button
               onClick={() => onAddEvent(eventTitle)}
               disabled={!eventTitle.trim()}
-              className="w-full rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              className="w-full rounded-xl bg-gradient-to-b from-accent to-accent-deep py-2.5 text-sm font-medium text-on-accent shadow-lg hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Add event
             </button>

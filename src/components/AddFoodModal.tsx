@@ -64,13 +64,13 @@ export function AddFoodModal({
   const qtyLabel = context === "grocery" ? "Quantity to buy" : "Current quantity";
 
   return (
-    <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-0 md:items-center md:p-4">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-white/10 bg-zinc-950/95 p-6 md:rounded-2xl">
+    <div className="fixed inset-0 z-30 flex items-end justify-center bg-scrim p-0 md:items-center md:p-4">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-line bg-page p-6 md:rounded-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">
             {context === "grocery" ? "Add grocery item" : "Add food to kitchen"}
           </h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600">
+          <button onClick={onClose} className="text-muted hover:text-ink-2">
             <X size={20} />
           </button>
         </div>
@@ -93,7 +93,7 @@ export function AddFoodModal({
 
           <div className="grid grid-cols-2 gap-3">
             <label className="text-sm">
-              <span className="mb-1 block text-zinc-500">Measured in</span>
+              <span className="mb-1 block text-muted">Measured in</span>
               <select
                 value={unit}
                 onChange={(e) => setUnit(e.target.value as Unit)}
@@ -107,7 +107,7 @@ export function AddFoodModal({
               </select>
             </label>
             <label className="text-sm">
-              <span className="mb-1 block text-zinc-500">Calories per {unit}</span>
+              <span className="mb-1 block text-muted">Calories per {unit}</span>
               <input
                 type="number"
                 value={calories}
@@ -118,7 +118,7 @@ export function AddFoodModal({
           </div>
 
           <div>
-            <span className="mb-1 block text-sm text-zinc-500">Macros per {unit} (grams)</span>
+            <span className="mb-1 block text-sm text-muted">Macros per {unit} (grams)</span>
             <div className="grid grid-cols-3 gap-3">
               <input type="number" value={protein} onChange={(e) => setProtein(Number(e.target.value))} placeholder="protein" className="w-full rounded-lg field px-2 py-2 text-sm" />
               <input type="number" value={carbs} onChange={(e) => setCarbs(Number(e.target.value))} placeholder="carbs" className="w-full rounded-lg field px-2 py-2 text-sm" />
@@ -128,7 +128,7 @@ export function AddFoodModal({
 
           <div className="grid grid-cols-2 gap-3">
             <label className="text-sm">
-              <span className="mb-1 block text-zinc-500">Stored in</span>
+              <span className="mb-1 block text-muted">Stored in</span>
               <select
                 value={location}
                 onChange={(e) => setLocation(e.target.value as Location)}
@@ -142,7 +142,7 @@ export function AddFoodModal({
               </select>
             </label>
             <label className="text-sm">
-              <span className="mb-1 block text-zinc-500">Food type</span>
+              <span className="mb-1 block text-muted">Food type</span>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as FoodCategory)}
@@ -157,7 +157,7 @@ export function AddFoodModal({
 
           <div className="grid grid-cols-2 gap-3">
             <label className="text-sm">
-              <span className="mb-1 block text-zinc-500">{qtyLabel}</span>
+              <span className="mb-1 block text-muted">{qtyLabel}</span>
               <input
                 type="number"
                 value={quantity}
@@ -169,7 +169,7 @@ export function AddFoodModal({
 
           <button
             onClick={save}
-            className="w-full rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-900/30 py-3 font-medium text-white hover:brightness-110"
+            className="w-full rounded-xl bg-gradient-to-b from-accent to-accent-deep shadow-lg py-3 font-medium text-on-accent hover:brightness-110"
           >
             {context === "grocery" ? "Add to grocery list" : "Add to kitchen"}
           </button>

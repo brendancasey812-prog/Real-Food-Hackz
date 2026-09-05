@@ -9,6 +9,7 @@ import { weekDays, isoOf } from "@/lib/week";
 import { fmtQty, pluralUnit } from "@/lib/units";
 import { AddFoodModal } from "@/components/AddFoodModal";
 import { BASE_STORE_ID, quantityCost, quantitiesCost, fmtMoney } from "@/lib/cost";
+import { SettingsButton } from "@/components/SettingsButton";
 
 export default function Groceries() {
   const { recipes, foods, plan, inventory, manualGroceries, prices, stores, selectedStoreId,
@@ -75,36 +76,39 @@ export default function Groceries() {
       <header className="mb-5 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Grocery list</h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-muted">
             Auto-built from your plan minus what&apos;s in the kitchen
           </p>
         </div>
-        <button
-          onClick={() => setAdding(true)}
-          className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-900/30 px-4 py-2.5 text-sm font-medium text-white hover:brightness-110"
-        >
-          <Plus size={16} /> Add item
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            onClick={() => setAdding(true)}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-b from-accent to-accent-deep shadow-lg px-4 py-2.5 text-sm font-medium text-on-accent hover:brightness-110"
+          >
+            <Plus size={16} /> Add item
+          </button>
+          <SettingsButton className="hidden md:flex" />
+        </div>
       </header>
 
       <div className="mb-4 flex items-center justify-between rounded-xl card px-4 py-2.5 text-sm">
         <div className="flex items-center gap-1">
-          <button onClick={() => setOffset((o) => o - 1)} className="rounded-lg p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800">
+          <button onClick={() => setOffset((o) => o - 1)} className="rounded-lg p-1 hover:bg-surface-3">
             <ChevronLeft size={16} />
           </button>
-          <span className="px-1 text-zinc-500">
+          <span className="px-1 text-muted">
             Week of {format(weekDays(addWeeks(new Date(), offset))[0], "MMM d")}
           </span>
-          <button onClick={() => setOffset((o) => o + 1)} className="rounded-lg p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800">
+          <button onClick={() => setOffset((o) => o + 1)} className="rounded-lg p-1 hover:bg-surface-3">
             <ChevronRight size={16} />
           </button>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-zinc-400">{totalCals.toLocaleString()} cal</span>
-          <span className="font-medium text-emerald-400 tabular-nums">
+          <span className="text-muted">{totalCals.toLocaleString()} cal</span>
+          <span className="font-medium text-accent-soft tabular-nums">
             {basket.priced > 0 ? fmtMoney(basket.cost) : "—"}
             {basket.lines - basket.priced > 0 && (
-              <span className="ml-1 text-[11px] font-normal text-amber-400">
+              <span className="ml-1 text-[11px] font-normal text-warn-soft">
                 +{basket.lines - basket.priced} unpriced
               </span>
             )}
@@ -113,14 +117,14 @@ export default function Groceries() {
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/15 py-16 text-center text-sm text-zinc-400">
+        <div className="rounded-2xl border border-dashed border-line-2 py-16 text-center text-sm text-muted">
           🎉 Your kitchen already has everything for this week&apos;s plan.
         </div>
       ) : (
         <div className="space-y-5">
           {Object.entries(grouped).map(([loc, list]) => (
             <div key={loc}>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
                 {loc}
               </h2>
               <div className="overflow-hidden rounded-2xl card">
@@ -132,30 +136,30 @@ export default function Groceries() {
                   return (
                     <div
                       key={f.id}
-                      className="flex items-center gap-3 border-b border-zinc-100 px-4 py-3 last:border-0 dark:border-zinc-800"
+                      className="flex items-center gap-3 border-b border-line-2 px-4 py-3 last:border-0 border-line-2"
                     >
                       <button
                         onClick={() => markBought(f.id, item.have, item.buy)}
                         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${
                           isChecked
-                            ? "border-emerald-500 bg-emerald-500 text-white"
-                            : "border-zinc-300 dark:border-zinc-600"
+                            ? "border-accent bg-accent text-on-accent"
+                            : "border-line-2 border-line-2"
                         }`}
                       >
                         {isChecked && <Check size={14} />}
                       </button>
-                      <div className={`flex-1 ${isChecked ? "text-zinc-400 line-through" : ""}`}>
+                      <div className={`flex-1 ${isChecked ? "text-muted line-through" : ""}`}>
                         <div>{f.emoji} {f.name}</div>
-                        <div className="text-[11px] text-zinc-400">
+                        <div className="text-[11px] text-muted">
                           {lineCals} cal
                           {lineCost != null ? (
-                            <span className="ml-2 text-emerald-400/90">{fmtMoney(lineCost)}</span>
+                            <span className="ml-2 text-accent-soft">{fmtMoney(lineCost)}</span>
                           ) : (
-                            <span className="ml-2 text-amber-400/80">no price</span>
+                            <span className="ml-2 text-warn-soft">no price</span>
                           )}
                         </div>
                       </div>
-                      <span className="text-sm text-zinc-500">
+                      <span className="text-sm text-muted">
                         buy {fmtQty(Math.ceil(item.buy * 4) / 4)} {pluralUnit(item.buy, f.unit)}
                       </span>
                     </div>
@@ -168,11 +172,11 @@ export default function Groceries() {
       )}
 
       {items.length > 0 && (
-        <p className="mt-4 text-center text-xs text-zinc-500">
-          Costed at <span className="text-zinc-300">{storeName}</span> —{" "}
-          <Link href="/stores" className="text-emerald-400 hover:underline">change store</Link>
+        <p className="mt-4 text-center text-xs text-muted">
+          Costed at <span className="text-ink-2">{storeName}</span> —{" "}
+          <Link href="/stores" className="text-accent-soft hover:underline">change store</Link>
           {" or "}
-          <Link href="/costs" className="text-emerald-400 hover:underline">edit prices</Link>.
+          <Link href="/costs" className="text-accent-soft hover:underline">edit prices</Link>.
         </p>
       )}
 

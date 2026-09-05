@@ -16,7 +16,7 @@ export function SearchFilterBar({
   return (
     <div className="mb-5 flex flex-col gap-2 sm:flex-row">
       <div className="relative flex-1">
-        <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+        <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
         <input
           value={query}
           onChange={(e) => onQuery(e.target.value)}
@@ -24,13 +24,13 @@ export function SearchFilterBar({
           className="w-full rounded-xl field py-2.5 pl-10 pr-9 text-sm"
         />
         {query && (
-          <button onClick={() => onQuery("")} aria-label="Clear search" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-200">
+          <button onClick={() => onQuery("")} aria-label="Clear search" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink">
             <X size={16} />
           </button>
         )}
       </div>
       <div className="relative shrink-0">
-        <ListFilter size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+        <ListFilter size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
         <select
           value={value}
           onChange={(e) => onValue(e.target.value)}

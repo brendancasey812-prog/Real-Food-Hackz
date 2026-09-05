@@ -16,12 +16,13 @@ import {
 import { weekDays, isoOf } from "@/lib/week";
 import type { Store } from "@/lib/types";
 import type { MapMarker } from "@/components/StoreMap";
+import { SettingsButton } from "@/components/SettingsButton";
 
 // Leaflet is browser-only; keep it out of the export's prerender pass entirely.
 const StoreMap = dynamic(() => import("@/components/StoreMap").then((m) => m.StoreMap), {
   ssr: false,
   loading: () => (
-    <div className="flex h-72 items-center justify-center rounded-2xl card text-sm text-zinc-500 md:h-96">
+    <div className="flex h-72 items-center justify-center rounded-2xl card text-sm text-muted md:h-96">
       Loading map…
     </div>
   ),
@@ -238,11 +239,14 @@ export default function Stores() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <header className="mb-5">
-        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Stores</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Find the stores near you, then pick one — every cost in the app re-prices against it.
-        </p>
+      <header className="mb-5 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Stores</h1>
+          <p className="mt-1 text-sm text-muted">
+            Find the stores near you, then pick one — every cost in the app re-prices against it.
+          </p>
+        </div>
+        <SettingsButton className="hidden md:flex" />
       </header>
 
       {/* --- Map at the top --- */}
@@ -251,7 +255,7 @@ export default function Stores() {
       {/* --- Where are you shopping --- */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <div className="relative min-w-56 flex-1">
-          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input
             value={where}
             onChange={(e) => setWhere(e.target.value)}
@@ -285,12 +289,12 @@ export default function Stores() {
       </div>
 
       {error && (
-        <p className="mt-3 flex items-start gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-300">
+        <p className="mt-3 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/12 px-3 py-2.5 text-sm text-warn-soft">
           <TriangleAlert size={15} className="mt-0.5 shrink-0" /> {error}
         </p>
       )}
       {note && !error && (
-        <p className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-300">
+        <p className="mt-3 rounded-xl border border-accent bg-accent-wash px-3 py-2.5 text-sm text-accent-soft">
           {note}
         </p>
       )}
@@ -300,7 +304,7 @@ export default function Stores() {
         <div className="mt-4 rounded-2xl card p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-medium">Add a store</h2>
-            <button onClick={() => setForm(null)} className="rounded-lg p-1 text-zinc-500 hover:text-zinc-200">
+            <button onClick={() => setForm(null)} className="rounded-lg p-1 text-muted hover:text-ink">
               <X size={16} />
             </button>
           </div>
@@ -323,7 +327,7 @@ export default function Stores() {
               className="rounded-xl btn-accent px-4 py-2 text-sm disabled:opacity-50">
               Save store
             </button>
-            <span className="text-[11px] text-zinc-500">
+            <span className="text-[11px] text-muted">
               We&apos;ll try to place it on the map from the address.
             </span>
           </div>
@@ -333,28 +337,28 @@ export default function Stores() {
       {/* --- Nearby search results --- */}
       {candidates.length > 0 && (
         <section className="mt-6">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
             Nearby — closest first
           </h2>
           <div className="overflow-hidden rounded-2xl card">
             {candidates.slice(0, 12).map((c) => {
               const already = savedKeys.has(`${c.name.toLowerCase()}|${(c.zip || "").trim()}`);
               return (
-                <div key={c.osmId} className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-2.5 last:border-0">
+                <div key={c.osmId} className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-0">
                   <span className="w-6 shrink-0 text-center">🛒</span>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm">{c.name}</div>
-                    <div className="truncate text-[11px] text-zinc-500">
+                    <div className="truncate text-[11px] text-muted">
                       {[c.address, c.city, c.state, c.zip].filter(Boolean).join(", ") || c.kind}
                     </div>
                   </div>
-                  <span className="shrink-0 text-xs tabular-nums text-zinc-400">
+                  <span className="shrink-0 text-xs tabular-nums text-muted">
                     {fmtDistance(c.distanceMi)}
                   </span>
                   <button
                     onClick={() => saveCandidate(c)}
                     className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium ${
-                      already ? "text-zinc-500" : "field hover:brightness-125"
+                      already ? "text-muted" : "field hover:brightness-125"
                     }`}
                   >
                     {already ? "Saved" : "Save"}
@@ -368,7 +372,7 @@ export default function Stores() {
 
       {/* --- Your stores --- */}
       <section className="mt-6">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
           Your stores
         </h2>
 
@@ -376,27 +380,27 @@ export default function Stores() {
         <button
           onClick={() => selectStore(BASE_STORE_ID)}
           className={`mb-2 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition card card-hover ${
-            selectedStoreId === BASE_STORE_ID ? "ring-1 ring-emerald-400/50" : ""
+            selectedStoreId === BASE_STORE_ID ? "ring-1 ring-accent" : ""
           }`}
         >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.06]">
-            <StoreIcon size={16} className="text-zinc-300" />
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-2">
+            <StoreIcon size={16} className="text-ink-2" />
           </span>
           <div className="min-w-0 flex-1">
             <div className="text-sm">Base prices</div>
-            <div className="text-[11px] text-zinc-500">
+            <div className="text-[11px] text-muted">
               Your typical prices — the fallback for any store you haven&apos;t priced
             </div>
           </div>
           {selectedStoreId === BASE_STORE_ID && (
-            <span className="flex items-center gap-1 text-xs text-emerald-400">
+            <span className="flex items-center gap-1 text-xs text-accent-soft">
               <Check size={14} /> Costing
             </span>
           )}
         </button>
 
         {withDistance.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/15 py-12 text-center text-sm text-zinc-400">
+          <div className="rounded-2xl border border-dashed border-line-2 py-12 text-center text-sm text-muted">
             No stores yet — search above to pull in the ones near you, or add one by hand.
           </div>
         ) : (
@@ -407,46 +411,46 @@ export default function Stores() {
                 <div
                   key={s.id}
                   className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition card ${
-                    active ? "ring-1 ring-emerald-400/50" : "card-hover"
+                    active ? "ring-1 ring-accent" : "card-hover"
                   }`}
                 >
                   <button onClick={() => pick(s.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.06]">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-2">
                       {s.emoji}
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm">{s.name}</div>
-                      <div className="truncate text-[11px] text-zinc-500">
+                      <div className="truncate text-[11px] text-muted">
                         {[s.address, s.city, s.state, s.zip].filter(Boolean).join(", ") || "No address yet"}
                         {s.lat == null && " · not on map"}
                       </div>
                     </div>
                     <div className="hidden shrink-0 text-right sm:block">
-                      <div className="text-xs tabular-nums text-zinc-300">
+                      <div className="text-xs tabular-nums text-ink-2">
                         {cost.priced > 0 ? fmtMoney(cost.cost) : "—"}
                       </div>
-                      <div className="text-[10px] text-zinc-500">this week</div>
+                      <div className="text-[10px] text-muted">this week</div>
                     </div>
                     {dist != null && (
-                      <span className="shrink-0 text-xs tabular-nums text-zinc-400">{fmtDistance(dist)}</span>
+                      <span className="shrink-0 text-xs tabular-nums text-muted">{fmtDistance(dist)}</span>
                     )}
                   </button>
                   <div className="flex shrink-0 items-center gap-1">
                     {active ? (
-                      <span className="flex items-center gap-1 pr-1 text-xs text-emerald-400">
+                      <span className="flex items-center gap-1 pr-1 text-xs text-accent-soft">
                         <Check size={14} /> Costing
                       </span>
                     ) : (
-                      <span className="pr-1 text-[11px] text-zinc-500">{coverage} priced</span>
+                      <span className="pr-1 text-[11px] text-muted">{coverage} priced</span>
                     )}
                     {s.lat == null && (
                       <button onClick={() => locateStore(s)} title="Place on map"
-                        className="rounded-lg p-1.5 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200">
+                        className="rounded-lg p-1.5 text-muted hover:bg-surface-3 hover:text-ink">
                         <LocateFixed size={15} />
                       </button>
                     )}
                     <button onClick={() => removeStore(s.id)} title="Remove store"
-                      className="rounded-lg p-1.5 text-zinc-600 hover:bg-white/[0.06] hover:text-red-400">
+                      className="rounded-lg p-1.5 text-faint hover:bg-surface-3 hover:text-danger-soft">
                       <Trash2 size={15} />
                     </button>
                   </div>
@@ -457,9 +461,9 @@ export default function Stores() {
         )}
       </section>
 
-      <p className="mt-6 text-center text-xs text-zinc-500">
+      <p className="mt-6 text-center text-xs text-muted">
         Prices live in the{" "}
-        <Link href="/costs" className="text-emerald-400 hover:underline">
+        <Link href="/costs" className="text-accent-soft hover:underline">
           Cost repository
         </Link>
         . Store data &copy; OpenStreetMap contributors.

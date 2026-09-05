@@ -9,20 +9,22 @@ export const MEAL_TIME: Record<MealType, { start: number; end: number }> = {
   extra: { start: 21.5, end: 22 },
 };
 
-/** Google-Calendar-style solid event colors, one per meal type. */
+/** One calm color per meal slot — muted enough to sit in a dense calendar
+ *  without shouting, distinct enough to scan. Defined as tokens so both
+ *  themes get their own tuning (see globals.css). */
 export const MEAL_COLOR: Record<
   MealType,
   { block: string; dot: string; soft: string }
 > = {
-  breakfast: { block: "bg-amber-500 text-amber-950", dot: "bg-amber-400", soft: "bg-amber-500/20 text-amber-200" },
-  lunch: { block: "bg-sky-600 text-white", dot: "bg-sky-400", soft: "bg-sky-600/25 text-sky-200" },
-  snack: { block: "bg-emerald-600 text-white", dot: "bg-emerald-400", soft: "bg-emerald-600/25 text-emerald-200" },
-  dinner: { block: "bg-indigo-600 text-white", dot: "bg-indigo-400", soft: "bg-indigo-600/25 text-indigo-200" },
-  extra: { block: "bg-fuchsia-600 text-white", dot: "bg-fuchsia-400", soft: "bg-fuchsia-600/25 text-fuchsia-200" },
+  breakfast: { block: "bg-meal-breakfast text-on-accent", dot: "bg-meal-breakfast", soft: "bg-meal-breakfast/20 text-meal-breakfast-soft" },
+  lunch: { block: "bg-meal-lunch text-on-accent", dot: "bg-meal-lunch", soft: "bg-meal-lunch/20 text-meal-lunch-soft" },
+  snack: { block: "bg-meal-snack text-on-accent", dot: "bg-meal-snack", soft: "bg-meal-snack/20 text-meal-snack-soft" },
+  dinner: { block: "bg-meal-dinner text-on-accent", dot: "bg-meal-dinner", soft: "bg-meal-dinner/20 text-meal-dinner-soft" },
+  extra: { block: "bg-meal-extra text-on-accent", dot: "bg-meal-extra", soft: "bg-meal-extra/20 text-meal-extra-soft" },
 };
 
 /** Solid color for free-form (non-recipe) calendar events. */
-export const EVENT_COLOR = { block: "bg-zinc-500 text-white", dot: "bg-zinc-300" };
+export const EVENT_COLOR = { block: "bg-meal-event text-on-accent", dot: "bg-meal-event" };
 
 /** Effective start/end (decimal hours) of a planned meal — a custom placement
  *  wins over the default meal-time slot. */

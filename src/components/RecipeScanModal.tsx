@@ -118,11 +118,11 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm md:items-center md:p-4">
-      <div className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-zinc-950/95 md:rounded-2xl">
-        <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-4">
-          <h2 className="flex items-center gap-2 font-semibold"><Sparkles size={18} className="text-emerald-400" /> {mode === "text" ? "Paste a recipe" : "Scan recipe"}</h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-200"><X size={20} /></button>
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-4">
+      <div className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-line bg-page md:rounded-2xl">
+        <div className="flex items-center justify-between border-b border-line px-5 py-4">
+          <h2 className="flex items-center gap-2 font-semibold"><Sparkles size={18} className="text-accent-soft" /> {mode === "text" ? "Paste a recipe" : "Scan recipe"}</h2>
+          <button onClick={onClose} className="text-muted hover:text-ink"><X size={20} /></button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
@@ -130,7 +130,7 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
             <div className="space-y-5">
               {mode === "text" ? (
                 <>
-                  <p className="text-sm text-zinc-400">Paste an ingredient list — one item per line (“2 eggs”, “1 cup oats”) — or a whole food table copied out of a spreadsheet or doc. Columns for quantity, unit, serving size and calories are read as columns, TOTAL and PER SERVING rows set the servings, and the calories land on each food.</p>
+                  <p className="text-sm text-muted">Paste an ingredient list — one item per line (“2 eggs”, “1 cup oats”) — or a whole food table copied out of a spreadsheet or doc. Columns for quantity, unit, serving size and calories are read as columns, TOTAL and PER SERVING rows set the servings, and the calories land on each food.</p>
                   <textarea
                     value={text}
                     onChange={(e) => setText(e.target.value)}
@@ -138,33 +138,33 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
                     placeholder={"6 oz firm tofu\n1 cup spinach\n2 corn tortillas\n\n— or paste a table —\n\nFood\tQuantity\tUnit\tCalories per Unit\nGround Beef 80/20\t16\toz\t70\nMarinara Sauce\t2.5\tcups\t80"}
                     className="w-full rounded-xl field px-3 py-2 text-sm"
                   />
-                  <button onClick={buildFromText} className="w-full rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110">
+                  <button onClick={buildFromText} className="w-full rounded-xl bg-gradient-to-b from-accent to-accent-deep py-2.5 text-sm font-medium text-on-accent shadow-lg hover:brightness-110">
                     Build recipe {aiAvailable ? "with Claude" : "(basic, no key)"}
                   </button>
                 </>
               ) : (
                 <>
-                  <p className="text-sm text-zinc-400">Photograph a recipe card or cookbook page. Claude reads the title, ingredients and steps into an editable recipe you can save to your cookbook.</p>
+                  <p className="text-sm text-muted">Photograph a recipe card or cookbook page. Claude reads the title, ingredients and steps into an editable recipe you can save to your cookbook.</p>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <button onClick={() => { fileRef.current?.setAttribute("capture", "environment"); fileRef.current?.click(); }} className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-8 text-sm font-medium hover:border-emerald-400/60 hover:bg-emerald-500/10">
-                      <Camera size={26} className="text-emerald-400" /> Take a photo
+                    <button onClick={() => { fileRef.current?.setAttribute("capture", "environment"); fileRef.current?.click(); }} className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-surface px-4 py-8 text-sm font-medium hover:border-accent hover:bg-accent-wash">
+                      <Camera size={26} className="text-accent-soft" /> Take a photo
                     </button>
-                    <button onClick={() => { fileRef.current?.removeAttribute("capture"); fileRef.current?.click(); }} className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-8 text-sm font-medium hover:border-emerald-400/60 hover:bg-emerald-500/10">
-                      <Upload size={26} className="text-emerald-400" /> Upload a photo
+                    <button onClick={() => { fileRef.current?.removeAttribute("capture"); fileRef.current?.click(); }} className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-surface px-4 py-8 text-sm font-medium hover:border-accent hover:bg-accent-wash">
+                      <Upload size={26} className="text-accent-soft" /> Upload a photo
                     </button>
                   </div>
                   <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
-                  <button onClick={() => run(demoScanRecipe())} className="w-full rounded-xl border border-dashed border-white/15 py-2.5 text-sm font-medium text-zinc-300 hover:bg-white/[0.04]">Try a sample recipe (no key needed)</button>
+                  <button onClick={() => run(demoScanRecipe())} className="w-full rounded-xl border border-dashed border-line-2 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-3">Try a sample recipe (no key needed)</button>
                 </>
               )}
-              <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                <button onClick={() => setShowKey((v) => !v)} className="flex w-full items-center gap-2 text-sm font-medium text-zinc-300">
-                  <KeyRound size={15} className="text-zinc-400" /> Anthropic API key {apiKey ? <span className="text-xs text-emerald-400">· set</span> : <span className="text-xs text-zinc-500">· not set</span>}
+              <div className="rounded-xl border border-line bg-surface p-3">
+                <button onClick={() => setShowKey((v) => !v)} className="flex w-full items-center gap-2 text-sm font-medium text-ink-2">
+                  <KeyRound size={15} className="text-muted" /> Anthropic API key {apiKey ? <span className="text-xs text-accent-soft">· set</span> : <span className="text-xs text-muted">· not set</span>}
                 </button>
                 {showKey && (
                   <div className="mt-2 space-y-2">
                     <input type="password" value={apiKey} onChange={(e) => saveKey(e.target.value)} placeholder="sk-ant-..." className="w-full rounded-lg field px-3 py-2 text-sm" />
-                    <p className="text-[11px] leading-4 text-zinc-500">Stored only in this browser, sent straight to Anthropic. Real scanning is paid per use.</p>
+                    <p className="text-[11px] leading-4 text-muted">Stored only in this browser, sent straight to Anthropic. Real scanning is paid per use.</p>
                   </div>
                 )}
               </div>
@@ -172,31 +172,31 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
           )}
 
           {step === "loading" && (
-            <div className="flex flex-col items-center justify-center gap-3 py-20 text-sm text-zinc-400"><Loader2 size={30} className="animate-spin text-emerald-400" /> Reading your recipe…</div>
+            <div className="flex flex-col items-center justify-center gap-3 py-20 text-sm text-muted"><Loader2 size={30} className="animate-spin text-accent-soft" /> Reading your recipe…</div>
           )}
 
           {step === "error" && (
             <div className="flex flex-col items-center gap-4 py-12 text-center">
-              <AlertCircle size={34} className="text-rose-400" />
-              <p className="max-w-sm text-sm text-zinc-300">{error}</p>
-              <button onClick={() => setStep("upload")} className="rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110">Try again</button>
+              <AlertCircle size={34} className="text-danger-soft" />
+              <p className="max-w-sm text-sm text-ink-2">{error}</p>
+              <button onClick={() => setStep("upload")} className="rounded-xl bg-gradient-to-b from-accent to-accent-deep px-5 py-2.5 text-sm font-medium text-on-accent shadow-lg hover:brightness-110">Try again</button>
             </div>
           )}
 
           {step === "review" && recipe && (
             <div className="space-y-4">
               {notice && (
-                <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{notice}</p>
+                <p className="rounded-lg border border-warn/40 bg-warn/12 px-3 py-2 text-xs text-warn-soft">{notice}</p>
               )}
               <div className="flex gap-3">
                 <input value={recipe.emoji} onChange={(e) => patch({ emoji: e.target.value })} className="w-14 rounded-lg field px-2 py-2 text-center text-xl" />
                 <input value={recipe.name} onChange={(e) => patch({ name: e.target.value })} className="flex-1 rounded-lg field px-3 py-2 font-medium" />
               </div>
               <div className="flex flex-wrap items-center gap-4 text-sm">
-                <label className="flex items-center gap-2"><span className="text-zinc-500">Servings</span>
+                <label className="flex items-center gap-2"><span className="text-muted">Servings</span>
                   <input type="number" value={recipe.servings} onChange={(e) => patch({ servings: Number(e.target.value) })} className="w-20 rounded-lg field px-2 py-1.5" />
                 </label>
-                <label className="flex items-center gap-2"><span className="text-zinc-500">Meal</span>
+                <label className="flex items-center gap-2"><span className="text-muted">Meal</span>
                   <select value={recipe.meal} onChange={(e) => patch({ meal: e.target.value as MealType })} className="rounded-lg field px-2 py-1.5">
                     {MEAL_ORDER.map((m) => <option key={m} value={m}>{MEAL_LABEL[m]}</option>)}
                   </select>
@@ -204,17 +204,17 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
               </div>
 
               <div>
-                <div className="mb-2 text-sm font-medium text-zinc-400">Ingredients</div>
+                <div className="mb-2 text-sm font-medium text-muted">Ingredients</div>
                 <div className="space-y-1.5">
                   {recipe.ingredients.map((ing, i) => (
-                    <div key={i} className="flex flex-wrap items-center gap-1.5 rounded-lg border border-white/[0.06] p-1.5">
+                    <div key={i} className="flex flex-wrap items-center gap-1.5 rounded-lg border border-line p-1.5">
                       <input value={ing.food} onChange={(e) => patchIng(i, { food: e.target.value })} className="min-w-0 flex-1 rounded-lg field px-2 py-1.5 text-sm" />
                       <input
                         type="number"
                         value={ing.quantity === 0 ? "" : ing.quantity}
                         placeholder="?"
                         onChange={(e) => patchIng(i, { quantity: e.target.value === "" ? 0 : Number(e.target.value) })}
-                        className={`w-16 rounded-lg field px-2 py-1.5 text-sm ${ing.quantity === 0 ? "border-amber-500/70 bg-amber-500/10 placeholder:text-amber-300" : ""}`}
+                        className={`w-16 rounded-lg field px-2 py-1.5 text-sm ${ing.quantity === 0 ? "border-warn bg-warn/12 placeholder:text-warn-soft" : ""}`}
                       />
                       <select value={ing.unit} onChange={(e) => patchIng(i, { unit: e.target.value as Unit })} className="rounded-lg field px-2 py-1.5 text-sm">
                         {UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
@@ -222,7 +222,7 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
                       <select value={ing.category} onChange={(e) => patchIng(i, { category: e.target.value as (typeof CATS)[number] })} className="rounded-lg field px-2 py-1.5 text-sm">
                         {CATS.map((c) => <option key={c} value={c}>{c}</option>)}
                       </select>
-                      <label className="flex items-center gap-1 text-[11px] text-zinc-500" title={`Calories in one ${ing.unit}`}>
+                      <label className="flex items-center gap-1 text-[11px] text-muted" title={`Calories in one ${ing.unit}`}>
                         <input
                           type="number"
                           value={ing.caloriesPerUnit ?? ""}
@@ -232,7 +232,7 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
                         />
                         cal/{ing.unit}
                       </label>
-                      <button onClick={() => setRecipe((r) => (r ? { ...r, ingredients: r.ingredients.filter((_, idx) => idx !== i) } : r))} className="text-zinc-500 hover:text-rose-400"><Trash2 size={14} /></button>
+                      <button onClick={() => setRecipe((r) => (r ? { ...r, ingredients: r.ingredients.filter((_, idx) => idx !== i) } : r))} className="text-muted hover:text-danger-soft"><Trash2 size={14} /></button>
                       {(() => {
                         // Say so when the kitchen already stocks this food in a
                         // different unit — silently reinterpreting "1 tsp" as
@@ -241,11 +241,11 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
                         const factor = existing && existing.unit !== ing.unit ? convertUnits(1, ing.unit, existing.unit) : null;
                         const clash = existing && existing.unit !== ing.unit;
                         return (
-                          <span className="w-full pl-1 text-[11px] text-zinc-500">
+                          <span className="w-full pl-1 text-[11px] text-muted">
                             {ing.note}
                             {ing.note && clash ? " · " : ""}
                             {clash && (
-                              <span className={factor ? "text-zinc-500" : "text-amber-300/90"}>
+                              <span className={factor ? "text-muted" : "text-warn-soft"}>
                                 {factor
                                   ? `your kitchen stocks ${existing!.name} in ${existing!.unit} — saving ${fmtQty(round2(ing.quantity * factor))} ${existing!.unit}`
                                   : `your kitchen stocks ${existing!.name} in ${existing!.unit}, which can't convert from ${ing.unit} — it will be saved as ${fmtQty(ing.quantity)} ${existing!.unit}`}
@@ -261,7 +261,7 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
 
               {recipe.steps.length > 0 && (
                 <div>
-                  <div className="mb-1 text-sm font-medium text-zinc-400">Steps</div>
+                  <div className="mb-1 text-sm font-medium text-muted">Steps</div>
                   <textarea value={recipe.steps.join("\n")} onChange={(e) => patch({ steps: e.target.value.split("\n") })} rows={4} className="w-full rounded-lg field px-3 py-2 text-sm" />
                 </div>
               )}
@@ -276,13 +276,13 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
                 return (
                   <>
                     {total > 0 && (
-                      <div className="rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2 text-xs">
+                      <div className="rounded-lg border border-line bg-surface px-3 py-2 text-xs">
                         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                          <span className="font-medium text-zinc-200">{Math.round(total).toLocaleString()} cal total</span>
-                          <span className="text-zinc-400">{Math.round(total / servings).toLocaleString()} per serving × {fmtQty(servings)}</span>
+                          <span className="font-medium text-ink">{Math.round(total).toLocaleString()} cal total</span>
+                          <span className="text-muted">{Math.round(total / servings).toLocaleString()} per serving × {fmtQty(servings)}</span>
                         </div>
                         {claimed !== undefined && (
-                          <div className={`mt-1 ${off ? "text-amber-300" : "text-zinc-500"}`}>
+                          <div className={`mt-1 ${off ? "text-warn-soft" : "text-muted"}`}>
                             {off
                               ? `Your list says ${Math.round(claimed).toLocaleString()} cal — ${Math.round(Math.abs(total - claimed)).toLocaleString()} off from the per-item math. Check the highlighted quantities.`
                               : `Matches the ${Math.round(claimed).toLocaleString()} cal total on your list.`}
@@ -291,16 +291,16 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
                       </div>
                     )}
                     {blanks > 0 && (
-                      <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                      <p className="rounded-lg border border-warn/40 bg-warn/12 px-3 py-2 text-xs text-warn-soft">
                         {blanks} ingredient{blanks > 1 ? "s need" : " needs"} a quantity (highlighted in amber). Enter or delete them to save.
                       </p>
                     )}
                     <div className="flex gap-2">
-                      <button onClick={() => setStep("upload")} className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-medium text-zinc-300 hover:bg-white/[0.06]">Back</button>
+                      <button onClick={() => setStep("upload")} className="rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-3">Back</button>
                       <button
                         onClick={confirm}
                         disabled={blanks > 0}
-                        className="flex-1 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="flex-1 rounded-xl bg-gradient-to-b from-accent to-accent-deep py-2.5 text-sm font-medium text-on-accent shadow-lg hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         Save to cookbook
                       </button>
@@ -308,15 +308,15 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
                   </>
                 );
               })()}
-              <p className="text-[11px] text-zinc-500">New ingredients join your kitchen with the calories shown above; leave one blank and you can set it in the Kitchen later.</p>
+              <p className="text-[11px] text-muted">New ingredients join your kitchen with the calories shown above; leave one blank and you can set it in the Kitchen later.</p>
             </div>
           )}
 
           {step === "done" && (
             <div className="flex flex-col items-center gap-4 py-12 text-center">
-              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400"><Check size={30} /></span>
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-wash text-accent-soft"><Check size={30} /></span>
               <p className="font-semibold">Recipe saved to your cookbook</p>
-              <button onClick={onClose} className="rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 hover:brightness-110">Done</button>
+              <button onClick={onClose} className="rounded-xl bg-gradient-to-b from-accent to-accent-deep px-6 py-2.5 text-sm font-medium text-on-accent shadow-lg hover:brightness-110">Done</button>
             </div>
           )}
         </div>

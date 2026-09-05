@@ -49,15 +49,15 @@ export function RecipeCardV2({
   return (
     <div
       onClick={onOpen}
-      className="group/card flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02] transition-colors hover:border-emerald-400/40"
+      className="group/card flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-line bg-surface transition-colors hover:border-accent"
     >
       {/* Large photo */}
-      <div className="relative aspect-[16/10] w-full overflow-hidden bg-zinc-900">
+      <div className="relative aspect-[16/10] w-full overflow-hidden bg-page">
         {r.image ? (
           // eslint-disable-next-line @next/next/no-img-element -- data URLs, no optimizer
           <img src={r.image} alt={r.name} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-zinc-800/60 to-zinc-900 text-zinc-600">
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-surface-2 to-page text-faint">
             <ImagePlus size={28} />
             <span className="text-xs">No photo yet</span>
           </div>
@@ -67,7 +67,7 @@ export function RecipeCardV2({
         <button
           onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
           disabled={busy}
-          className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-lg bg-black/70 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur-sm transition hover:bg-black/85 disabled:opacity-60"
+          className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-lg bg-scrim px-2.5 py-1.5 text-xs font-medium text-on-accent backdrop-blur-sm transition hover:bg-scrim disabled:opacity-60"
         >
           {busy ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
           {r.image ? "Replace" : "Add photo"}
@@ -85,7 +85,7 @@ export function RecipeCardV2({
         <div className="absolute right-2 top-2" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => setMenu((v) => !v)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/60 text-zinc-200 backdrop-blur-sm hover:bg-black/80"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-scrim text-ink backdrop-blur-sm hover:bg-scrim"
             aria-label={`${r.name} menu`}
           >
             <Menu size={15} />
@@ -93,11 +93,11 @@ export function RecipeCardV2({
           {menu && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setMenu(false)} />
-              <div className="absolute right-0 z-40 mt-1 w-36 rounded-xl border border-white/10 bg-zinc-900 p-1 shadow-xl">
-                <button onClick={() => { setMenu(false); onEdit(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-200 hover:bg-emerald-500/10">
-                  <PenLine size={15} className="text-emerald-400" /> Edit
+              <div className="absolute right-0 z-40 mt-1 w-36 rounded-xl border border-line bg-page p-1 shadow-xl">
+                <button onClick={() => { setMenu(false); onEdit(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-accent-wash">
+                  <PenLine size={15} className="text-accent-soft" /> Edit
                 </button>
-                <button onClick={() => { setMenu(false); setConfirming(true); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-rose-300 hover:bg-rose-500/10">
+                <button onClick={() => { setMenu(false); setConfirming(true); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-danger-soft hover:bg-danger/10">
                   <Trash2 size={15} /> Delete
                 </button>
               </div>
@@ -108,19 +108,19 @@ export function RecipeCardV2({
 
       {/* Name + facts */}
       <div className="flex flex-1 flex-col p-4">
-        <h3 className="text-base font-semibold leading-snug text-zinc-100">{r.name}</h3>
+        <h3 className="text-base font-semibold leading-snug text-ink">{r.name}</h3>
 
-        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-zinc-400">
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted">
           <span className="inline-flex items-center gap-1.5">
-            <Users size={13} className="text-zinc-500" />
+            <Users size={13} className="text-muted" />
             {r.servings} serving{r.servings === 1 ? "" : "s"}
           </span>
-          <span className="inline-flex items-center gap-1.5 font-medium text-rose-300">
+          <span className="inline-flex items-center gap-1.5 font-medium text-cal-soft">
             <Flame size={13} />
             {perServing.toLocaleString()} cal
           </span>
           {cost.priced > 0 && (
-            <span className="inline-flex items-center gap-1.5 font-medium text-emerald-300">
+            <span className="inline-flex items-center gap-1.5 font-medium text-accent-soft">
               <DollarSign size={13} />
               {fmtMoney(cost.cost)}
             </span>
@@ -128,20 +128,20 @@ export function RecipeCardV2({
           <span onClick={(e) => e.stopPropagation()}><CookTime recipe={r} /></span>
         </div>
 
-        <div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/[0.06] pt-3 text-center">
+        <div className="mt-3 grid grid-cols-3 gap-2 border-t border-line pt-3 text-center">
           {[
-            { label: "Protein", value: m.protein, color: "text-rose-300" },
-            { label: "Carbs", value: m.carbs, color: "text-amber-300" },
-            { label: "Fat", value: m.fat, color: "text-sky-300" },
+            { label: "Protein", value: m.protein, color: "text-protein-soft" },
+            { label: "Carbs", value: m.carbs, color: "text-carbs-soft" },
+            { label: "Fat", value: m.fat, color: "text-fat-soft" },
           ].map((x) => (
             <div key={x.label}>
               <div className={`text-sm font-semibold ${x.color}`}>{x.value}g</div>
-              <div className="text-[10px] uppercase tracking-wide text-zinc-500">{x.label}</div>
+              <div className="text-[10px] uppercase tracking-wide text-muted">{x.label}</div>
             </div>
           ))}
         </div>
 
-        {imgError && <p className="mt-2 text-[11px] text-rose-300">{imgError}</p>}
+        {imgError && <p className="mt-2 text-[11px] text-danger-soft">{imgError}</p>}
       </div>
 
       {confirming && (
@@ -165,7 +165,7 @@ function CookTime({ recipe: r }: { recipe: Recipe }) {
   if (editing) {
     return (
       <span className="inline-flex items-center gap-1.5">
-        <Clock size={13} className="text-zinc-500" />
+        <Clock size={13} className="text-muted" />
         <input
           autoFocus
           type="number"
@@ -179,15 +179,15 @@ function CookTime({ recipe: r }: { recipe: Recipe }) {
           onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
           className="w-14 rounded-md field px-1.5 py-0.5 text-xs"
         />
-        <span className="text-zinc-500">min</span>
+        <span className="text-muted">min</span>
       </span>
     );
   }
 
   return (
-    <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1.5 hover:text-zinc-200">
-      <Clock size={13} className="text-zinc-500" />
-      {r.cookTimeMin ? `${r.cookTimeMin} min` : <span className="text-zinc-500">Set time</span>}
+    <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1.5 hover:text-ink">
+      <Clock size={13} className="text-muted" />
+      {r.cookTimeMin ? `${r.cookTimeMin} min` : <span className="text-muted">Set time</span>}
     </button>
   );
 }
