@@ -90,7 +90,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   const {
     profile, focusAreas, goals, householdMode, members,
-    setProfile, setFocusAreas, setHouseholdMode, addMember, updateMember, removeMember
+    setProfile, setFocusAreas, setHouseholdMode, setGoals, addMember, updateMember, removeMember
   } = useApp();
   const cloud = useCloud();
   const theme = useTheme((s) => s.theme);
@@ -195,7 +195,34 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               </p>
             ) : (
               <div className="space-y-2">
-                <InfoRow label="You" value={<span className="text-muted">{goals.dailyCalorieTarget.toLocaleString()} cal/day</span>} />
+                {/* Your own targets belong beside everyone else's, not on
+                    another screen — two people's calories is one decision. */}
+                <div className="rounded-xl border border-line bg-surface p-2.5">
+                  <div className="px-0.5 text-sm font-medium text-ink">You</div>
+                  <label className="mt-2 flex items-center justify-between gap-2 text-xs">
+                    <span className="text-muted">Daily calories</span>
+                    <input
+                      type="number" min={0} value={goals.dailyCalorieTarget}
+                      onChange={(e) => setGoals({ dailyCalorieTarget: Math.max(0, Number(e.target.value) || 0) })}
+                      aria-label="Your daily calories"
+                      className="w-24 rounded-md field px-2 py-1 text-right"
+                    />
+                  </label>
+                  <div className="mt-1.5 grid grid-cols-3 gap-2 text-[11px]">
+                    {(["proteinTarget", "carbsTarget", "fatTarget"] as const).map((k, i) => (
+                      <label key={k} className="flex items-center justify-between gap-1">
+                        <span className={["text-protein-soft", "text-carbs-soft", "text-fat-soft"][i]}>{["P", "C", "F"][i]} g</span>
+                        <input
+                          type="number" min={0} value={goals[k]}
+                          onChange={(e) => setGoals({ [k]: Math.max(0, Number(e.target.value) || 0) })}
+                          aria-label={`Your ${["protein", "carbs", "fat"][i]} target`}
+                          className="w-14 rounded-md field px-1.5 py-1 text-right"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 {members.map((m) => (
                   <div key={m.id} className="rounded-xl border border-line bg-surface p-2.5">
                     <div className="flex items-center gap-2">
