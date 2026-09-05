@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import {
-  X, Clock, Users, Flame, PenLine, Trash2, ImagePlus, Loader2, ListChecks, UtensilsCrossed, DollarSign,
+  X, Clock, Users, Flame, PenLine, Trash2, ImagePlus, Loader2, ListChecks,
+  UtensilsCrossed, DollarSign, CalendarPlus,
 } from "lucide-react";
 import {
   useApp, foodById, ingredientCalories, componentCalories,
@@ -16,6 +17,7 @@ import { MEAL_LABEL } from "@/lib/week";
 import { MEAL_COLOR } from "@/lib/mealtime";
 import { fileToThumbnail } from "@/lib/image";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { AddToPlanSheet } from "./AddToPlanSheet";
 
 /**
  * The full-screen read view of a recipe, opened by clicking a card in either
@@ -36,6 +38,7 @@ export function RecipeDetailModal({
   const [busy, setBusy] = useState(false);
   const [imgError, setImgError] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [planning, setPlanning] = useState(false);
 
   if (!recipe) return null;
 
@@ -210,11 +213,19 @@ export function RecipeDetailModal({
           <button onClick={() => setConfirming(true)} className="flex items-center gap-2 rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-danger-soft hover:bg-danger/10">
             <Trash2 size={15} /> Delete
           </button>
-          <button onClick={onEdit} className="ml-auto flex items-center gap-2 rounded-xl bg-gradient-to-b from-accent to-accent-deep px-5 py-2.5 text-sm font-medium text-on-accent shadow-lg hover:brightness-110">
+          <button
+            onClick={() => setPlanning(true)}
+            className="ml-auto flex items-center gap-2 rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-3"
+          >
+            <CalendarPlus size={15} className="text-accent-soft" /> Add to plan
+          </button>
+          <button onClick={onEdit} className="flex items-center gap-2 rounded-xl bg-gradient-to-b from-accent to-accent-deep px-5 py-2.5 text-sm font-medium text-on-accent shadow-lg hover:brightness-110">
             <PenLine size={15} /> Edit recipe
           </button>
         </div>
       </div>
+
+      {planning && <AddToPlanSheet recipe={recipe} onClose={() => setPlanning(false)} />}
 
       {confirming && (
         <ConfirmDialog

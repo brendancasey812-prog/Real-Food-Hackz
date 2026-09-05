@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Trash2, X, Flame, Menu, ChevronDown, Camera, PenLine, ClipboardList, Search } from "lucide-react";
+import { Plus, Trash2, X, Flame, Menu, ChevronDown, Camera, PenLine, ClipboardList, Search, CalendarPlus } from "lucide-react";
 import {
   useApp,
   recipeCaloriesPerServing,
@@ -22,6 +22,7 @@ import { RecipeCardV2 } from "@/components/RecipeCardV2";
 import { RecipeDetailModal } from "@/components/RecipeDetailModal";
 import type { Food, FoodCategory, Location, MealType, Recipe, RecipeComponent, Unit } from "@/lib/types";
 import { SettingsButton } from "@/components/SettingsButton";
+import { AddToPlanSheet } from "@/components/AddToPlanSheet";
 
 export default function Cookbook() {
   const { recipes, foods, removeRecipe } = useApp();
@@ -197,6 +198,7 @@ function RecipeCard({ recipe: r, foods, recipes, onOpen, onEdit, onRemove }: { r
   const total = recipeTotalCalories(r, foods, recipes);
   const m = recipeTotalsPerServing(r, foods, recipes);
   const [menu, setMenu] = useState(false);
+  const [planning, setPlanning] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   return (
@@ -211,9 +213,12 @@ function RecipeCard({ recipe: r, foods, recipes, onOpen, onEdit, onRemove }: { r
           {menu && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setMenu(false)} />
-              <div className="absolute right-0 z-40 mt-1 w-36 rounded-xl border border-line bg-page p-1 shadow-xl">
+              <div className="absolute right-0 z-40 mt-1 w-44 rounded-xl border border-line bg-page p-1 shadow-xl">
                 <button onClick={() => { setMenu(false); onEdit(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-accent-wash">
                   <PenLine size={15} className="text-accent-soft" /> Edit
+                </button>
+                <button onClick={() => { setMenu(false); setPlanning(true); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-accent-wash">
+                  <CalendarPlus size={15} className="text-accent-soft" /> Add to plan
                 </button>
                 <button onClick={() => { setMenu(false); setConfirming(true); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-danger-soft hover:bg-danger/10">
                   <Trash2 size={15} /> Delete
@@ -262,6 +267,8 @@ function RecipeCard({ recipe: r, foods, recipes, onOpen, onEdit, onRemove }: { r
           );
         })}
       </ul>
+
+      {planning && <AddToPlanSheet recipe={r} onClose={() => setPlanning(false)} />}
 
       {confirming && (
         <ConfirmDialog

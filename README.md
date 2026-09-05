@@ -10,7 +10,7 @@ list, and fridge/pantry levels all update together.
 | Tab | What it does |
 | --- | --- |
 | **Dashboard** | Weekly calorie tracker vs. your daily goal, plus live stats pulled from every other tab. |
-| **Cookbook** | Browse recipes (calories auto-calculated from ingredients) and add your own. |
+| **Cookbook** | Browse recipes (calories auto-calculated from ingredients), add your own, and schedule any of them onto the Meal Plan. |
 | **Meal Plan** | Google-Calendar-style weekly grid — drop recipes onto breakfast/lunch/dinner/snack slots, and clear a day, week, month, year, hand-picked days, or any date range. |
 | **Groceries** | Auto-built list = what the week's plan needs − what's already in your kitchen, on the same shelves as the Food Tracker. |
 | **Food Tracker** | A fridge you can open — glass shelves and crisper drawers of food icons, each showing its amount. Also a List view with stock bars. |

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ImagePlus, Clock, Users, Flame, Menu, PenLine, Trash2, Loader2, DollarSign } from "lucide-react";
+import { ImagePlus, Clock, Users, Flame, Menu, PenLine, Trash2, Loader2, DollarSign, CalendarPlus } from "lucide-react";
+import { AddToPlanSheet } from "./AddToPlanSheet";
 import { useApp, recipeCaloriesPerServing, recipeTotalsPerServing } from "@/lib/store";
 import { recipeCostPerServing, fmtMoney } from "@/lib/cost";
 import { fileToThumbnail } from "@/lib/image";
@@ -27,6 +28,7 @@ export function RecipeCardV2({
   const [busy, setBusy] = useState(false);
   const [imgError, setImgError] = useState("");
   const [menu, setMenu] = useState(false);
+  const [planning, setPlanning] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   const perServing = recipeCaloriesPerServing(r, foods, recipes);
@@ -93,9 +95,12 @@ export function RecipeCardV2({
           {menu && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setMenu(false)} />
-              <div className="absolute right-0 z-40 mt-1 w-36 rounded-xl border border-line bg-page p-1 shadow-xl">
+              <div className="absolute right-0 z-40 mt-1 w-44 rounded-xl border border-line bg-page p-1 shadow-xl">
                 <button onClick={() => { setMenu(false); onEdit(); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-accent-wash">
                   <PenLine size={15} className="text-accent-soft" /> Edit
+                </button>
+                <button onClick={() => { setMenu(false); setPlanning(true); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-accent-wash">
+                  <CalendarPlus size={15} className="text-accent-soft" /> Add to plan
                 </button>
                 <button onClick={() => { setMenu(false); setConfirming(true); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-danger-soft hover:bg-danger/10">
                   <Trash2 size={15} /> Delete
@@ -143,6 +148,8 @@ export function RecipeCardV2({
 
         {imgError && <p className="mt-2 text-[11px] text-danger-soft">{imgError}</p>}
       </div>
+
+      {planning && <AddToPlanSheet recipe={r} onClose={() => setPlanning(false)} />}
 
       {confirming && (
         <ConfirmDialog
