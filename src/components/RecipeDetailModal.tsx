@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import {
   X, Clock, Users, Flame, PenLine, Trash2, ImagePlus, Loader2, ListChecks,
-  UtensilsCrossed, DollarSign, CalendarPlus,
+  UtensilsCrossed, DollarSign, CalendarPlus, ChevronDown,
 } from "lucide-react";
 import {
   useApp, foodById, ingredientCalories, componentCalories,
@@ -13,6 +13,7 @@ import {
   recipeTotalCost, recipeCostPerServing, ingredientCost, fmtMoney,
 } from "@/lib/cost";
 import { pluralUnit, fmtQty } from "@/lib/units";
+import { FOOD_CATEGORIES } from "@/lib/foodcat";
 import { MEAL_LABEL } from "@/lib/week";
 import { MEAL_COLOR } from "@/lib/mealtime";
 import { fileToThumbnail } from "@/lib/image";
@@ -50,6 +51,24 @@ export function RecipeDetailModal({
   const m = recipeTotalsPerServing(recipe, foods, recipes);
   const comps = recipe.components ?? [];
   const color = MEAL_COLOR[recipe.category];
+
+  // A long shopping-style list is hard to read straight through, so the
+  // ingredients are split the way the kitchen is: proteins together, produce
+  // together, pantry together — each section collapsible.
+  const categoryOf = (foodId: string) => foodById(foods, foodId)?.category;
+  const ingredientGroups = FOOD_CATEGORIES
+    .map((c) => ({
+      key: c.key as string,
+      emoji: c.emoji,
+      label: c.label,
+      items: recipe.ingredients.filter((ing) => categoryOf(ing.foodId) === c.key),
+    }))
+    .filter((g) => g.items.length > 0);
+  // Ingredients whose food has gone missing still have to show up somewhere.
+  const orphans = recipe.ingredients.filter((ing) => !categoryOf(ing.foodId));
+  if (orphans.length > 0) {
+    ingredientGroups.push({ key: "other", emoji: "❓", label: "Other", items: orphans });
+  }
 
   const pickImage = async (file: File | undefined) => {
     if (!file) return;
@@ -147,40 +166,59 @@ export function RecipeDetailModal({
                   <ListChecks size={15} className="text-accent-soft" /> Ingredients
                   <span className="font-normal text-muted">{recipe.ingredients.length + comps.length}</span>
                 </h3>
-                <div className="overflow-hidden rounded-xl border border-line">
-                  {comps.map((c) => {
-                    const sub = recipes.find((x) => x.id === c.recipeId);
-                    return (
-                      <div key={`c-${c.recipeId}`} className="flex items-center justify-between gap-3 border-b border-line px-3 py-2.5 text-sm last:border-0">
-                        <span className="truncate font-medium text-accent-soft">{sub?.name ?? "Unknown recipe"}</span>
-                        <span className="shrink-0 text-muted">
-                          {fmtQty(c.servings)} serv · <span className="text-cal-soft">{componentCalories(c, foods, recipes)} cal</span>
-                        </span>
-                      </div>
-                    );
-                  })}
-                  {recipe.ingredients.map((ing) => {
-                    const f = foodById(foods, ing.foodId);
-                    return (
-                      <div key={ing.foodId} className="flex items-center justify-between gap-3 border-b border-line px-3 py-2.5 text-sm last:border-0">
-                        <span className="min-w-0 truncate text-ink">{f?.emoji} {f?.name ?? ing.foodId}</span>
-                        <span className="shrink-0 text-muted">
-                          {fmtQty(ing.quantity)} {f ? pluralUnit(ing.quantity, f.unit) : ""} ·{" "}
-                          <span className="text-cal-soft">{ingredientCalories(ing, foods)} cal</span>
-                          {(() => {
-                            const c = ingredientCost(ing, prices, selectedStoreId);
-                            return c != null ? (
-                              <span className="text-accent-soft"> · {fmtMoney(c)}</span>
-                            ) : (
-                              <span className="text-warn-soft"> · no price</span>
-                            );
-                          })()}
-                        </span>
-                      </div>
-                    );
-                  })}
+                <div className="space-y-2">
+                  {comps.length > 0 && (
+                    <IngredientGroup
+                      emoji="🍽️"
+                      label="Recipes"
+                      count={comps.length}
+                      calories={comps.reduce((sum, c) => sum + componentCalories(c, foods, recipes), 0)}
+                    >
+                      {comps.map((c) => {
+                        const sub = recipes.find((x) => x.id === c.recipeId);
+                        return (
+                          <div key={`c-${c.recipeId}`} className="flex items-center justify-between gap-3 border-t border-line px-3 py-2.5 text-sm">
+                            <span className="truncate font-medium text-accent-soft">{sub?.name ?? "Unknown recipe"}</span>
+                            <span className="shrink-0 text-muted">
+                              {fmtQty(c.servings)} serv · <span className="text-cal-soft">{componentCalories(c, foods, recipes)} cal</span>
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </IngredientGroup>
+                  )}
+
+                  {ingredientGroups.map((g) => (
+                    <IngredientGroup
+                      key={g.key}
+                      emoji={g.emoji}
+                      label={g.label}
+                      count={g.items.length}
+                      calories={g.items.reduce((sum, ing) => sum + ingredientCalories(ing, foods), 0)}
+                    >
+                      {g.items.map((ing) => {
+                        const f = foodById(foods, ing.foodId);
+                        const c = ingredientCost(ing, prices, selectedStoreId);
+                        return (
+                          <div key={ing.foodId} className="flex items-center justify-between gap-3 border-t border-line px-3 py-2.5 text-sm">
+                            <span className="min-w-0 truncate text-ink">{f?.emoji} {f?.name ?? ing.foodId}</span>
+                            <span className="shrink-0 text-muted">
+                              {fmtQty(ing.quantity)} {f ? pluralUnit(ing.quantity, f.unit) : ""} ·{" "}
+                              <span className="text-cal-soft">{ingredientCalories(ing, foods)} cal</span>
+                              {c != null ? (
+                                <span className="text-accent-soft"> · {fmtMoney(c)}</span>
+                              ) : (
+                                <span className="text-warn-soft"> · no price</span>
+                              )}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </IngredientGroup>
+                  ))}
+
                   {recipe.ingredients.length + comps.length === 0 && (
-                    <p className="px-3 py-4 text-center text-xs text-muted">No ingredients yet.</p>
+                    <p className="rounded-xl border border-line px-3 py-4 text-center text-xs text-muted">No ingredients yet.</p>
                   )}
                 </div>
               </section>
@@ -236,6 +274,39 @@ export function RecipeDetailModal({
           onCancel={() => setConfirming(false)}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * One food group inside the ingredient list — open by default, since reading
+ * the recipe is the point, but foldable once you've bought that part.
+ */
+function IngredientGroup({
+  emoji, label, count, calories, children,
+}: {
+  emoji: string;
+  label: string;
+  count: number;
+  calories: number;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="overflow-hidden rounded-xl border border-line">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 bg-surface px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-2 transition-colors hover:bg-surface-3"
+      >
+        <span className="text-sm">{emoji}</span>
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+        <span className="shrink-0 font-normal normal-case text-muted">
+          {count} · <span className="text-cal-soft">{Math.round(calories).toLocaleString()} cal</span>
+        </span>
+        <ChevronDown size={14} className={`shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && children}
     </div>
   );
 }

@@ -114,6 +114,12 @@ export interface Recipe {
   cookTimeMin?: number;
   /** Which meal slot this recipe belongs to (groups the "add" picker). */
   category: MealType;
+  /**
+   * A stand-in recipe wrapping a single food, so one apple can be planned on a
+   * day the way a real recipe can. Kept out of the Cookbook's recipe lists —
+   * the Fruit tab is where these are created and browsed.
+   */
+  single?: boolean;
 }
 
 /** A recipe scheduled onto a specific day + meal slot. */

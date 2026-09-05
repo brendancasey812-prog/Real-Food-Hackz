@@ -16,9 +16,12 @@ import type { MealType, Recipe } from "@/lib/types";
  * it, without going to the calendar and hunting the recipe down again.
  */
 export function AddToPlanSheet({
-  recipe, onClose,
+  recipe, servingNoun = "Servings", onClose,
 }: {
   recipe: Recipe;
+  /** What a serving is called here — "Apples" reads better than "Servings"
+   *  when the "recipe" is a single piece of fruit. */
+  servingNoun?: string;
   onClose: () => void;
 }) {
   const { foods, recipes, plan, addPlannedMeal, householdMode, members } = useApp();
@@ -64,7 +67,9 @@ export function AddToPlanSheet({
               </span>
               <div className="min-w-0">
                 <h2 className="truncate text-base font-semibold text-ink">{recipe.name}</h2>
-                <p className="text-xs text-muted">{perServing.toLocaleString()} cal / serving</p>
+                <p className="text-xs text-muted">
+                  {perServing.toLocaleString()} cal / {servingNoun === "Servings" ? "serving" : servingNoun.toLowerCase().replace(/s$/, "")}
+                </p>
               </div>
             </div>
             <button onClick={onClose} aria-label="Close" className="shrink-0 text-muted hover:text-ink">
@@ -147,7 +152,7 @@ export function AddToPlanSheet({
               {/* How many servings */}
               <div className="mt-4 flex items-center justify-between rounded-xl border border-line bg-surface px-4 py-2.5">
                 <span className="text-sm text-ink-2">
-                  Servings
+                  {servingNoun}
                   <span className="ml-2 text-xs text-muted">
                     {(perServing * servings).toLocaleString()} cal
                   </span>

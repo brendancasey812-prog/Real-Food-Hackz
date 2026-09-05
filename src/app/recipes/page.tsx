@@ -23,6 +23,7 @@ import { RecipeDetailModal } from "@/components/RecipeDetailModal";
 import type { Food, FoodCategory, Location, MealType, Recipe, RecipeComponent, Unit } from "@/lib/types";
 import { SettingsButton } from "@/components/SettingsButton";
 import { AddToPlanSheet } from "@/components/AddToPlanSheet";
+import { SingleFoodsTab } from "@/components/SingleFoodsTab";
 
 export default function Cookbook() {
   const { recipes, foods, removeRecipe } = useApp();
@@ -36,9 +37,13 @@ export default function Cookbook() {
   const [collapsed, setCollapsed] = useState<Set<MealType>>(new Set());
   const [search, setSearch] = useState("");
   const [secFilter, setSecFilter] = useState("all");
-  const [tab, setTab] = useState<"classic" | "v2">("v2");
+  const [tab, setTab] = useState<"classic" | "v2" | "fruit">("v2");
   const [openRecipeId, setOpenRecipeId] = useState<string | null>(null);
   const q = search.trim().toLowerCase();
+
+  // Single-food stand-ins (one apple, one banana) live in the Fruit tab and are
+  // kept out of the recipe lists so they never pad them out.
+  const cookbook = recipes.filter((r) => !r.single);
 
   const toggleMeal = (m: MealType) =>
     setVisible((s) => {
@@ -83,7 +88,11 @@ export default function Cookbook() {
           </div>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Cookbook</h1>
-            <p className="mt-1 text-sm text-muted">{recipes.length} recipes · calories from each ingredient</p>
+            <p className="mt-1 text-sm text-muted">
+              {tab === "fruit"
+                ? "single fruits · calories and price for one"
+                : `${cookbook.length} recipes · calories from each ingredient`}
+            </p>
           </div>
         </div>
 
@@ -117,7 +126,7 @@ export default function Cookbook() {
 
       {/* Cookbook / Cookbook V2 */}
       <div className="mb-4 flex w-fit rounded-xl border border-line bg-surface p-0.5 text-sm">
-        {([["classic", "Cookbook"], ["v2", "Cookbook V2"]] as const).map(([k, label]) => (
+        {([["classic", "Cookbook"], ["v2", "Cookbook V2"], ["fruit", "Fruit"]] as const).map(([k, label]) => (
           <button
             key={k}
             onClick={() => setTab(k)}
@@ -130,6 +139,7 @@ export default function Cookbook() {
         ))}
       </div>
 
+      {tab === "fruit" ? <SingleFoodsTab /> : <>
       <SearchFilterBar
         query={search}
         onQuery={setSearch}
@@ -142,7 +152,7 @@ export default function Cookbook() {
       {/* Grouped sections by meal */}
       <div className="space-y-8">
         {MEAL_ORDER.filter((m) => visible.has(m) && (secFilter === "all" || secFilter === m)).map((meal) => {
-          const list = recipes.filter((r) => r.category === meal && (q ? r.name.toLowerCase().includes(q) : true));
+          const list = cookbook.filter((r) => r.category === meal && (q ? r.name.toLowerCase().includes(q) : true));
           if (list.length === 0) return null;
           const isCollapsed = !q && collapsed.has(meal);
           return (
@@ -167,10 +177,11 @@ export default function Cookbook() {
             </section>
           );
         })}
-        {recipes.filter((r) => visible.has(r.category) && (secFilter === "all" || secFilter === r.category) && (q ? r.name.toLowerCase().includes(q) : true)).length === 0 && (
+        {cookbook.filter((r) => visible.has(r.category) && (secFilter === "all" || secFilter === r.category) && (q ? r.name.toLowerCase().includes(q) : true)).length === 0 && (
           <p className="py-16 text-center text-sm text-muted">{q ? `No recipes match “${search}”.` : "No recipes in the selected sections."}</p>
         )}
       </div>
+      </>}
 
       {openRecipeId && (
         <RecipeDetailModal
@@ -402,7 +413,7 @@ function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => v
   const update = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
   // Recipes that can be folded in: everything except this one and ones already added.
-  const availableRecipes = recipes.filter((r) => r.id !== recipe?.id && !components.some((c) => c.recipeId === r.id));
+  const availableRecipes = recipes.filter((r) => !r.single && r.id !== recipe?.id && !components.some((c) => c.recipeId === r.id));
 
   const { total, perServing } = useMemo(() => {
     const ingT = rows.reduce((sum, row) => {
