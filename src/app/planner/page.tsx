@@ -24,31 +24,10 @@ import {
 } from "@/lib/mealtime";
 import { MealDetailModal } from "@/components/MealDetailModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { ClearMealsSheet } from "@/components/ClearMealsSheet";
 import { SearchFilterBar } from "@/components/SearchFilterBar";
 import type { MealType, PlannedMeal, CalendarEvent, Recipe, Food } from "@/lib/types";
 import { SettingsButton } from "@/components/SettingsButton";
-
-/** One row in the Clear menu; disabled when there is nothing to clear. */
-function ClearItem({
-  label, count, onClick,
-}: {
-  label: string;
-  count: number;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={count === 0}
-      className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-ink transition-colors hover:bg-danger/10 hover:text-danger-soft disabled:cursor-not-allowed disabled:text-muted disabled:hover:bg-transparent"
-    >
-      <span className="truncate">{label}</span>
-      <span className="shrink-0 text-xs tabular-nums text-muted">
-        {count === 0 ? "none" : count}
-      </span>
-    </button>
-  );
-}
 
 type View = "day" | "week" | "month" | "year";
 const VIEWS: View[] = ["day", "week", "month", "year"];
@@ -66,7 +45,7 @@ export default function Planner() {
   const [picking, setPicking] = useState<{ iso: string; hour: number | null; durH: number } | null>(null);
   const [openMealId, setOpenMealId] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<{ kind: "meal" | "event"; id: string; name: string } | null>(null);
-  const [clearMenu, setClearMenu] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState<
     { dates: string[]; count: number; scope: string } | null
   >(null);
@@ -91,12 +70,6 @@ export default function Planner() {
     if (view === "month") return format(anchor, "MMMM yyyy");
     return format(anchor, "yyyy");
   })();
-
-  // What "this day" and "this week" mean right now, for the clear actions.
-  const anchorIso = isoOf(anchor);
-  const weekIsos = weekDays(anchor).map(isoOf);
-  const dayCount = plan.filter((m) => m.date === anchorIso).length;
-  const weekCount = plan.filter((m) => weekIsos.includes(m.date)).length;
 
   const dayMeals = (iso: string) => plan.filter((m) => m.date === iso);
   const dayEvents = (iso: string) => (events ?? []).filter((e) => e.date === iso);
@@ -169,51 +142,15 @@ export default function Planner() {
           ))}
         </div>
 
-        {/* Clear meals — scoped to whatever day/week is on screen */}
-        <div className="relative shrink-0">
-          <button
-            onClick={() => setClearMenu((v) => !v)}
-            aria-label="Clear meals"
-            title="Clear meals"
-            className="flex h-9 items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-sm font-medium text-ink-2 transition-colors hover:bg-surface-3"
-          >
-            <Eraser size={15} /> Clear
-          </button>
-          {clearMenu && (
-            <>
-              <div className="fixed inset-0 z-30" onClick={() => setClearMenu(false)} />
-              <div className="absolute right-0 z-40 mt-2 w-64 rounded-xl border border-line bg-page p-1 shadow-2xl">
-                <ClearItem
-                  label={`Clear ${format(anchor, "EEE, MMM d")}`}
-                  count={dayCount}
-                  onClick={() => {
-                    setClearMenu(false);
-                    setConfirmClear({
-                      dates: [anchorIso],
-                      count: dayCount,
-                      scope: format(anchor, "EEEE, MMMM d"),
-                    });
-                  }}
-                />
-                <ClearItem
-                  label={`Clear week of ${format(weekDays(anchor)[0], "MMM d")}`}
-                  count={weekCount}
-                  onClick={() => {
-                    setClearMenu(false);
-                    setConfirmClear({
-                      dates: weekIsos,
-                      count: weekCount,
-                      scope: `the week of ${format(weekDays(anchor)[0], "MMMM d")}`,
-                    });
-                  }}
-                />
-                <p className="px-3 pb-1.5 pt-2 text-[11px] leading-4 text-muted">
-                  Only meals are cleared — calendar events stay put.
-                </p>
-              </div>
-            </>
-          )}
-        </div>
+        {/* Clear meals — day, week, month, year, chosen days, or a range */}
+        <button
+          onClick={() => setClearOpen(true)}
+          aria-label="Clear meals"
+          title="Clear meals"
+          className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-sm font-medium text-ink-2 transition-colors hover:bg-surface-3"
+        >
+          <Eraser size={15} /> Clear
+        </button>
 
         <SettingsButton className="hidden md:flex" />
       </header>
@@ -262,6 +199,18 @@ export default function Planner() {
       )}
 
       {openMealId && <MealDetailModal mealId={openMealId} onClose={() => setOpenMealId(null)} />}
+
+      {clearOpen && (
+        <ClearMealsSheet
+          anchor={anchor}
+          plan={plan}
+          onClose={() => setClearOpen(false)}
+          onChoose={(dates, scope, count) => {
+            setClearOpen(false);
+            setConfirmClear({ dates, scope, count });
+          }}
+        />
+      )}
 
       {confirmClear && (
         <ConfirmDialog
