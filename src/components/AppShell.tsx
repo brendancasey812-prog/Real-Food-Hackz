@@ -10,7 +10,7 @@ import {
   ShoppingCart,
   Refrigerator,
   DollarSign,
-  MapPin,
+  MapPin
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { SettingsButton } from "./SettingsButton";

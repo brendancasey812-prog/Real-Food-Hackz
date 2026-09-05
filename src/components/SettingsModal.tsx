@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   X, ChevronDown, User, Target, CreditCard, ShieldCheck, Info,
   Check, LogIn, LogOut, Cloud, CloudOff, RefreshCw, Users, Trash2, Plus,
-  Palette, Sun, Moon, Monitor,
+  Palette, Sun, Moon, Monitor
 } from "lucide-react";
 import { useApp, blankMember } from "@/lib/store";
 import { useCloud, type SyncStatus } from "@/lib/cloud";
@@ -14,7 +14,7 @@ import type { FocusArea, HouseholdMode, Sex } from "@/lib/types";
 export const HOUSEHOLD_LABEL: Record<HouseholdMode, string> = {
   individual: "Individual",
   couple: "Couple",
-  family: "Family",
+  family: "Family"
 };
 
 function SyncBadge({ status }: { status: SyncStatus }) {
@@ -24,18 +24,18 @@ function SyncBadge({ status }: { status: SyncStatus }) {
   return <span className="inline-flex items-center gap-1 text-xs text-muted"><CloudOff size={12} /> Offline</span>;
 }
 
-const FOCUS_AREAS: { key: FocusArea; label: string; emoji: string }[] = [
-  { key: "present", label: "Be more present and focused", emoji: "🧘" },
-  { key: "productive", label: "Be productive and energetic", emoji: "⚡" },
-  { key: "athletic", label: "Improve athletic performance", emoji: "🏃" },
-  { key: "health", label: "Improve my health", emoji: "❤️" },
-  { key: "stress", label: "Manage stress levels", emoji: "🌿" },
+const FOCUS_AREAS: { key: FocusArea; label: string }[] = [
+  { key: "present", label: "Be more present and focused"},
+  { key: "productive", label: "Be productive and energetic"},
+  { key: "athletic", label: "Improve athletic performance"},
+  { key: "health", label: "Improve my health"},
+  { key: "stress", label: "Manage stress levels"},
 ];
 
 const THEME_ICON: Record<Theme, typeof Sun> = {
   light: Sun,
   dark: Moon,
-  system: Monitor,
+  system: Monitor
 };
 
 const SEX_OPTIONS: { value: Sex; label: string }[] = [
@@ -56,7 +56,7 @@ function ageFrom(birth?: string): number | null {
 }
 
 function Section({
-  icon: Icon, title, subtitle, children,
+  icon: Icon, title, subtitle, children
 }: {
   icon: React.ComponentType<{ size?: number; className?: string }>;
   title: string;
@@ -95,7 +95,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   const {
     profile, focusAreas, goals, householdMode, members,
-    setProfile, setFocusAreas, setHouseholdMode, addMember, updateMember, removeMember,
+    setProfile, setFocusAreas, setHouseholdMode, addMember, updateMember, removeMember
   } = useApp();
   const cloud = useCloud();
   const theme = useTheme((s) => s.theme);
@@ -298,7 +298,6 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                       on ? "border-accent bg-accent-wash text-ink" : "border-line text-ink-2 hover:bg-surface-3"
                     }`}
                   >
-                    <span className="text-lg">{f.emoji}</span>
                     <span className="flex-1 font-medium">{f.label}</span>
                     <span className={`flex h-5 w-5 items-center justify-center rounded-md border ${on ? "border-accent bg-accent text-on-accent" : "border-line-2"}`}>
                       {on && <Check size={13} />}

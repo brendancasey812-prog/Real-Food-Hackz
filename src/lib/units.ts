@@ -49,7 +49,7 @@ const SLIDER_BASE: Record<Unit, number> = {
   cup: 12,
   tbsp: 32,
   tsp: 48,
-  oz: 48,
+  oz: 48
 };
 
 /** Round up to the next round-looking number: 13 → 20, 260 → 500. */

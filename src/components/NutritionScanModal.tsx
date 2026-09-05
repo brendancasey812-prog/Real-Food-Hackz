@@ -2,13 +2,13 @@
 
 import { useMemo, useRef, useState } from "react";
 import {
-  X, Camera, Upload, Loader2, Sparkles, KeyRound, AlertCircle, Check, Search,
+  X, Camera, Upload, Loader2, Sparkles, KeyRound, AlertCircle, Check, Search
 } from "lucide-react";
 import { useApp, newId } from "@/lib/store";
 import { ReceiptError } from "@/lib/receipt";
 import {
   scanNutritionLabel, demoNutritionScan, servingInUnits, perUnitFrom,
-  type ScannedNutrition,
+  type ScannedNutrition
 } from "@/lib/nutritionscan";
 import { UNITS, unitLabel, fmtQty } from "@/lib/units";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
@@ -139,7 +139,7 @@ export function NutritionScanModal({ onClose }: { onClose: () => void }) {
         carbs: perUnit.carbs,
         fat: perUnit.fat,
         // A label the user scanned outranks the USDA reference from now on.
-        nutritionSource: "scan",
+        nutritionSource: "scan"
       });
       setSavedName(target.name);
     } else {
@@ -153,9 +153,8 @@ export function NutritionScanModal({ onClose }: { onClose: () => void }) {
         fat: perUnit.fat,
         location: newLocation,
         category: newCategory,
-        emoji: "🥫",
         source: "manual",
-        nutritionSource: "scan",
+        nutritionSource: "scan"
       };
       addFood(food, 0);
       setSavedName(food.name);
@@ -307,7 +306,6 @@ export function NutritionScanModal({ onClose }: { onClose: () => void }) {
                         onClick={() => pickFood(f)}
                         className="flex w-full items-center gap-2.5 border-b border-line px-3 py-2 text-left text-sm last:border-0 hover:bg-accent-wash"
                       >
-                        <span>{f.emoji}</span>
                         <span className="min-w-0 flex-1 truncate text-ink">{f.name}</span>
                         <span className="shrink-0 text-[11px] text-muted">
                           {f.caloriesPerUnit} cal / {unitLabel(f.unit)}
@@ -437,7 +435,7 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 function Num({
-  label, value, onChange, tone,
+  label, value, onChange, tone
 }: {
   label: string;
   value: number;
@@ -460,7 +458,7 @@ function Num({
 }
 
 function Tile({
-  value, label, bg, text,
+  value, label, bg, text
 }: {
   value: number | string;
   label: string;

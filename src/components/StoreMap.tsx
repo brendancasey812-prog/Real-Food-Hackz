@@ -59,11 +59,11 @@ export function StoreMap({ markers, origin, onMarkerClick, heightClass = "h-72 m
         zoom: 4,
         zoomControl: true,
         attributionControl: true,
-        scrollWheelZoom: false,
+        scrollWheelZoom: false
       });
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       })
         .on("tileerror", () => setFailed(true))
         .addTo(m);
@@ -100,7 +100,7 @@ export function StoreMap({ markers, origin, onMarkerClick, heightClass = "h-72 m
           className: "",
           html: `<span style="display:block;width:20px;height:20px;border-radius:9999px;background:${fill};border:2.5px solid ${stroke};box-shadow:0 0 0 3px rgba(0,0,0,.35),0 4px 10px rgba(0,0,0,.5)"></span>`,
           iconSize: [20, 20],
-          iconAnchor: [10, 10],
+          iconAnchor: [10, 10]
         });
       };
 
@@ -122,7 +122,7 @@ export function StoreMap({ markers, origin, onMarkerClick, heightClass = "h-72 m
           color: "#fbbf24",
           weight: 2,
           fillColor: "#fbbf24",
-          fillOpacity: 0.9,
+          fillOpacity: 0.9
         })
           .bindTooltip("Searching from here", { direction: "top", offset: [0, -8] })
           .addTo(layer.current!);

@@ -38,7 +38,7 @@ const RULES: { category: FoodCategory; location: Location; words: string[] }[] =
       "italian season", "everything bagel", "za'atar", "sumac", "saffron",
       "vanilla extract", "vanilla bean", "extract", "dill weed", "fennel seed",
       "mustard seed", "sesame seed", "poppy seed", "onion flake", "garlic salt",
-    ],
+    ]
   },
   {
     category: "spice", location: "fridge",
@@ -46,7 +46,7 @@ const RULES: { category: FoodCategory; location: Location; words: string[] }[] =
       "fresh basil", "fresh cilantro", "fresh parsley", "fresh mint", "fresh dill",
       "fresh thyme", "fresh rosemary", "fresh ginger", "basil", "cilantro", "parsley",
       "mint", "dill", "chive", "tarragon", "lemongrass", "ginger root", "ginger",
-    ],
+    ]
   },
 
   // --- Protein ---
@@ -59,7 +59,7 @@ const RULES: { category: FoodCategory; location: Location; words: string[] }[] =
       "anchov", "shrimp", "prawn", "scallop", "crab", "lobster", "mussel", "clam",
       "oyster", "fish", "egg", "tofu", "tempeh", "seitan", "protein powder",
       "protein shake", "jerky", "meatball", "burger patty", "ground meat",
-    ],
+    ]
   },
 
   // --- Dairy ---
@@ -70,7 +70,7 @@ const RULES: { category: FoodCategory; location: Location; words: string[] }[] =
       "parmesan", "feta", "brie", "gouda", "ricotta", "mascarpone", "boursin",
       "cream cheese", "sour cream", "heavy cream", "half and half", "cottage",
       "half-and-half", "creamer", "whipped cream", "ghee",
-    ],
+    ]
   },
 
   // --- Fruit ---
@@ -83,7 +83,7 @@ const RULES: { category: FoodCategory; location: Location; words: string[] }[] =
       "pear", "cherry", "cherries", "mango", "papaya", "pineapple", "kiwi",
       "pomegranate", "apricot", "fig", "date", "raisin", "lemon", "lime",
       "grapefruit", "juice", "fruit",
-    ],
+    ]
   },
 
   // --- Vegetables (shallots very much included) ---
@@ -98,7 +98,7 @@ const RULES: { category: FoodCategory; location: Location; words: string[] }[] =
       "parsnip", "pepper", "jalapeno", "poblano", "serrano", "habanero", "chili",
       "tomato", "mushroom", "corn", "okra", "artichoke", "asparagus", "sprout",
       "vegetable", "veggie", "salad mix", "coleslaw", "slaw",
-    ],
+    ]
   },
 
   // --- Starchy veg ---
@@ -107,7 +107,7 @@ const RULES: { category: FoodCategory; location: Location; words: string[] }[] =
   // --- Legumes ---
   {
     category: "legume", location: "pantry",
-    words: ["bean", "lentil", "chickpea", "garbanzo", "hummus", "edamame", "split pea"],
+    words: ["bean", "lentil", "chickpea", "garbanzo", "hummus", "edamame", "split pea"]
   },
 
   // --- Nuts & seeds ---
@@ -117,7 +117,7 @@ const RULES: { category: FoodCategory; location: Location; words: string[] }[] =
       "almond", "cashew", "pecan", "walnut", "pistachio", "hazelnut", "macadamia",
       "peanut", "nut butter", "mixed nut", "trail mix", "chia", "flax", "sunflower seed",
       "pumpkin seed", "tahini", "nut",
-    ],
+    ]
   },
 
   // --- Grains ---
@@ -128,13 +128,13 @@ const RULES: { category: FoodCategory; location: Location; words: string[] }[] =
       "cracker", "pasta", "spaghetti", "penne", "macaroni", "noodle", "rice",
       "quinoa", "farro", "barley", "couscous", "oat", "cereal", "granola", "muesli",
       "flour", "panko", "breadcrumb", "muffin", "waffle", "pancake mix", "tortilla chip",
-    ],
+    ]
   },
 
   // --- Fats & oils ---
   {
     category: "fat", location: "pantry",
-    words: ["olive oil", "avocado oil", "canola oil", "vegetable oil", "sesame oil", "coconut oil", "oil", "butter", "lard", "shortening", "avocado"],
+    words: ["olive oil", "avocado oil", "canola oil", "vegetable oil", "sesame oil", "coconut oil", "oil", "butter", "lard", "shortening", "avocado"]
   },
 
   // --- Condiments (the door bin) ---
@@ -146,7 +146,7 @@ const RULES: { category: FoodCategory; location: Location; words: string[] }[] =
       "bbq sauce", "barbecue", "teriyaki", "hoisin", "gochujang", "yangnyeom",
       "dressing", "vinaigrette", "ranch", "caesar", "aioli", "pesto", "chutney",
       "jam", "jelly", "preserve", "honey", "syrup", "vinegar", "marinade", "sauce",
-    ],
+    ]
   },
 ];
 

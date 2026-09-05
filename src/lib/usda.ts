@@ -77,7 +77,7 @@ export function usdaPerUnit(entry: UsdaFood, unit: Unit): UsdaNutrition | null {
     caloriesPerUnit: Math.round(entry.k * scale),
     protein: g(entry.p),
     carbs: g(entry.cb),
-    fat: g(entry.f),
+    fat: g(entry.f)
   };
 }
 
@@ -226,5 +226,5 @@ export function canApplyUsda(f: Food): boolean {
 export const SOURCE_LABEL: Record<NonNullable<Food["nutritionSource"]>, string> = {
   scan: "From a label you scanned",
   manual: "Entered by you",
-  usda: "USDA FoodData Central",
+  usda: "USDA FoodData Central"
 };

@@ -16,7 +16,7 @@ import type { MealType, Recipe } from "@/lib/types";
  * it, without going to the calendar and hunting the recipe down again.
  */
 export function AddToPlanSheet({
-  recipe, servingNoun = "Servings", onClose,
+  recipe, servingNoun = "Servings", onClose
 }: {
   recipe: Recipe;
   /** What a serving is called here — "Apples" reads better than "Servings"
@@ -47,7 +47,7 @@ export function AddToPlanSheet({
       date,
       mealType: meal,
       recipeId: recipe.id,
-      servings: Math.max(1, servings),
+      servings: Math.max(1, servings)
     });
     setAdded(`${MEAL_LABEL[meal]} on ${format(new Date(`${date}T00:00:00`), "EEEE, MMM d")}`);
   };
@@ -62,9 +62,6 @@ export function AddToPlanSheet({
           <span aria-hidden className="mx-auto mb-3 block h-1 w-10 rounded-full bg-line-2 md:hidden" />
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="squircle flex h-11 w-11 shrink-0 items-center justify-center bg-gradient-to-br from-accent/25 to-accent/10 text-xl ring-1 ring-accent/20">
-                {recipe.emoji}
-              </span>
               <div className="min-w-0">
                 <h2 className="truncate text-base font-semibold text-ink">{recipe.name}</h2>
                 <p className="text-xs text-muted">

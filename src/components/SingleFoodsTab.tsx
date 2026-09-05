@@ -50,9 +50,8 @@ export function SingleFoodsTab({ category = "fruit" }: { category?: FoodCategory
       servings: 1,
       ingredients: [{ foodId: f.id, quantity: 1 }],
       steps: [],
-      emoji: f.emoji,
       category: "snack",
-      single: true,
+      single: true
     };
     if (!existing) addRecipe(recipe);
     setPlanning({ recipe, noun: nounFor(f) });
@@ -98,7 +97,6 @@ export function SingleFoodsTab({ category = "fruit" }: { category?: FoodCategory
                 className="card flex cursor-pointer flex-col rounded-2xl p-5 transition-colors hover:border-accent"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-3xl">{f.emoji}</span>
                   <span className="text-right text-xs text-muted">
                     per {unitLabel(f.unit)}
                     {have > 0 && (

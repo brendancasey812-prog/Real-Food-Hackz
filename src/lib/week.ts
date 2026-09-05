@@ -4,7 +4,7 @@ import {
   format,
   startOfMonth,
   endOfMonth,
-  getDay,
+  getDay
 } from "date-fns";
 
 export const ISO = "yyyy-MM-dd";
@@ -54,5 +54,5 @@ export const MEAL_LABEL: Record<string, string> = {
   lunch: "Lunch",
   snack: "Snack",
   dinner: "Dinner",
-  extra: "Extra",
+  extra: "Extra"
 };

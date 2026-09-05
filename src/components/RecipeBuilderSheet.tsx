@@ -23,7 +23,7 @@ const START_QTY: Record<Unit, number> = { each: 1, cup: 1, tbsp: 1, tsp: 1, oz: 
  * in the Cookbook.
  */
 export function RecipeBuilderSheet({
-  foodIds, onClose, onSaved,
+  foodIds, onClose, onSaved
 }: {
   foodIds: string[];
   onClose: () => void;
@@ -39,7 +39,6 @@ export function RecipeBuilderSheet({
   const onHand = (id: string) => inventory.find((i) => i.foodId === id)?.quantity ?? 0;
 
   const [name, setName] = useState("");
-  const [emoji, setEmoji] = useState("🥘");
   const [meal, setMeal] = useState<MealType>("dinner");
   const [servings, setServings] = useState(1);
   const [qty, setQty] = useState<Record<string, number>>(() =>
@@ -64,11 +63,10 @@ export function RecipeBuilderSheet({
     const recipe: Recipe = {
       id: newId(),
       name: name.trim(),
-      emoji,
       servings: Math.max(1, servings),
       ingredients,
       steps: [],
-      category: meal,
+      category: meal
     };
     addRecipe(recipe);
     onSaved(recipe.name);
@@ -96,14 +94,8 @@ export function RecipeBuilderSheet({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {/* Name + emoji */}
+          {/* Name */}
           <div className="flex gap-2">
-            <input
-              value={emoji}
-              onChange={(e) => setEmoji(e.target.value.slice(0, 2) || "🥘")}
-              aria-label="Recipe emoji"
-              className="w-14 rounded-xl field px-2 py-2.5 text-center text-xl"
-            />
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -165,9 +157,6 @@ export function RecipeBuilderSheet({
               const cal = ingredientCalories({ foodId: f.id, quantity: v }, foods);
               return (
                 <div key={f.id} className="flex items-center gap-3 rounded-xl border border-line bg-surface px-3 py-2.5">
-                  <span className="squircle flex h-10 w-10 shrink-0 items-center justify-center bg-gradient-to-br from-accent/25 to-accent/10 text-lg ring-1 ring-accent/20">
-                    {f.emoji}
-                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-ink">{f.name}</span>
                     <span className="block text-[11px] text-muted tabular-nums">

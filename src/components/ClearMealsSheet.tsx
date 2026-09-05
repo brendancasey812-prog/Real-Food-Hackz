@@ -15,7 +15,7 @@ const inRange = (iso: string, from: string, to: string) => iso >= from && iso <=
  * It only ever hands dates back — the caller confirms and does the deleting.
  */
 export function ClearMealsSheet({
-  anchor, plan, onChoose, onClose,
+  anchor, plan, onChoose, onClose
 }: {
   anchor: Date;
   plan: PlannedMeal[];
@@ -55,28 +55,28 @@ export function ClearMealsSheet({
       label: format(anchor, "EEEE, MMM d"),
       hint: "This day",
       dates: [anchorIso],
-      scope: format(anchor, "EEEE, MMMM d"),
+      scope: format(anchor, "EEEE, MMMM d")
     },
     {
       key: "week",
       label: `Week of ${format(week[0], "MMM d")}`,
       hint: "This week",
       dates: weekIsos,
-      scope: `the week of ${format(week[0], "MMMM d")}`,
+      scope: `the week of ${format(week[0], "MMMM d")}`
     },
     {
       key: "month",
       label: format(anchor, "MMMM yyyy"),
       hint: "This month",
       dates: datesWhere((d) => d.startsWith(monthPrefix)),
-      scope: format(anchor, "MMMM yyyy"),
+      scope: format(anchor, "MMMM yyyy")
     },
     {
       key: "year",
       label: format(anchor, "yyyy"),
       hint: "This year",
       dates: datesWhere((d) => d.startsWith(yearPrefix)),
-      scope: `${format(anchor, "yyyy")}`,
+      scope: `${format(anchor, "yyyy")}`
     },
   ];
 

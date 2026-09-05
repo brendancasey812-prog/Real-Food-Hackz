@@ -113,7 +113,7 @@ function grossCost(
     acc = add(acc, {
       cost: per.cost * comp.servings,
       priced: per.priced,
-      lines: per.lines,
+      lines: per.lines
     });
   }
   return acc;

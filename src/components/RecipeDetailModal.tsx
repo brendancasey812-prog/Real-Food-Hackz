@@ -3,14 +3,14 @@
 import { useRef, useState } from "react";
 import {
   X, Clock, Users, Flame, PenLine, Trash2, ImagePlus, Loader2, ListChecks,
-  UtensilsCrossed, DollarSign, CalendarPlus, ChevronDown,
+  UtensilsCrossed, DollarSign, CalendarPlus, ChevronDown
 } from "lucide-react";
 import {
   useApp, foodById, ingredientCalories, componentCalories,
-  recipeCaloriesPerServing, recipeTotalCalories, recipeTotalsPerServing,
+  recipeCaloriesPerServing, recipeTotalCalories, recipeTotalsPerServing
 } from "@/lib/store";
 import {
-  recipeTotalCost, recipeCostPerServing, ingredientCost, fmtMoney,
+  recipeTotalCost, recipeCostPerServing, ingredientCost, fmtMoney
 } from "@/lib/cost";
 import { pluralUnit, fmtQty } from "@/lib/units";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
@@ -26,7 +26,7 @@ import { AddToPlanSheet } from "./AddToPlanSheet";
  * instructions side by side — with Edit and Delete kept close at hand.
  */
 export function RecipeDetailModal({
-  recipeId, onClose, onEdit, onRemove,
+  recipeId, onClose, onEdit, onRemove
 }: {
   recipeId: string;
   onClose: () => void;
@@ -59,15 +59,14 @@ export function RecipeDetailModal({
   const ingredientGroups = FOOD_CATEGORIES
     .map((c) => ({
       key: c.key as string,
-      emoji: c.emoji,
       label: c.label,
-      items: recipe.ingredients.filter((ing) => categoryOf(ing.foodId) === c.key),
+      items: recipe.ingredients.filter((ing) => categoryOf(ing.foodId) === c.key)
     }))
     .filter((g) => g.items.length > 0);
   // Ingredients whose food has gone missing still have to show up somewhere.
   const orphans = recipe.ingredients.filter((ing) => !categoryOf(ing.foodId));
   if (orphans.length > 0) {
-    ingredientGroups.push({ key: "other", emoji: "❓", label: "Other", items: orphans });
+    ingredientGroups.push({ key: "other", label: "Other", items: orphans });
   }
 
   const pickImage = async (file: File | undefined) => {
@@ -169,7 +168,6 @@ export function RecipeDetailModal({
                 <div className="space-y-2">
                   {comps.length > 0 && (
                     <IngredientGroup
-                      emoji="🍽️"
                       label="Recipes"
                       count={comps.length}
                       calories={comps.reduce((sum, c) => sum + componentCalories(c, foods, recipes), 0)}
@@ -191,7 +189,6 @@ export function RecipeDetailModal({
                   {ingredientGroups.map((g) => (
                     <IngredientGroup
                       key={g.key}
-                      emoji={g.emoji}
                       label={g.label}
                       count={g.items.length}
                       calories={g.items.reduce((sum, ing) => sum + ingredientCalories(ing, foods), 0)}
@@ -201,7 +198,7 @@ export function RecipeDetailModal({
                         const c = ingredientCost(ing, prices, selectedStoreId);
                         return (
                           <div key={ing.foodId} className="flex items-center justify-between gap-3 border-t border-line px-3 py-2.5 text-sm">
-                            <span className="min-w-0 truncate text-ink">{f?.emoji} {f?.name ?? ing.foodId}</span>
+                            <span className="min-w-0 truncate text-ink">{f?.name ?? ing.foodId}</span>
                             <span className="shrink-0 text-muted">
                               {fmtQty(ing.quantity)} {f ? pluralUnit(ing.quantity, f.unit) : ""} ·{" "}
                               <span className="text-cal-soft">{ingredientCalories(ing, foods)} cal</span>
@@ -283,9 +280,8 @@ export function RecipeDetailModal({
  * the recipe is the point, but foldable once you've bought that part.
  */
 function IngredientGroup({
-  emoji, label, count, calories, children,
+  label, count, calories, children
 }: {
-  emoji: string;
   label: string;
   count: number;
   calories: number;
@@ -299,7 +295,6 @@ function IngredientGroup({
         aria-expanded={open}
         className="flex w-full items-center gap-2 bg-surface px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-2 transition-colors hover:bg-surface-3"
       >
-        <span className="text-sm">{emoji}</span>
         <span className="min-w-0 flex-1 truncate">{label}</span>
         <span className="shrink-0 font-normal normal-case text-muted">
           {count} · <span className="text-cal-soft">{Math.round(calories).toLocaleString()} cal</span>

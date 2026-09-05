@@ -9,7 +9,7 @@ export function ConfirmDialog({
   confirmLabel = "Delete",
   cancelLabel = "Cancel",
   onConfirm,
-  onCancel,
+  onCancel
 }: {
   title?: string;
   message: string;

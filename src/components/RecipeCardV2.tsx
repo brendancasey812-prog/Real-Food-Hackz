@@ -14,7 +14,7 @@ import type { Food, Recipe } from "@/lib/types";
  * then servings / calories / macros / cook time. No emoji by design.
  */
 export function RecipeCardV2({
-  recipe: r, foods, recipes, onOpen, onEdit, onRemove,
+  recipe: r, foods, recipes, onOpen, onEdit, onRemove
 }: {
   recipe: Recipe;
   foods: Food[];

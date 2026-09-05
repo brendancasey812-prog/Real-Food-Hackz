@@ -10,7 +10,7 @@ import {
   ingredientCalories,
   componentCalories,
   foodById,
-  newId,
+  newId
 } from "@/lib/store";
 import { UNITS, unitLabel, pluralUnit, fmtQty } from "@/lib/units";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
@@ -215,7 +215,6 @@ function RecipeCard({ recipe: r, foods, recipes, onOpen, onEdit, onRemove }: { r
   return (
     <div onClick={onOpen} className="flex cursor-pointer flex-col rounded-2xl card p-5 transition-colors hover:border-accent">
       <div className="flex items-start justify-between">
-        <span className="text-3xl">{r.emoji}</span>
         {/* Hamburger menu (top-right) */}
         <div className="relative" onClick={(e) => e.stopPropagation()}>
           <button onClick={() => setMenu((v) => !v)} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-surface-3 hover:text-ink" aria-label="Recipe menu">
@@ -257,7 +256,7 @@ function RecipeCard({ recipe: r, foods, recipes, onOpen, onEdit, onRemove }: { r
           if (!sub) return null;
           return (
             <li key={`c-${c.recipeId}`} className="flex justify-between gap-2">
-              <span className="truncate font-medium text-accent-soft">{sub.emoji} {sub.name}</span>
+              <span className="truncate font-medium text-accent-soft">{sub.name}</span>
               <span className="shrink-0 text-muted">
                 {fmtQty(c.servings)} serv ·{" "}
                 <span className="text-cal-soft">{componentCalories(c, foods, recipes)} cal</span>
@@ -269,7 +268,7 @@ function RecipeCard({ recipe: r, foods, recipes, onOpen, onEdit, onRemove }: { r
           const f = foodById(foods, ing.foodId);
           return (
             <li key={ing.foodId} className="flex justify-between gap-2">
-              <span className="truncate">{f?.emoji} {f?.name ?? ing.foodId}</span>
+              <span className="truncate">{f?.name ?? ing.foodId}</span>
               <span className="shrink-0 text-muted">
                 {fmtQty(ing.quantity)} {f ? pluralUnit(ing.quantity, f.unit) : ""} ·{" "}
                 <span className="text-cal-soft">{ingredientCalories(ing, foods)} cal</span>
@@ -313,7 +312,7 @@ function IngredientPicker({ foods, value, onChange }: { foods: Food[]; value: st
   return (
     <div className="relative min-w-0 flex-1">
       <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between gap-1 rounded-lg field px-2 py-1.5 text-left text-sm">
-        <span className="truncate">{value === NEW ? "➕ New ingredient…" : selected ? `${selected.emoji} ${selected.name}` : "Select ingredient…"}</span>
+        <span className="truncate">{value === NEW ? "New ingredient…" : selected ? selected.name : "Select ingredient…"}</span>
         <ChevronDown size={14} className="shrink-0 text-muted" />
       </button>
       {open && (
@@ -334,7 +333,7 @@ function IngredientPicker({ foods, value, onChange }: { foods: Food[]; value: st
 
             <div className="min-h-0 flex-1 overflow-y-auto p-1">
               <button type="button" onClick={() => pick(NEW)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm font-medium text-accent-soft hover:bg-accent-wash">
-                ➕ New ingredient…
+                New ingredient…
               </button>
 
               {q ? (
@@ -342,7 +341,7 @@ function IngredientPicker({ foods, value, onChange }: { foods: Food[]; value: st
                   {matches.length === 0 && <p className="px-3 py-4 text-center text-xs text-muted">No ingredients match “{query}”.</p>}
                   {matches.map((f) => (
                     <button key={f.id} type="button" onClick={() => pick(f.id)} className={`flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-ink hover:bg-accent-wash ${f.id === value ? "bg-accent-wash" : ""}`}>
-                      <span>{f.emoji}</span> <span className="truncate">{f.name}</span>
+                      <span className="truncate">{f.name}</span>
                     </button>
                   ))}
                 </>
@@ -354,12 +353,12 @@ function IngredientPicker({ foods, value, onChange }: { foods: Food[]; value: st
                   return (
                     <div key={cat.key}>
                       <button type="button" onClick={() => toggle(cat.key)} className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-muted hover:bg-surface-3">
-                        <span>{cat.emoji} {cat.label} <span className="font-normal text-faint">· {list.length}</span></span>
+                        <span>{cat.label} <span className="font-normal text-faint">· {list.length}</span></span>
                         <ChevronDown size={13} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
                       </button>
                       {isOpen && list.map((f) => (
                         <button key={f.id} type="button" onClick={() => pick(f.id)} className={`flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-ink hover:bg-accent-wash ${f.id === value ? "bg-accent-wash" : ""}`}>
-                          <span>{f.emoji}</span> <span className="truncate">{f.name}</span>
+                          <span className="truncate">{f.name}</span>
                         </button>
                       ))}
                     </div>
@@ -380,7 +379,6 @@ interface Row {
   foodId: string; // existing food id or NEW
   quantity: number;
   newName: string;
-  newEmoji: string;
   newUnit: Unit;
   newCalories: number;
   newProtein: number;
@@ -391,15 +389,14 @@ interface Row {
 }
 
 const emptyRow = (foodId: string): Row => ({
-  foodId, quantity: 1, newName: "", newEmoji: "🥕", newUnit: "each",
-  newCalories: 50, newProtein: 0, newCarbs: 0, newFat: 0, newLocation: "fridge", newCategory: "vegetable",
+  foodId, quantity: 1, newName: "", newUnit: "each",
+  newCalories: 50, newProtein: 0, newCarbs: 0, newFat: 0, newLocation: "fridge", newCategory: "vegetable"
 });
 
 function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => void }) {
   const { foods, recipes, addRecipe, updateRecipe, addFood } = useApp();
   const editing = !!recipe;
   const [name, setName] = useState(recipe?.name ?? "");
-  const [emoji, setEmoji] = useState(recipe?.emoji ?? "🍽️");
   const [servings, setServings] = useState(recipe?.servings ?? 1);
   const [mealCat, setMealCat] = useState<MealType>(recipe?.category ?? "breakfast");
   const [rows, setRows] = useState<Row[]>(
@@ -435,10 +432,10 @@ function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => v
           if (!row.newName.trim()) return null;
           const id = newId();
           newFoods.push({
-            id, name: row.newName.trim(), emoji: row.newEmoji || "🥕", unit: row.newUnit,
+            id, name: row.newName.trim(), unit: row.newUnit,
             caloriesPerUnit: Math.max(0, row.newCalories), protein: Math.max(0, row.newProtein),
             carbs: Math.max(0, row.newCarbs), fat: Math.max(0, row.newFat),
-            location: row.newLocation, category: row.newCategory,
+            location: row.newLocation, category: row.newCategory
           });
           return { foodId: id, quantity: row.quantity };
         }
@@ -449,11 +446,11 @@ function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => v
     if (ingredients.length === 0 && components.length === 0) return;
     const built: Recipe = {
       id: recipe?.id ?? newId(),
-      name: name.trim(), emoji, servings: Math.max(1, servings),
+      name: name.trim(), servings: Math.max(1, servings),
       ingredients,
       components: components.length ? components : undefined,
       steps: steps.split("\n").map((s) => s.trim()).filter(Boolean),
-      category: mealCat,
+      category: mealCat
     };
     if (editing) {
       newFoods.forEach((f) => addFood(f, 0));
@@ -474,7 +471,6 @@ function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => v
 
         <div className="space-y-4">
           <div className="flex gap-3">
-            <input value={emoji} onChange={(e) => setEmoji(e.target.value)} className="w-14 rounded-lg field px-2 py-2 text-center text-xl" />
             <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Recipe name" className="flex-1 rounded-lg field px-3 py-2" />
           </div>
 
@@ -499,7 +495,7 @@ function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => v
                 const sub = recipes.find((r) => r.id === c.recipeId);
                 return (
                   <div key={c.recipeId} className="flex items-center gap-2 rounded-xl border border-line p-2 text-sm">
-                    <span className="min-w-0 flex-1 truncate">{sub?.emoji} {sub?.name ?? "Unknown recipe"}</span>
+                    <span className="min-w-0 flex-1 truncate">{sub?.name ?? "Unknown recipe"}</span>
                     <input
                       type="number" min={0.5} step={0.5} value={c.servings}
                       onChange={(e) => { const v = Math.max(0.5, Number(e.target.value) || 0.5); setComponents((cs) => cs.map((x, idx) => (idx === i ? { ...x, servings: v } : x))); }}
@@ -517,8 +513,8 @@ function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => v
                   onChange={(e) => { if (e.target.value) setComponents((cs) => [...cs, { recipeId: e.target.value, servings: 1 }]); }}
                   className="w-full rounded-lg field px-2 py-2 text-sm"
                 >
-                  <option value="">➕ Add a recipe to this meal…</option>
-                  {availableRecipes.map((r) => <option key={r.id} value={r.id}>{r.emoji} {r.name}</option>)}
+                  <option value="">Add a recipe to this meal…</option>
+                  {availableRecipes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
               ) : (
                 <p className="text-xs text-muted">No other recipes available to include.</p>
@@ -543,7 +539,6 @@ function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => v
 
                     {isNew && (
                       <div className="mt-2 grid grid-cols-2 gap-2 rounded-lg border border-line bg-surface p-2">
-                        <input value={row.newEmoji} onChange={(e) => update(i, { newEmoji: e.target.value })} placeholder="🥕" className="rounded-lg field px-2 py-1.5 text-center text-sm" />
                         <input value={row.newName} onChange={(e) => update(i, { newName: e.target.value })} placeholder="Ingredient name" className="rounded-lg field px-2 py-1.5 text-sm" />
                         <select value={row.newUnit} onChange={(e) => update(i, { newUnit: e.target.value as Unit })} className="rounded-lg field px-2 py-1.5 text-sm">
                           {UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}

@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import {
   GoogleAuthProvider, signInWithPopup, signOut as fbSignOut,
-  onAuthStateChanged, type User,
+  onAuthStateChanged, type User
 } from "firebase/auth";
 import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 import { firebaseAuth, firebaseDb, cloudEnabled } from "./firebase";
@@ -25,7 +25,7 @@ interface CloudCtx {
 
 const Ctx = createContext<CloudCtx>({
   enabled: false, status: "disabled", sync: "idle", user: null, error: "",
-  signIn: async () => {}, signOut: async () => {},
+  signIn: async () => {}, signOut: async () => {}
 });
 
 export const useCloud = () => useContext(Ctx);

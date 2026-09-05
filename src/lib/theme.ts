@@ -47,13 +47,13 @@ export const useTheme = create<ThemeState>()(
       setTheme: (theme) => {
         applyTheme(theme);
         set({ theme });
-      },
+      }
     }),
     {
       name: THEME_KEY,
       onRehydrateStorage: () => (state) => {
         if (state) applyTheme(state.theme);
-      },
+      }
     },
   ),
 );

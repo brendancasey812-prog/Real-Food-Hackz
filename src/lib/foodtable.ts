@@ -46,7 +46,7 @@ export interface FoodTable {
 
 const VULGAR: Record<string, number> = {
   "½": 0.5, "⅓": 1 / 3, "⅔": 2 / 3, "¼": 0.25, "¾": 0.75, "⅕": 0.2, "⅖": 0.4,
-  "⅗": 0.6, "⅘": 0.8, "⅙": 1 / 6, "⅚": 5 / 6, "⅛": 0.125, "⅜": 0.375, "⅝": 0.625, "⅞": 0.875,
+  "⅗": 0.6, "⅘": 0.8, "⅙": 1 / 6, "⅚": 5 / 6, "⅛": 0.125, "⅜": 0.375, "⅝": 0.625, "⅞": 0.875
 };
 
 /** "1", "1.5", "1/2", "1 1/2", "1½", "2-3" (→ 2), "1,200" → number. */
@@ -119,7 +119,7 @@ const UNIT_TABLE: Record<string, { unit: Unit; factor: number }> = {
   dozen: { unit: "each", factor: 12 },
   breast: { unit: "each", factor: 1 }, breasts: { unit: "each", factor: 1 },
   fillet: { unit: "each", factor: 1 }, fillets: { unit: "each", factor: 1 },
-  whole: { unit: "each", factor: 1 },
+  whole: { unit: "each", factor: 1 }
 };
 
 export interface ParsedUnit {
@@ -198,7 +198,7 @@ function headerRole(raw: string): Role | null {
 type Delim = "\t" | "|" | "," | "spaces";
 
 function splitLine(line: string, delim: Delim): string[] {
-  if (delim === "spaces") return line.trim().split(/\s{2,}/).map((c) => c.trim());
+  if (delim === "spaces") return line.trim().split(/\s{2}/).map((c) => c.trim());
   if (delim === "|") return line.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((c) => c.trim());
   if (delim === ",") return splitCsv(line);
   return line.split("\t").map((c) => c.trim());
@@ -417,7 +417,7 @@ export function parseFoodTable(text: string): FoodTable | null {
       totalCalories: totalCalories === undefined ? undefined : round2(totalCalories),
       protein: macro("protein"),
       carbs: macro("carbs"),
-      fat: macro("fat"),
+      fat: macro("fat")
     });
   }
 

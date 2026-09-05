@@ -41,7 +41,6 @@ export interface Food {
   fat: number;
   location: Location;
   category: FoodCategory;
-  emoji: string;
   /** How this food entered the app. */
   source?: "manual" | "receipt_scan";
   /**
@@ -108,7 +107,6 @@ export interface Recipe {
   /** Other recipes folded into this one. Optional for backward compatibility. */
   components?: RecipeComponent[];
   steps: string[];
-  emoji: string;
   /** Downscaled data-URL photo shown in Cookbook V2. */
   image?: string;
   /** Total cook time in minutes. */
@@ -220,7 +218,6 @@ export interface Store {
   zip: string;
   lat?: number;
   lng?: number;
-  emoji: string;
   /** How the store got here: typed in, or pulled from the nearby-store search. */
   source?: "manual" | "search";
 }

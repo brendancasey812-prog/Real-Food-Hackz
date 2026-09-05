@@ -22,7 +22,7 @@ async function viaServer(system: string, text: string, image?: ImagePart): Promi
     resp = await fetch("/api/anthropic", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ system, text, image }),
+      body: JSON.stringify({ system, text, image })
     });
   } catch {
     return null; // offline or route missing — fall back to the client key
@@ -49,7 +49,6 @@ export interface ScannedRecipeIngredient {
 }
 export interface ScannedRecipe {
   name: string;
-  emoji: string;
   servings: number;
   meal: MealType;
   ingredients: ScannedRecipeIngredient[];
@@ -62,7 +61,6 @@ export interface ScannedRecipe {
 /** The JSON both the photo and the text scanners must return. */
 const SCHEMA = `{
   "name": "string",
-  "emoji": "string (one emoji)",
   "servings": number,
   "meal": "breakfast | lunch | snack | dinner",
   "ingredients": [
@@ -92,7 +90,7 @@ CALORIE MATH: a "Calories per Unit" (or "Calories per Serving") column is calori
 
 SUMMARY ROWS: rows like "TOTAL", "SUBTOTAL", "PER SERVING (6 servings)" are not ingredients — never emit them. Use them instead: read the stated totals into declaredTotalCalories / declaredPerServingCalories, and take the servings count from text like "PER SERVING (6 servings)" or "Serves 4". If no servings count is stated anywhere, and total and per-serving calories both are, divide them to get it.
 
-CATEGORY: classify each ingredient as Protein, Fruit, Veggie, or Pantry (dairy, grains, pasta, sauces, oils, spices, other packaged goods = Pantry). Pick one food emoji for the dish and the single best meal: breakfast, lunch, snack, or dinner.`;
+CATEGORY: classify each ingredient as Protein, Fruit, Veggie, or Pantry (dairy, grains, pasta, sauces, oils, spices, other packaged goods = Pantry). Pick the single best meal for the dish: breakfast, lunch, snack, or dinner.`;
 
 export const RECIPE_SYSTEM_PROMPT = `You are a recipe-scanning assistant for a meal-planning app. You will be given a photo of a recipe or food list — a recipe card, a cookbook page, a handwritten note, a spreadsheet, or a screenshot of a nutrition table. Extract it into JSON.
 
@@ -160,7 +158,7 @@ function parseRecipe(text: string): ScannedRecipe {
         protein: optNum(i.protein),
         carbs: optNum(i.carbs),
         fat: optNum(i.fat),
-        note: note || undefined,
+        note: note || undefined
       };
     });
   if (!o.name || ingredients.length === 0) {
@@ -168,13 +166,12 @@ function parseRecipe(text: string): ScannedRecipe {
   }
   return {
     name: String(o.name).trim(),
-    emoji: o.emoji && String(o.emoji).trim() ? String(o.emoji).trim() : "🍽️",
     servings: Number(o.servings) > 0 ? Number(o.servings) : 2,
     meal: (MEALS.includes(o.meal as string) ? o.meal : "dinner") as MealType,
     ingredients,
     steps: Array.isArray(o.steps) ? o.steps.map((s) => String(s).trim()).filter(Boolean) : [],
     declaredTotalCalories: optNum(o.declaredTotalCalories),
-    declaredPerServingCalories: optNum(o.declaredPerServingCalories),
+    declaredPerServingCalories: optNum(o.declaredPerServingCalories)
   };
 }
 
@@ -185,7 +182,7 @@ export async function scanRecipe(
 ): Promise<ScannedRecipe> {
   const served = await viaServer(RECIPE_SYSTEM_PROMPT, "Extract this recipe as JSON.", {
     media_type: mediaType,
-    data: base64,
+    data: base64
   });
   if (served) return parseRecipe(served);
 
@@ -203,9 +200,9 @@ export async function scanRecipe(
           content: [
             { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
             { type: "text", text: "Extract this recipe as JSON." },
-          ],
+          ]
         },
-      ],
+      ]
     });
   } catch (e) {
     const err = e as { status?: number; message?: string };
@@ -233,7 +230,7 @@ export async function buildRecipeFromText(apiKey: string, text: string): Promise
       model: MODEL,
       max_tokens: 4096,
       system: TEXT_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: `Here is the recipe text:\n\n${text}\n\nBuild it into a recipe as JSON.` }],
+      messages: [{ role: "user", content: `Here is the recipe text:\n\n${text}\n\nBuild it into a recipe as JSON.` }]
     });
   } catch (e) {
     const err = e as { status?: number; message?: string };
@@ -300,17 +297,16 @@ function recipeFromTable(table: FoodTable): ScannedRecipe {
     protein: r.protein,
     carbs: r.carbs,
     fat: r.fat,
-    note: r.note,
+    note: r.note
   }));
   return {
     name: table.title ?? "Pasted food list",
-    emoji: "🍽️",
     servings: table.servings && table.servings > 0 ? table.servings : 1,
     meal: "dinner",
     ingredients,
     steps: [],
     declaredTotalCalories: table.declaredTotalCalories,
-    declaredPerServingCalories: table.declaredPerServingCalories,
+    declaredPerServingCalories: table.declaredPerServingCalories
   };
 }
 
@@ -374,12 +370,12 @@ export function parseTextLocally(text: string): ScannedRecipe {
           pulled.calories !== undefined && quantized > 0
             ? Math.round((pulled.calories / quantized) * 100) / 100
             : undefined,
-        note,
+        note
       };
     })
     .filter((i): i is ScannedRecipeIngredient => i !== null);
 
-  return { name, emoji: "\ud83c\udf7d\ufe0f", servings: servings && servings > 0 ? servings : 1, meal: "dinner", ingredients, steps: [] };
+  return { name, servings: servings && servings > 0 ? servings : 1, meal: "dinner", ingredients, steps: [] };
 }
 
 export function demoScanRecipe(): Promise<ScannedRecipe> {
@@ -388,7 +384,6 @@ export function demoScanRecipe(): Promise<ScannedRecipe> {
       () =>
         resolve({
           name: "Tofu & Veggie Rice Bowl",
-          emoji: "🍚",
           servings: 2,
           meal: "dinner",
           ingredients: [
@@ -404,7 +399,7 @@ export function demoScanRecipe(): Promise<ScannedRecipe> {
             "Pan-fry cubed tofu in sesame oil until golden.",
             "Add minced garlic and Yangnyeom sauce; toss to coat.",
             "Serve over rice with fresh arugula.",
-          ],
+          ]
         }),
       1100,
     ),

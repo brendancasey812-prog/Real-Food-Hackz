@@ -6,7 +6,7 @@ export const MEAL_TIME: Record<MealType, { start: number; end: number }> = {
   lunch: { start: 12.5, end: 13.25 },
   snack: { start: 15.5, end: 16 },
   dinner: { start: 19, end: 20 },
-  extra: { start: 21.5, end: 22 },
+  extra: { start: 21.5, end: 22 }
 };
 
 /** One calm color per meal slot — muted enough to sit in a dense calendar
@@ -20,7 +20,7 @@ export const MEAL_COLOR: Record<
   lunch: { block: "bg-meal-lunch text-on-accent", dot: "bg-meal-lunch", soft: "bg-meal-lunch/20 text-meal-lunch-soft" },
   snack: { block: "bg-meal-snack text-on-accent", dot: "bg-meal-snack", soft: "bg-meal-snack/20 text-meal-snack-soft" },
   dinner: { block: "bg-meal-dinner text-on-accent", dot: "bg-meal-dinner", soft: "bg-meal-dinner/20 text-meal-dinner-soft" },
-  extra: { block: "bg-meal-extra text-on-accent", dot: "bg-meal-extra", soft: "bg-meal-extra/20 text-meal-extra-soft" },
+  extra: { block: "bg-meal-extra text-on-accent", dot: "bg-meal-extra", soft: "bg-meal-extra/20 text-meal-extra-soft" }
 };
 
 /** Solid color for free-form (non-recipe) calendar events. */

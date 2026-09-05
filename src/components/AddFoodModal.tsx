@@ -21,14 +21,13 @@ const LOCATIONS: { value: Location; label: string }[] = [
 export function AddFoodModal({
   context,
   defaultLocation = "fridge",
-  onClose,
+  onClose
 }: {
   context: "kitchen" | "grocery";
   defaultLocation?: Location;
   onClose: () => void;
 }) {
   const { addFood, addManualGrocery } = useApp();
-  const [emoji, setEmoji] = useState("🍽️");
   const [name, setName] = useState("");
   const [unit, setUnit] = useState<Unit>("each");
   const [calories, setCalories] = useState(100);
@@ -52,8 +51,7 @@ export function AddFoodModal({
         carbs: Math.max(0, carbs),
         fat: Math.max(0, fat),
         location,
-        category,
-        emoji: emoji || "🍽️",
+        category
       },
       context === "kitchen" ? quantity : 0,
     );
@@ -76,12 +74,7 @@ export function AddFoodModal({
         </div>
 
         <div className="space-y-4">
-          <div className="flex gap-3">
-            <input
-              value={emoji}
-              onChange={(e) => setEmoji(e.target.value)}
-              className="w-14 rounded-lg field px-2 py-2 text-center text-xl"
-            />
+          <div>
             <input
               autoFocus
               value={name}

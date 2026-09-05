@@ -2,12 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { addWeeks } from "date-fns";
-import { DollarSign, Search, Store as StoreIcon, Copy, RotateCcw, TriangleAlert } from "lucide-react";
+import { DollarSign, Store as StoreIcon, Copy, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useApp, neededQuantities } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
-import { unitLabel } from "@/lib/units";
-import { FOOD_CATEGORIES, FOOD_CATEGORY_LABEL } from "@/lib/foodcat";
 import {
   BASE_STORE_ID,
   priceFor,
@@ -18,12 +16,10 @@ import {
   quantitiesCost,
   inventoryValue,
   isComplete,
-  type CostTotals,
+  type CostTotals
 } from "@/lib/cost";
-import type { FoodCategory } from "@/lib/types";
 import { SettingsButton } from "@/components/SettingsButton";
-import { CostShelves } from "@/components/CostShelves";
-import { ViewToggle } from "@/components/shelf";
+import { FoodShelves } from "@/components/FoodShelves";
 
 /** A money figure that says out loud when it is missing prices. */
 function Money({ t, className = "" }: { t: CostTotals; className?: string }) {
@@ -46,13 +42,10 @@ function Money({ t, className = "" }: { t: CostTotals; className?: string }) {
 export default function Costs() {
   const {
     foods, recipes, plan, inventory, prices, stores, selectedStoreId,
-    selectStore, setPrice, seedStorePricesFromBase,
+    selectStore, seedStorePricesFromBase
   } = useApp();
 
-  const [query, setQuery] = useState("");
-  const [cat, setCat] = useState<FoodCategory | "all">("all");
   const [copied, setCopied] = useState<number | null>(null);
-  const [view, setView] = useState<"shelves" | "list">("shelves");
 
   const storeName =
     selectedStoreId === BASE_STORE_ID
@@ -81,31 +74,13 @@ export default function Costs() {
     return { priced, total: foods.length };
   }, [foods, prices, selectedStoreId]);
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return foods
-      .filter((f) => (cat === "all" ? true : f.category === cat))
-      .filter((f) => (q ? f.name.toLowerCase().includes(q) : true))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [foods, query, cat]);
-
-  const byCategory = useMemo(() => {
-    const map = new Map<FoodCategory, typeof visible>();
-    for (const f of visible) {
-      const list = map.get(f.category) ?? [];
-      list.push(f);
-      map.set(f.category, list);
-    }
-    return map;
-  }, [visible]);
-
   const recipeRows = useMemo(
     () =>
       recipes
         .map((r) => ({
           recipe: r,
           total: recipeTotalCost(r, recipes, prices, selectedStoreId),
-          per: recipeCostPerServing(r, recipes, prices, selectedStoreId),
+          per: recipeCostPerServing(r, recipes, prices, selectedStoreId)
         }))
         .sort((a, b) => b.per.cost - a.per.cost),
     [recipes, prices, selectedStoreId],
@@ -178,120 +153,8 @@ export default function Costs() {
         </div>
       )}
 
-      {/* --- The repository itself --- */}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-48">
-          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search ingredients…"
-            className="field w-full rounded-xl py-2 pl-9 pr-3 text-sm"
-          />
-        </div>
-        <select
-          value={cat}
-          onChange={(e) => setCat(e.target.value as FoodCategory | "all")}
-          className="field rounded-xl px-3 py-2 text-sm"
-        >
-          <option value="all">All categories</option>
-          {FOOD_CATEGORIES.map((c) => (
-            <option key={c.key} value={c.key}>
-              {c.emoji} {c.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <ViewToggle
-        value={view}
-        onChange={setView}
-        options={[["shelves", "Shelves"], ["list", "List"]] as const}
-      />
-
-      {visible.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-line-2 py-16 text-center text-sm text-muted">
-          No ingredients match that search.
-        </div>
-      ) : view === "shelves" ? (
-        <CostShelves
-          foods={visible}
-          prices={prices}
-          storeId={selectedStoreId}
-          storeName={storeName}
-          onSet={(foodId, v) => setPrice(selectedStoreId, foodId, v)}
-        />
-      ) : (
-        <div className="space-y-5">
-          {FOOD_CATEGORIES.filter((c) => byCategory.has(c.key)).map((c) => (
-            <section key={c.key}>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
-                {c.emoji} {FOOD_CATEGORY_LABEL[c.key]}
-              </h2>
-              <div className="overflow-hidden rounded-2xl card">
-                {byCategory.get(c.key)!.map((f) => {
-                  const own = prices.find(
-                    (p) => p.storeId === selectedStoreId && p.foodId === f.id,
-                  );
-                  const effective = priceFor(prices, selectedStoreId, f.id);
-                  return (
-                    <div
-                      key={f.id}
-                      className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-0"
-                    >
-                      <span className="w-6 shrink-0 text-center">{f.emoji}</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm leading-tight">{f.name}</div>
-                        <div className="text-[11px] text-muted">
-                          {f.caloriesPerUnit} cal / {unitLabel(f.unit)}
-                          {effective && effective.source === "base" && selectedStoreId !== BASE_STORE_ID && (
-                            <span className="ml-2 text-sea-soft">using base price</span>
-                          )}
-                          {!effective && (
-                            <span className="ml-2 text-warn-soft">no price yet</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        <span className="text-muted">$</span>
-                        <input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          inputMode="decimal"
-                          value={own ? own.pricePerUnit : ""}
-                          placeholder={
-                            effective && effective.source === "base"
-                              ? effective.pricePerUnit.toFixed(2)
-                              : "0.00"
-                          }
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setPrice(selectedStoreId, f.id, v === "" ? null : Number(v));
-                          }}
-                          className="field w-20 rounded-lg px-2 py-1.5 text-right text-sm tabular-nums sm:w-24"
-                          aria-label={`Price per ${unitLabel(f.unit)} of ${f.name}`}
-                        />
-                        <span className="w-9 text-left text-[11px] text-muted sm:w-12 sm:text-xs">
-                          /{unitLabel(f.unit)}
-                        </span>
-                        <button
-                          onClick={() => setPrice(selectedStoreId, f.id, null)}
-                          disabled={!own}
-                          title={own ? "Clear this price" : "No price set here"}
-                          className="hidden rounded-lg p-1.5 text-faint enabled:hover:bg-surface-3 enabled:hover:text-ink-2 disabled:opacity-30 sm:block"
-                        >
-                          <RotateCcw size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-        </div>
-      )}
+      {/* --- The repository itself: the same shelves the other two tabs use --- */}
+      <FoodShelves mode="price" foods={foods} />
 
       {/* --- What that costs, per recipe --- */}
       <section className="mt-8">
@@ -310,7 +173,7 @@ export default function Costs() {
           {recipeRows.map(({ recipe, total, per }) => (
             <div key={recipe.id} className="flex items-center gap-3 border-b border-line px-4 py-2.5 text-sm last:border-0">
               <span className="min-w-0 flex-1 truncate">
-                {recipe.emoji} {recipe.name}
+                {recipe.name}
                 <span className="ml-2 text-[11px] text-muted">{recipe.servings} servings</span>
               </span>
               <span className="w-28 text-right tabular-nums">

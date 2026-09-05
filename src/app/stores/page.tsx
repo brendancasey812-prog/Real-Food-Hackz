@@ -5,13 +5,13 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   MapPin, Crosshair, Search, Plus, Trash2, Check, LocateFixed,
-  TriangleAlert, Store as StoreIcon, X,
+  TriangleAlert, Store as StoreIcon, X
 } from "lucide-react";
 import { useApp, newId } from "@/lib/store";
 import { BASE_STORE_ID, priceFor, fmtMoney, plannedCost } from "@/lib/cost";
 import {
   geocode, nearbyStores, currentPosition, distanceMi, fmtDistance,
-  addressQuery, geoMessage, type LatLng, type NearbyStore,
+  addressQuery, geoMessage, type LatLng, type NearbyStore
 } from "@/lib/geo";
 import { weekDays, isoOf } from "@/lib/week";
 import type { Store } from "@/lib/types";
@@ -25,7 +25,7 @@ const StoreMap = dynamic(() => import("@/components/StoreMap").then((m) => m.Sto
     <div className="flex h-72 items-center justify-center rounded-2xl card text-sm text-muted md:h-96">
       Loading map…
     </div>
-  ),
+  )
 });
 
 const BLANK = { name: "", address: "", city: "", state: "", zip: "" };
@@ -33,7 +33,7 @@ const BLANK = { name: "", address: "", city: "", state: "", zip: "" };
 export default function Stores() {
   const {
     stores, prices, foods, recipes, plan, selectedStoreId, home,
-    addStore, updateStore, removeStore, selectStore, setHome, seedStorePricesFromBase,
+    addStore, updateStore, removeStore, selectStore, setHome, seedStorePricesFromBase
   } = useApp();
 
   const [origin, setOrigin] = useState<LatLng | null>(
@@ -122,8 +122,7 @@ export default function Stores() {
       zip: c.zip ?? "",
       lat: c.lat,
       lng: c.lng,
-      emoji: "🛒",
-      source: "search",
+      source: "search"
     };
     addStore(store);
     setCandidates((list) => list.filter((x) => x.osmId !== c.osmId));
@@ -139,8 +138,7 @@ export default function Stores() {
       city: form.city.trim(),
       state: form.state.trim(),
       zip: form.zip.trim(),
-      emoji: "🛒",
-      source: "manual",
+      source: "manual"
     };
     addStore(store);
     setForm(null);
@@ -195,7 +193,7 @@ export default function Stores() {
               ? distanceMi(origin, { lat: s.lat, lng: s.lng })
               : null,
           coverage: foods.filter((f) => priceFor(prices, s.id, f.id) !== null).length,
-          week: plannedCost(weekMeals, recipes, prices, s.id),
+          week: plannedCost(weekMeals, recipes, prices, s.id)
         }))
         .sort((a, b) => {
           if (a.dist == null && b.dist == null) return a.store.name.localeCompare(b.store.name);
@@ -215,7 +213,7 @@ export default function Stores() {
         lng: s.lng!,
         label: s.name,
         sub: [s.address, s.city, s.state].filter(Boolean).join(", ") || undefined,
-        selected: s.id === selectedStoreId,
+        selected: s.id === selectedStoreId
       }));
     const found: MapMarker[] = candidates.map((c) => ({
       id: `cand:${c.osmId}`,
@@ -223,7 +221,7 @@ export default function Stores() {
       lng: c.lng,
       label: c.name,
       sub: `${fmtDistance(c.distanceMi)} away — click to save`,
-      candidate: true,
+      candidate: true
     }));
     return [...saved, ...found];
   }, [stores, candidates, selectedStoreId]);
@@ -345,8 +343,7 @@ export default function Stores() {
               const already = savedKeys.has(`${c.name.toLowerCase()}|${(c.zip || "").trim()}`);
               return (
                 <div key={c.osmId} className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-0">
-                  <span className="w-6 shrink-0 text-center">🛒</span>
-                  <div className="min-w-0 flex-1">
+                                    <div className="min-w-0 flex-1">
                     <div className="truncate text-sm">{c.name}</div>
                     <div className="truncate text-[11px] text-muted">
                       {[c.address, c.city, c.state, c.zip].filter(Boolean).join(", ") || c.kind}
@@ -415,9 +412,6 @@ export default function Stores() {
                   }`}
                 >
                   <button onClick={() => pick(s.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-2">
-                      {s.emoji}
-                    </span>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm">{s.name}</div>
                       <div className="truncate text-[11px] text-muted">

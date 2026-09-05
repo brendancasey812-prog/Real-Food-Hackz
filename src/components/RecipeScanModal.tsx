@@ -87,7 +87,7 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
               caloriesPerUnit: round2(ing.caloriesPerUnit / factor),
               protein: existing.protein || round2((ing.protein ?? 0) / factor),
               carbs: existing.carbs || round2((ing.carbs ?? 0) / factor),
-              fat: existing.fat || round2((ing.fat ?? 0) / factor),
+              fat: existing.fat || round2((ing.fat ?? 0) / factor)
             });
           }
           return { foodId: existing.id, quantity };
@@ -104,14 +104,13 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
           fat: round2(ing.fat ?? 0),
           location: map.location,
           category: map.category,
-          emoji: map.emoji,
           source: "manual",
-          notes: ing.note,
+          notes: ing.note
         });
         return { foodId: id, quantity: ing.quantity };
       });
     addRecipe(
-      { id: newId(), name: recipe.name.trim(), emoji: recipe.emoji || "🍽️", servings: Math.max(1, recipe.servings), ingredients, steps: recipe.steps, category: recipe.meal },
+      { id: newId(), name: recipe.name.trim(), servings: Math.max(1, recipe.servings), ingredients, steps: recipe.steps, category: recipe.meal },
       newFoods,
     );
     setStep("done");
@@ -188,10 +187,7 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
               {notice && (
                 <p className="rounded-lg border border-warn/40 bg-warn/12 px-3 py-2 text-xs text-warn-soft">{notice}</p>
               )}
-              <div className="flex gap-3">
-                <input value={recipe.emoji} onChange={(e) => patch({ emoji: e.target.value })} className="w-14 rounded-lg field px-2 py-2 text-center text-xl" />
-                <input value={recipe.name} onChange={(e) => patch({ name: e.target.value })} className="flex-1 rounded-lg field px-3 py-2 font-medium" />
-              </div>
+              <input value={recipe.name} onChange={(e) => patch({ name: e.target.value })} className="w-full rounded-lg field px-3 py-2 font-medium" />
               <div className="flex flex-wrap items-center gap-4 text-sm">
                 <label className="flex items-center gap-2"><span className="text-muted">Servings</span>
                   <input type="number" value={recipe.servings} onChange={(e) => patch({ servings: Number(e.target.value) })} className="w-20 rounded-lg field px-2 py-1.5" />

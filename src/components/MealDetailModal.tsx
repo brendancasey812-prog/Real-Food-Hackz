@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { X, Pencil, Flame, Trash2, Plus, Search, Check, ArrowLeft } from "lucide-react";
 import {
-  useApp, newId, foodById, ingredientCalories, componentCalories,
+  useApp, newId, foodById, ingredientCalories, componentCalories
 } from "@/lib/store";
 import { pluralUnit, fmtQty } from "@/lib/units";
 import { mealStart, clockLabel } from "@/lib/mealtime";
@@ -12,7 +12,6 @@ import type { Food, RecipeIngredient, RecipeComponent } from "@/lib/types";
 
 interface Draft {
   name: string;
-  emoji: string;
   servings: number;
   ingredients: RecipeIngredient[];
   components: RecipeComponent[];
@@ -37,10 +36,9 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
   const startEdit = () => {
     setDraft({
       name: recipe.name,
-      emoji: recipe.emoji,
       servings: recipe.servings,
       ingredients: recipe.ingredients.map((i) => ({ ...i })),
-      components: (recipe.components ?? []).map((c) => ({ ...c })),
+      components: (recipe.components ?? []).map((c) => ({ ...c }))
     });
     setEditing(true);
   };
@@ -67,13 +65,13 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
 
   const saveExisting = () => {
     if (!draft) return;
-    updateRecipe({ ...recipe, name: draft.name.trim() || recipe.name, emoji: draft.emoji || "🍽️", servings: Math.max(1, draft.servings), ingredients: draft.ingredients, components: draft.components.length ? draft.components : undefined });
+    updateRecipe({ ...recipe, name: draft.name.trim() || recipe.name, servings: Math.max(1, draft.servings), ingredients: draft.ingredients, components: draft.components.length ? draft.components : undefined });
     onClose();
   };
   const saveAsNew = () => {
     if (!draft) return;
     const id = newId();
-    addRecipe({ id, name: (draft.name.trim() || recipe.name), emoji: draft.emoji || "🍽️", servings: Math.max(1, draft.servings), ingredients: draft.ingredients, components: draft.components.length ? draft.components : undefined, steps: recipe.steps, category: recipe.category });
+    addRecipe({ id, name: (draft.name.trim() || recipe.name), servings: Math.max(1, draft.servings), ingredients: draft.ingredients, components: draft.components.length ? draft.components : undefined, steps: recipe.steps, category: recipe.category });
     updatePlannedMeal(meal.id, { recipeId: id });
     onClose();
   };
@@ -116,7 +114,6 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
           {editing && draft ? (
             <div className="mb-4 space-y-3">
               <div className="flex gap-2">
-                <input value={draft.emoji} onChange={(e) => patchDraft({ emoji: e.target.value })} className="w-14 rounded-lg field px-2 py-2 text-center text-xl" />
                 <input value={draft.name} onChange={(e) => patchDraft({ name: e.target.value })} className="flex-1 rounded-lg field px-3 py-2 font-medium" />
               </div>
               <label className="flex items-center gap-2 text-sm">
@@ -126,7 +123,6 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
             </div>
           ) : (
             <div className="mb-4 flex items-center gap-3">
-              <span className="text-3xl">{recipe.emoji}</span>
               <div className="min-w-0">
                 <h3 className="truncate font-semibold">{recipe.name}</h3>
                 <p className="text-xs text-muted">
@@ -147,7 +143,6 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
                   const cal = componentCalories(c, foods, recipes);
                   return (
                     <div key={c.recipeId} className="flex items-center gap-2 border-b border-line px-3 py-2.5 text-sm last:border-0">
-                      <span className="shrink-0">{sub?.emoji ?? "🍽️"}</span>
                       <span className="min-w-0 flex-1 truncate font-medium text-accent-soft">{sub?.name ?? "Unknown recipe"}</span>
                       {editing && draft ? (
                         <>
@@ -166,8 +161,8 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
               </div>
               {editing && draft && addableRecipes.length > 0 && (
                 <select value="" onChange={(e) => { if (e.target.value) addComp(e.target.value); }} className="mt-2 w-full rounded-lg field px-2 py-2 text-sm">
-                  <option value="">➕ Add a recipe to this meal…</option>
-                  {addableRecipes.map((r) => <option key={r.id} value={r.id}>{r.emoji} {r.name}</option>)}
+                  <option value="">Add a recipe to this meal…</option>
+                  {addableRecipes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
               )}
             </div>
@@ -185,7 +180,6 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
               const cal = ingredientCalories(ing, foods);
               return (
                 <div key={ing.foodId} className="flex items-center gap-2 border-b border-line px-3 py-2.5 text-sm last:border-0">
-                  <span className="shrink-0">{f?.emoji ?? "🍽️"}</span>
                   <span className="min-w-0 flex-1 truncate">{f?.name ?? ing.foodId}</span>
                   {editing && draft ? (
                     <>
@@ -222,7 +216,7 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
                     {addable.length === 0 && <p className="px-2 py-3 text-center text-xs text-muted">No matching ingredients.</p>}
                     {addable.slice(0, 40).map((f: Food) => (
                       <button key={f.id} onClick={() => addIng(f.id)} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-ink hover:bg-accent-wash">
-                        <span>{f.emoji}</span> <span className="truncate">{f.name}</span>
+                        <span className="truncate">{f.name}</span>
                       </button>
                     ))}
                   </div>

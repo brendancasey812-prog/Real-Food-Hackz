@@ -4,7 +4,7 @@ import { Search, X, ListFilter } from "lucide-react";
 
 /** Search box + a tab-specific filter dropdown, used on Kitchen, Cookbook, Planner. */
 export function SearchFilterBar({
-  query, onQuery, options, value, onValue, placeholder = "Search…",
+  query, onQuery, options, value, onValue, placeholder = "Search…"
 }: {
   query: string;
   onQuery: (v: string) => void;

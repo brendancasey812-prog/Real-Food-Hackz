@@ -43,7 +43,7 @@ function parseScan(text: string): ScanResult {
       variant: i.variant ? String(i.variant).trim() : "",
       quantity: Number(i.quantity) > 0 ? Number(i.quantity) : 1,
       unit: i.unit,
-      estimated: Boolean(i.estimated),
+      estimated: Boolean(i.estimated)
     }));
   if (clean.length === 0) {
     throw new ReceiptError(
@@ -72,9 +72,9 @@ export async function scanReceipt(
           content: [
             { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
             { type: "text", text: "Extract the food items from this receipt as JSON." },
-          ],
+          ]
         },
-      ],
+      ]
     });
   } catch (e) {
     const err = e as { status?: number; message?: string };
@@ -113,7 +113,7 @@ export function demoScan(): Promise<ScanResult> {
           excluded_items: [
             { raw_text: "BAG FEE 0.10", reason: "Not a food item (bag fee)" },
             { raw_text: "COUPON -1.50", reason: "Discount, not a purchased item" },
-          ],
+          ]
         }),
       1100,
     ),
@@ -135,12 +135,12 @@ export function normalizeName(name: string): string {
 
 const CATEGORY_MAP: Record<
   ScannedItem["category"],
-  { category: FoodCategory; location: Location; emoji: string }
+  { category: FoodCategory; location: Location }
 > = {
-  Protein: { category: "protein", location: "fridge", emoji: "🥩" },
-  Fruit: { category: "fruit", location: "fridge", emoji: "🍎" },
-  Veggie: { category: "vegetable", location: "fridge", emoji: "🥦" },
-  Pantry: { category: "condiment", location: "pantry", emoji: "🥫" },
+  Protein: { category: "protein", location: "fridge"},
+  Fruit: { category: "fruit", location: "fridge"},
+  Veggie: { category: "vegetable", location: "fridge"},
+  Pantry: { category: "condiment", location: "pantry"}
 };
 
 /**

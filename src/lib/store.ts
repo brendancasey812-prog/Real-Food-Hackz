@@ -13,7 +13,7 @@ import type {
   Recipe,
   ScannedItem,
   Store,
-  HomeLocation,
+  HomeLocation
 } from "./types";
 import { seedData } from "./seed";
 import { normalizeName, mapCategory, unitForNewFood, convertToUnit } from "./receipt";
@@ -75,7 +75,7 @@ export function blankMember(name: string, goals: AppData["goals"]): Member {
     heightIn: 66,
     weightLb: 150,
     age: 30,
-    goals: { ...goals },
+    goals: { ...goals }
   };
 }
 
@@ -102,7 +102,7 @@ export const useApp = create<AppState>()(
           manualGroceries: s.manualGroceries.filter((m) => m.foodId !== foodId),
           history: s.history.filter((h) => h.foodId !== foodId),
           prices: s.prices.filter((pr) => pr.foodId !== foodId),
-          recipes: s.recipes.map((r) => ({ ...r, ingredients: r.ingredients.filter((ing) => ing.foodId !== foodId) })),
+          recipes: s.recipes.map((r) => ({ ...r, ingredients: r.ingredients.filter((ing) => ing.foodId !== foodId) }))
         })),
 
       addFood: (food, startQty = 0) =>
@@ -110,13 +110,13 @@ export const useApp = create<AppState>()(
           if (s.foods.some((f) => f.id === food.id)) return s;
           return {
             foods: [...s.foods, food],
-            inventory: [...s.inventory, { foodId: food.id, quantity: Math.max(0, startQty) }],
+            inventory: [...s.inventory, { foodId: food.id, quantity: Math.max(0, startQty) }]
           };
         }),
 
       updateFood: (foodId, patch) =>
         set((s) => ({
-          foods: s.foods.map((f) => (f.id === foodId ? { ...f, ...patch } : f)),
+          foods: s.foods.map((f) => (f.id === foodId ? { ...f, ...patch } : f))
         })),
 
       addRecipe: (recipe, newFoods = []) =>
@@ -130,19 +130,19 @@ export const useApp = create<AppState>()(
               ...s.inventory,
               ...freshFoods.map((f) => ({ foodId: f.id, quantity: 0 })),
             ],
-            recipes: [...s.recipes, recipe],
+            recipes: [...s.recipes, recipe]
           };
         }),
 
       updateRecipe: (recipe) =>
         set((s) => ({
-          recipes: s.recipes.map((r) => (r.id === recipe.id ? recipe : r)),
+          recipes: s.recipes.map((r) => (r.id === recipe.id ? recipe : r))
         })),
 
       removeRecipe: (id) =>
         set((s) => ({
           recipes: s.recipes.filter((r) => r.id !== id),
-          plan: s.plan.filter((p) => p.recipeId !== id),
+          plan: s.plan.filter((p) => p.recipeId !== id)
         })),
 
       addPlannedMeal: (meal) => set((s) => ({ plan: [...s.plan, meal] })),
@@ -173,12 +173,12 @@ export const useApp = create<AppState>()(
           manualGroceries: [
             ...s.manualGroceries,
             { id: uid(), foodId, quantity: Math.max(0, quantity) },
-          ],
+          ]
         })),
 
       removeManualGrocery: (id) =>
         set((s) => ({
-          manualGroceries: s.manualGroceries.filter((m) => m.id !== id),
+          manualGroceries: s.manualGroceries.filter((m) => m.id !== id)
         })),
 
       setGoals: (patch) => set((s) => ({ goals: { ...s.goals, ...patch } })),
@@ -196,7 +196,7 @@ export const useApp = create<AppState>()(
           if (mode === "couple") {
             return {
               householdMode: mode,
-              members: members.length ? [members[0]] : [blankMember("Partner", s.goals)],
+              members: members.length ? [members[0]] : [blankMember("Partner", s.goals)]
             };
           }
           return { householdMode: mode, members: members.length ? members : [blankMember("Member 2", s.goals)] };
@@ -213,7 +213,7 @@ export const useApp = create<AppState>()(
 
       updateStore: (id, patch) =>
         set((s) => ({
-          stores: (s.stores ?? []).map((st) => (st.id === id ? { ...st, ...patch } : st)),
+          stores: (s.stores ?? []).map((st) => (st.id === id ? { ...st, ...patch } : st))
         })),
 
       removeStore: (id) =>
@@ -221,7 +221,7 @@ export const useApp = create<AppState>()(
           stores: (s.stores ?? []).filter((st) => st.id !== id),
           // Drop that store's prices, and fall back to base prices if it was selected.
           prices: (s.prices ?? []).filter((pr) => pr.storeId !== id),
-          selectedStoreId: s.selectedStoreId === id ? BASE_STORE_ID : s.selectedStoreId,
+          selectedStoreId: s.selectedStoreId === id ? BASE_STORE_ID : s.selectedStoreId
         })),
 
       selectStore: (id) => set({ selectedStoreId: id }),
@@ -240,9 +240,9 @@ export const useApp = create<AppState>()(
                 storeId,
                 foodId,
                 pricePerUnit: Math.round(pricePerUnit * 1e4) / 1e4,
-                updatedAt: new Date().toISOString().slice(0, 10),
+                updatedAt: new Date().toISOString().slice(0, 10)
               },
-            ],
+            ]
           };
         }),
 
@@ -302,8 +302,8 @@ export const useApp = create<AppState>()(
             const qty = convertToUnit(item.quantity, item.unit, unit) ?? item.quantity;
             foods.push({
               id, name: item.food, unit, caloriesPerUnit: 0, protein: 0, carbs: 0, fat: 0,
-              location: map.location, category: map.category, emoji: map.emoji,
-              source: "receipt_scan", notes: item.variant || undefined,
+              location: map.location, category: map.category,
+              source: "receipt_scan", notes: item.variant || undefined
             });
             inventory.push({ foodId: id, quantity: qty });
             history.push({ id: uid(), foodId: id, date: today, quantity: item.quantity, unit: item.unit, source: "receipt_scan" });
@@ -315,7 +315,7 @@ export const useApp = create<AppState>()(
         return { merged, added, skipped };
       },
 
-      resetToSeed: () => set({ ...seedData }),
+      resetToSeed: () => set({ ...seedData })
     }),
     {
       name: "mealplan-store-v6",
@@ -403,9 +403,9 @@ export const useApp = create<AppState>()(
           stores: s.stores ?? [],
           prices: s.prices?.length ? s.prices : seedData.prices,
           selectedStoreId: s.selectedStoreId ?? seedData.selectedStoreId,
-          home: { ...seedData.home, ...(s.home ?? {}) },
+          home: { ...seedData.home, ...(s.home ?? {}) }
         } as AppData;
-      },
+      }
     },
   ),
 );
@@ -429,7 +429,7 @@ export function combinedGoals(eaters: Eater[]): AppData["goals"] {
       dailyCalorieTarget: acc.dailyCalorieTarget + e.goals.dailyCalorieTarget,
       proteinTarget: acc.proteinTarget + e.goals.proteinTarget,
       carbsTarget: acc.carbsTarget + e.goals.carbsTarget,
-      fatTarget: acc.fatTarget + e.goals.fatTarget,
+      fatTarget: acc.fatTarget + e.goals.fatTarget
     }),
     { dailyCalorieTarget: 0, proteinTarget: 0, carbsTarget: 0, fatTarget: 0 },
   );
@@ -455,7 +455,7 @@ export function exportData(s: AppState = useApp.getState()): AppData {
     stores: s.stores ?? [],
     prices: s.prices ?? [],
     selectedStoreId: s.selectedStoreId ?? BASE_STORE_ID,
-    home: s.home ?? { city: "", state: "", zip: "" },
+    home: s.home ?? { city: "", state: "", zip: "" }
   };
 }
 
@@ -473,7 +473,7 @@ export function importData(data: Partial<AppData>) {
     stores: data.stores ?? [],
     prices: data.prices?.length ? data.prices : seedData.prices,
     selectedStoreId: data.selectedStoreId ?? BASE_STORE_ID,
-    home: { ...seedData.home, ...(data.home ?? {}) },
+    home: { ...seedData.home, ...(data.home ?? {}) }
   });
 }
 
@@ -545,7 +545,7 @@ export function recipeTotalsPerServing(recipe: Recipe, foods: Food[], recipes: R
     calories: Math.round(p.calories),
     protein: Math.round(p.protein),
     carbs: Math.round(p.carbs),
-    fat: Math.round(p.fat),
+    fat: Math.round(p.fat)
   };
 }
 

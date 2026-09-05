@@ -13,14 +13,14 @@ import {
   endOfMonth,
   startOfWeek,
   getHours,
-  getMinutes,
+  getMinutes
 } from "date-fns";
 import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, CalendarDays, Search, CalendarPlus, UtensilsCrossed, Eraser } from "lucide-react";
 import { useApp, recipeTotalsPerServing, newId } from "@/lib/store";
 import { weekDays, isoOf, monthGrid, MEAL_ORDER, MEAL_LABEL } from "@/lib/week";
 import {
   MEAL_COLOR, EVENT_COLOR, mealStart, mealEnd, snapHour,
-  START_HOUR, END_HOUR, HOUR_PX, formatHour, clockLabel,
+  START_HOUR, END_HOUR, HOUR_PX, formatHour, clockLabel
 } from "@/lib/mealtime";
 import { MealDetailModal } from "@/components/MealDetailModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -36,7 +36,7 @@ export default function Planner() {
   const {
     recipes, foods, plan, events,
     addPlannedMeal, updatePlannedMeal, removePlannedMeal, clearMeals,
-    addEvent, updateEvent, removeEvent, members, householdMode,
+    addEvent, updateEvent, removeEvent, members, householdMode
   } = useApp();
   // Couple/family: one recipe should feed everyone, so default the servings.
   const householdSize = householdMode === "individual" ? 1 : 1 + (members?.length ?? 0);
@@ -93,7 +93,7 @@ export default function Planner() {
       const e = (events ?? []).find((x) => x.id === id);
       setConfirmRemove({ kind: "event", id, name: e?.title ?? "this event" });
     },
-    onMoveItem: moveItem,
+    onMoveItem: moveItem
   };
 
   return (
@@ -304,7 +304,7 @@ function layoutOverlaps(items: Block[]): Block[] {
 }
 
 function TimeGrid({
-  days, recipes, foods, dayMeals, dayEvents, query, mealFilter, onEmpty, onOpenMeal, onRemoveMeal, onRemoveEvent, onMoveItem,
+  days, recipes, foods, dayMeals, dayEvents, query, mealFilter, onEmpty, onOpenMeal, onRemoveMeal, onRemoveEvent, onMoveItem
 }: {
   days: Date[];
   recipes: Recipe[];
@@ -423,7 +423,7 @@ function TimeGrid({
     gestureRef.current = {
       mode: "move", kind, id, durH: end - start, grab: hour - start,
       dayIndex: idx, startHour: start, endHour: end, block, label,
-      px: e.clientX, py: e.clientY, moved: false, mouse: e.pointerType === "mouse",
+      px: e.clientX, py: e.clientY, moved: false, mouse: e.pointerType === "mouse"
     };
   };
   const startResize = (e: React.PointerEvent, kind: ItemKind, id: string, start: number, end: number, block: string, label: string) => {
@@ -433,7 +433,7 @@ function TimeGrid({
     gestureRef.current = {
       mode: "resize", kind, id, durH: end - start, grab: 0,
       dayIndex: idx, startHour: start, endHour: end, block, label,
-      px: e.clientX, py: e.clientY, moved: false, mouse: e.pointerType === "mouse",
+      px: e.clientX, py: e.clientY, moved: false, mouse: e.pointerType === "mouse"
     };
   };
   const startCreate = (e: React.PointerEvent) => {
@@ -443,7 +443,7 @@ function TimeGrid({
     gestureRef.current = {
       mode: "create", durH: 1, grab: 0, dayIndex: idx, startHour: s, endHour: s + 0.5,
       block: "bg-accent text-on-accent", label: "New",
-      px: e.clientX, py: e.clientY, moved: false, mouse: true,
+      px: e.clientX, py: e.clientY, moved: false, mouse: true
     };
     e.preventDefault();
   };
@@ -514,7 +514,7 @@ function TimeGrid({
                     return {
                       key: ev.id, kind: "event", id: ev.id, start: ev.start, end: ev.end,
                       block: EVENT_COLOR.block, title: ev.title, sub: `${clockLabel(ev.start)} – ${clockLabel(ev.end)}`,
-                      onRemove: () => onRemoveEvent(ev.id), dimmed: filterOn && !matches, left: 0, width: 1,
+                      onRemove: () => onRemoveEvent(ev.id), dimmed: filterOn && !matches, left: 0, width: 1
                     };
                   }),
                   ...meals.map((m): Block | null => {
@@ -525,8 +525,8 @@ function TimeGrid({
                     const matches = (query ? r.name.toLowerCase().includes(query) : true) && (mealFilter === "all" || m.mealType === mealFilter);
                     return {
                       key: m.id, kind: "meal", id: m.id, start, end,
-                      block: MEAL_COLOR[m.mealType].block, title: `${r.emoji} ${r.name}`, sub: `${clockLabel(start)} · ${cal} cal`,
-                      onRemove: () => onRemoveMeal(m.id), dimmed: filterOn && !matches, left: 0, width: 1,
+                      block: MEAL_COLOR[m.mealType].block, title: r.name, sub: `${clockLabel(start)} · ${cal} cal`,
+                      onRemove: () => onRemoveMeal(m.id), dimmed: filterOn && !matches, left: 0, width: 1
                     };
                   }).filter((b): b is Block => b !== null),
                 ]).map((b) => {
@@ -568,7 +568,7 @@ function TimeGrid({
 
 // A single draggable/resizable calendar block.
 function EventBlock({
-  top, height, leftPct, widthPct, block, dim, title, sub, onRemove, onOpen, onMoveDown, onResizeDown,
+  top, height, leftPct, widthPct, block, dim, title, sub, onRemove, onOpen, onMoveDown, onResizeDown
 }: {
   top: number; height: number; leftPct: number; widthPct: number; block: string; dim: boolean;
   title: string; sub: string;
@@ -605,7 +605,7 @@ function EventBlock({
 // ---------- Month view ----------
 
 function MonthView({
-  anchor, recipes, events, dayMeals, query, mealFilter, onOpenDay, onAdd,
+  anchor, recipes, events, dayMeals, query, mealFilter, onOpenDay, onAdd
 }: {
   anchor: Date;
   recipes: Recipe[];
@@ -664,7 +664,7 @@ function MonthView({
                   return (
                     <button key={m.id} onClick={() => onOpenDay(d)} className={`flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[10px] font-medium ${c.soft}`}>
                       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${c.dot}`} />
-                      <span className="truncate">{r.emoji} {r.name}</span>
+                      <span className="truncate">{r.name}</span>
                     </button>
                   );
                 })}
@@ -691,7 +691,7 @@ function MonthView({
 // ---------- Year view ----------
 
 function YearView({
-  anchor, plan, events, onOpenDay, onOpenMonth,
+  anchor, plan, events, onOpenDay, onOpenMonth
 }: {
   anchor: Date;
   plan: PlannedMeal[];
@@ -754,7 +754,7 @@ function YearView({
 // ---------- Add-to-calendar modal (meal or event) ----------
 
 function AddModal({
-  iso, hour, durH, recipes, foods, onClose, onPickMeal, onAddEvent,
+  iso, hour, durH, recipes, foods, onClose, onPickMeal, onAddEvent
 }: {
   iso: string;
   hour: number | null;
@@ -814,7 +814,7 @@ function AddModal({
                   const c = MEAL_COLOR[r.category];
                   return (
                     <button key={r.id} onClick={() => onPickMeal(r)} className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-accent-wash">
-                      <span className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${c.dot}`} />{r.emoji} {r.name}</span>
+                      <span className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${c.dot}`} />{r.name}</span>
                       <span className="text-xs text-muted">{MEAL_LABEL[r.category]} · {cal} cal</span>
                     </button>
                   );
@@ -852,7 +852,7 @@ function AddModal({
                                 onClick={() => onPickMeal(r)}
                                 className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-accent-wash"
                               >
-                                <span>{r.emoji} {r.name}</span>
+                                <span>{r.name}</span>
                                 <span className="text-xs text-muted">{cal} cal</span>
                               </button>
                             );

@@ -65,7 +65,7 @@ async function viaServer(text: string, image: ImagePart): Promise<string | null>
     resp = await fetch("/api/anthropic", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ system: NUTRITION_SYSTEM_PROMPT, text, image }),
+      body: JSON.stringify({ system: NUTRITION_SYSTEM_PROMPT, text, image })
     });
   } catch {
     return null;
@@ -104,7 +104,7 @@ function parseLabel(text: string): ScannedNutrition {
     calories: Math.round(num(obj.calories)),
     protein: Math.round(num(obj.protein_g)),
     carbs: Math.round(num(obj.carbs_g)),
-    fat: Math.round(num(obj.fat_g)),
+    fat: Math.round(num(obj.fat_g))
   };
 
   // A panel with no calories and no macros means nothing was actually read.
@@ -142,9 +142,9 @@ export async function scanNutritionLabel(
           content: [
             { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
             { type: "text", text: ask },
-          ],
+          ]
         },
-      ],
+      ]
     });
   } catch (e) {
     const err = e as { status?: number; message?: string };
@@ -185,7 +185,7 @@ export function perUnitFrom(scan: ScannedNutrition, unitsPerServing: number): Pe
     caloriesPerUnit: Math.round(scan.calories / unitsPerServing),
     protein: per(scan.protein),
     carbs: per(scan.carbs),
-    fat: per(scan.fat),
+    fat: per(scan.fat)
   };
 }
 
@@ -200,6 +200,6 @@ export async function demoNutritionScan(): Promise<ScannedNutrition> {
     calories: 100,
     protein: 18,
     carbs: 6,
-    fat: 0,
+    fat: 0
   };
 }

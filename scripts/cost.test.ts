@@ -1,5 +1,5 @@
 import {
-  recipeTotalCost, recipeCostPerServing, priceFor, quantitiesCost, BASE_STORE_ID,
+  recipeTotalCost, recipeCostPerServing, priceFor, quantitiesCost, BASE_STORE_ID
 } from "../src/lib/cost";
 import type { Recipe, Price } from "../src/lib/types";
 
@@ -10,22 +10,22 @@ const prices: Price[] = [
 ];
 
 const sauce: Recipe = {
-  id: "sauce", name: "Sauce", servings: 2, emoji: "🥣", category: "dinner", steps: [],
+  id: "sauce", name: "Sauce", servings: 2, category: "dinner", steps: [],
   ingredients: [{ foodId: "rice", quantity: 2 }],           // $1.00 total, $0.50/serving
 };
 const main: Recipe = {
-  id: "main", name: "Main", servings: 4, emoji: "🍗", category: "dinner", steps: [],
+  id: "main", name: "Main", servings: 4, category: "dinner", steps: [],
   ingredients: [{ foodId: "chicken", quantity: 16 }],       // $4.00
   components: [{ recipeId: "sauce", servings: 2 }],         // 2 x $0.50 = $1.00
 };
 const unpriced: Recipe = {
-  id: "un", name: "Unpriced", servings: 1, emoji: "❓", category: "dinner", steps: [],
-  ingredients: [{ foodId: "chicken", quantity: 4 }, { foodId: "mystery", quantity: 1 }],
+  id: "un", name: "Unpriced", servings: 1, category: "dinner", steps: [],
+  ingredients: [{ foodId: "chicken", quantity: 4 }, { foodId: "mystery", quantity: 1 }]
 };
 const cyclic: Recipe = {
-  id: "cyc", name: "Cyclic", servings: 1, emoji: "♻️", category: "dinner", steps: [],
+  id: "cyc", name: "Cyclic", servings: 1, category: "dinner", steps: [],
   ingredients: [{ foodId: "rice", quantity: 1 }],
-  components: [{ recipeId: "cyc", servings: 1 }, { recipeId: "main", servings: 1 }],
+  components: [{ recipeId: "cyc", servings: 1 }, { recipeId: "main", servings: 1 }]
 };
 const all = [sauce, main, unpriced, cyclic];
 

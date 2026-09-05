@@ -7,13 +7,13 @@ import { ThemeSync } from "@/lib/theme";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
-  subsets: ["latin"],
+  subsets: ["latin"]
 });
 
 export const metadata: Metadata = {
   title: "Real Food Hackz — Meal planning that tracks your kitchen",
   description:
-    "Plan meals, track calories, manage your fridge & pantry, and auto-build your grocery list — all in sync.",
+    "Plan meals, track calories, manage your fridge & pantry, and auto-build your grocery list — all in sync."
 };
 
 /**
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 const themeBootstrap = `(function(){try{var s=localStorage.getItem("rfh-theme");var t=s?JSON.parse(s).state.theme:"system";var d=t==="dark"||(t!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.add(d?"dark":"light");}catch(e){document.documentElement.classList.add("light");}})();`;
 
 export default function RootLayout({
-  children,
+  children
 }: Readonly<{
   children: React.ReactNode;
 }>) {

@@ -82,7 +82,7 @@ export async function geocode(query: string, signal?: AbortSignal): Promise<Geoc
   return {
     lat: Number(rows[0].lat),
     lng: Number(rows[0].lon),
-    label: rows[0].display_name,
+    label: rows[0].display_name
   };
 }
 
@@ -129,7 +129,7 @@ export async function nearbyStores(
       method: "POST",
       body: `data=${encodeURIComponent(query)}`,
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      signal,
+      signal
     });
   } catch (e) {
     if ((e as Error)?.name === "AbortError") throw e;
@@ -157,7 +157,7 @@ export async function nearbyStores(
       kind: t.shop ?? "supermarket",
       lat,
       lng,
-      distanceMi: distanceMi(at, { lat, lng }),
+      distanceMi: distanceMi(at, { lat, lng })
     });
   }
   // De-duplicate chains that map both a node and a building way at one site.
@@ -187,7 +187,7 @@ export function currentPosition(): Promise<LatLng> {
           message:
             err.code === err.PERMISSION_DENIED
               ? "Location permission denied — enter a ZIP instead."
-              : "Couldn't get your location — enter a ZIP instead.",
+              : "Couldn't get your location — enter a ZIP instead."
         } as GeoError),
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
     );

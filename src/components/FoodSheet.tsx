@@ -1,49 +1,66 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Minus, Plus, X, BookMarked, PenLine, Trash2, Check } from "lucide-react";
+import { Minus, Plus, X, BookMarked, PenLine, Trash2, Check, RotateCcw } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { usdaFor, canApplyUsda, SOURCE_LABEL } from "@/lib/usda";
 import { fmtQty, pluralUnit, stepFor, unitLabel, sliderMax } from "@/lib/units";
 import { FOOD_CATEGORIES, FOOD_CATEGORY_LABEL } from "@/lib/foodcat";
+import { BASE_STORE_ID, fmtMoney, priceFor } from "@/lib/cost";
 import { ConfirmDialog } from "./ConfirmDialog";
 import type { Food, FoodCategory, Location } from "@/lib/types";
 
-const LOCATIONS: { key: Location; label: string; icon: string }[] = [
-  { key: "fridge", label: "Fridge", icon: "🧊" },
-  { key: "freezer", label: "Freezer", icon: "❄️" },
-  { key: "pantry", label: "Pantry", icon: "🫙" },
+const LOCATIONS: { key: Location; label: string }[] = [
+  { key: "fridge", label: "Fridge" },
+  { key: "freezer", label: "Freezer" },
+  { key: "pantry", label: "Pantry" },
 ];
 
 const LOCATION_LABEL: Record<Location, string> = {
   fridge: "Fridge",
   freezer: "Freezer",
-  pantry: "Pantry",
+  pantry: "Pantry"
 };
 
 /**
- * Tapping a food opens this sheet — the one place to change how much you have,
- * with its nutrition alongside so the number means something.
+ * Everything about one food, in one sheet.
+ *
+ * The Food Tracker, the Grocery list and the Costs repository are three views
+ * of the same catalogue, so they open the same sheet rather than three sheets
+ * that each do a third of the job: how much you have, how much you still need,
+ * what it costs, where it lives, what it's made of. Every field writes straight
+ * to the store, so a price typed here shows up on the grocery list and a
+ * quantity set here clears a shopping line — no matter which tab you're in.
  */
 export function FoodSheet({
-  food, quantity, onQuantity, onClose,
+  food, quantity, onQuantity, buy = 0, onClose
 }: {
   food: Food;
   quantity: number;
   onQuantity: (q: number) => void;
+  /** How much of it this week's plan still needs you to buy. */
+  buy?: number;
   onClose: () => void;
 }) {
   // Read the food back out of the store rather than trusting the snapshot the
   // shelf handed over: everything below edits it, and the sheet has to show the
   // change. The fallback covers the moment after a delete, before it closes.
   const f = useApp((s) => s.foods.find((x) => x.id === food.id)) ?? food;
-  const updateFood = useApp((s) => s.updateFood);
-  const removeFood = useApp((s) => s.removeFood);
+  const { updateFood, removeFood, prices, stores, selectedStoreId, setPrice } = useApp();
+
   const [editing, setEditing] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const step = stepFor(f.unit);
-  const max = sliderMax(f.unit, quantity);
+  const max = sliderMax(f.unit, quantity, buy);
   const set = (q: number) => onQuantity(Math.max(0, Number(q.toFixed(2))));
+
+  const storeName =
+    selectedStoreId === BASE_STORE_ID
+      ? "base prices"
+      : (stores.find((st) => st.id === selectedStoreId)?.name ?? "base prices");
+  const own = prices.find((p) => p.storeId === selectedStoreId && p.foodId === f.id);
+  const effective = priceFor(prices, selectedStoreId, f.id);
+  const usingBase = effective?.source === "base" && selectedStoreId !== BASE_STORE_ID;
 
   // The USDA table is the fallback reference: offered when the user hasn't
   // established better numbers themselves, never applied behind their back.
@@ -58,7 +75,7 @@ export function FoodSheet({
     updateFood(f.id, {
       ...reference.nutrition,
       nutritionSource: "usda",
-      fdcId: reference.match.entry.id,
+      fdcId: reference.match.entry.id
     });
   };
 
@@ -82,11 +99,8 @@ export function FoodSheet({
       >
         <span aria-hidden className="mx-auto mb-4 block h-1 w-10 rounded-full bg-line-2 md:hidden" />
 
-        <div className="flex items-start gap-4">
-          <span className="squircle flex h-16 w-16 shrink-0 items-center justify-center bg-gradient-to-br from-accent/25 to-accent/10 text-[30px] ring-1 ring-accent/20">
-            {f.emoji}
-          </span>
-          <div className="min-w-0 flex-1 pt-1">
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
             <h2 className="truncate text-lg font-semibold text-ink">{f.name}</h2>
             <p className="mt-0.5 text-xs text-muted">
               {FOOD_CATEGORY_LABEL[f.category]} · {LOCATION_LABEL[f.location]}
@@ -144,6 +158,66 @@ export function FoodSheet({
             <span>0</span>
             <span>{fmtQty(max)} {pluralUnit(max, f.unit)}</span>
           </div>
+
+          {buy > 0.001 && (
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-warn/40 bg-warn/10 px-3 py-2">
+              <span className="text-xs text-warn-soft">
+                Short <span className="font-semibold">{fmtQty(Math.ceil(buy * 4) / 4)} {pluralUnit(buy, f.unit)}</span> for this week
+              </span>
+              <button
+                onClick={() => set(quantity + buy)}
+                className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-on-accent hover:brightness-110"
+              >
+                Bought it
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* What it costs */}
+        <div className="mt-3 rounded-2xl border border-line bg-surface p-4">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+              Price at {storeName}
+            </p>
+            {effective && quantity > 0 && (
+              <p className="text-xs text-muted">
+                {fmtMoney(effective.pricePerUnit * quantity)} on hand
+              </p>
+            )}
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-lg font-semibold text-muted">$</span>
+            <input
+              type="number"
+              min={0}
+              step={0.01}
+              value={own ? own.pricePerUnit : (usingBase ? "" : (effective?.pricePerUnit ?? ""))}
+              placeholder={usingBase ? effective!.pricePerUnit.toFixed(2) : "0.00"}
+              onChange={(e) => {
+                const v = e.target.value.trim();
+                setPrice(selectedStoreId, f.id, v === "" ? null : Math.max(0, Number(v) || 0));
+              }}
+              aria-label={`Price per ${unitLabel(f.unit)}`}
+              className="field w-28 rounded-xl px-3 py-2 text-right text-lg font-semibold tabular-nums"
+            />
+            <span className="text-sm text-muted">/ {unitLabel(f.unit)}</span>
+            {own && (
+              <button
+                onClick={() => setPrice(selectedStoreId, f.id, null)}
+                className="ml-auto flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] text-muted hover:bg-surface-3 hover:text-ink"
+              >
+                <RotateCcw size={12} /> Clear
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-[11px] text-muted">
+            {usingBase
+              ? `Falling back to the base price of ${fmtMoney(effective!.pricePerUnit)} — type one to set it for this store.`
+              : effective
+                ? "Used by the grocery list, the cookbook and the weekly spend."
+                : "No price yet, so this food is missing from every total."}
+          </p>
         </div>
 
         {/* Where it lives — moving a food re-shelves it everywhere at once */}
@@ -155,13 +229,13 @@ export function FoodSheet({
                 key={l.key}
                 onClick={() => updateFood(f.id, { location: l.key })}
                 aria-pressed={f.location === l.key}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 font-medium transition-colors ${
+                className={`flex-1 rounded-lg px-2 py-1.5 font-medium transition-colors ${
                   f.location === l.key
                     ? "bg-gradient-to-b from-accent to-accent-deep text-on-accent shadow"
                     : "text-muted hover:text-ink"
                 }`}
               >
-                <span>{l.icon}</span> {l.label}
+                {l.label}
               </button>
             ))}
           </div>
@@ -174,7 +248,7 @@ export function FoodSheet({
               className="field min-w-0 flex-1 rounded-xl px-2 py-2 text-sm"
             >
               {FOOD_CATEGORIES.map((c) => (
-                <option key={c.key} value={c.key}>{c.emoji} {c.label}</option>
+                <option key={c.key} value={c.key}>{c.label}</option>
               ))}
             </select>
           </label>
@@ -239,23 +313,15 @@ export function FoodSheet({
           </div>
         )}
 
-        {/* Rename it, fix its numbers, or get rid of it — without leaving the shelf */}
+        {/* Rename it or fix its numbers, without leaving the shelf */}
         {editing && (
           <div className="mt-3 space-y-3 rounded-2xl border border-line bg-surface p-4">
-            <div className="flex gap-2">
-              <input
-                value={f.emoji}
-                onChange={(e) => updateFood(f.id, { emoji: e.target.value || "🍽️" })}
-                aria-label="Emoji"
-                className="field w-14 rounded-xl px-2 py-2 text-center text-xl"
-              />
-              <input
-                value={f.name}
-                onChange={(e) => updateFood(f.id, { name: e.target.value })}
-                aria-label="Food name"
-                className="field min-w-0 flex-1 rounded-xl px-3 py-2 text-sm"
-              />
-            </div>
+            <input
+              value={f.name}
+              onChange={(e) => updateFood(f.id, { name: e.target.value })}
+              aria-label="Food name"
+              className="field w-full rounded-xl px-3 py-2 text-sm"
+            />
             <div className="grid grid-cols-2 gap-2 text-xs">
               <label className="flex items-center justify-between gap-2">
                 <span className="text-muted">Cal / {unitLabel(f.unit)}</span>
@@ -310,7 +376,7 @@ export function FoodSheet({
           </button>
         </div>
         <p className="mt-2 text-center text-[11px] text-muted">
-          {fmtQty(quantity)} {pluralUnit(quantity, f.unit)} · updates the grocery list and planner instantly
+          {fmtQty(quantity)} {pluralUnit(quantity, f.unit)} · updates every tab instantly
         </p>
 
         {confirmDel && (

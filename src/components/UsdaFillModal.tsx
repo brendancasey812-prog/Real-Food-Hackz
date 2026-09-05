@@ -47,7 +47,7 @@ export function UsdaFillModal({ onClose }: { onClose: () => void }) {
         fdcId: ref.match.entry.id,
         score: ref.match.score,
         nutrition: ref.nutrition,
-        hasNumbers,
+        hasNumbers
       });
     }
     return out.sort((a, b) => Number(a.hasNumbers) - Number(b.hasNumbers) || a.food.name.localeCompare(b.food.name));
@@ -75,7 +75,7 @@ export function UsdaFillModal({ onClose }: { onClose: () => void }) {
       updateFood(r.food.id, {
         ...r.nutrition,
         nutritionSource: "usda",
-        fdcId: r.fdcId,
+        fdcId: r.fdcId
       });
     }
     setDone(chosen.length);
@@ -139,7 +139,6 @@ export function UsdaFillModal({ onClose }: { onClose: () => void }) {
                         >
                           <Check size={12} strokeWidth={3} />
                         </span>
-                        <span className="shrink-0 text-lg">{r.food.emoji}</span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium text-ink">{r.food.name}</span>
                           <span className="block truncate text-[11px] text-muted">{r.description}</span>

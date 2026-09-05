@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       model: MODEL,
       max_tokens: MAX_TOKENS,
       system,
-      messages: [{ role: "user", content }],
+      messages: [{ role: "user", content }]
     });
 
     if (resp.stop_reason === "refusal") {
