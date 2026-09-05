@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { Minus, Plus, X } from "lucide-react";
+import { Minus, Plus, X, BookMarked } from "lucide-react";
+import { useApp } from "@/lib/store";
+import { usdaFor, canApplyUsda, SOURCE_LABEL } from "@/lib/usda";
 import { fmtQty, pluralUnit, stepFor, unitLabel } from "@/lib/units";
 import { FOOD_CATEGORY_LABEL } from "@/lib/foodcat";
 import type { Food } from "@/lib/types";
@@ -24,8 +26,26 @@ export function FoodSheet({
   onQuantity: (q: number) => void;
   onClose: () => void;
 }) {
+  const updateFood = useApp((s) => s.updateFood);
   const step = stepFor(f.unit);
   const set = (q: number) => onQuantity(Math.max(0, Number(q.toFixed(2))));
+
+  // The USDA table is the fallback reference: offered when the user hasn't
+  // established better numbers themselves, never applied behind their back.
+  const reference = usdaFor(f);
+  const offerReference =
+    reference != null &&
+    canApplyUsda(f) &&
+    reference.nutrition.caloriesPerUnit !== f.caloriesPerUnit;
+
+  const applyReference = () => {
+    if (!reference) return;
+    updateFood(f.id, {
+      ...reference.nutrition,
+      nutritionSource: "usda",
+      fdcId: reference.match.entry.id,
+    });
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -133,6 +153,38 @@ export function FoodSheet({
             ))}
           </div>
         </div>
+
+        {/* Where these numbers came from, and the reference if there's a better one */}
+        {(f.nutritionSource || offerReference) && (
+          <div className="mt-3 rounded-2xl border border-line bg-surface p-4">
+            {f.nutritionSource && (
+              <p className="flex items-center gap-1.5 text-[11px] text-muted">
+                <BookMarked size={12} className="shrink-0" />
+                {SOURCE_LABEL[f.nutritionSource]}
+                {f.nutritionSource === "usda" && f.fdcId ? ` · #${f.fdcId}` : ""}
+              </p>
+            )}
+            {offerReference && reference && (
+              <>
+                <p className="mt-1 text-[11px] leading-4 text-muted">
+                  USDA FoodData Central lists{" "}
+                  <span className="text-ink-2">{reference.match.entry.n}</span> at{" "}
+                  <span className="font-medium text-cal-soft">
+                    {reference.nutrition.caloriesPerUnit} cal
+                  </span>{" "}
+                  / {unitLabel(f.unit)} · {reference.nutrition.protein}p{" "}
+                  {reference.nutrition.carbs}c {reference.nutrition.fat}f.
+                </p>
+                <button
+                  onClick={applyReference}
+                  className="mt-2 w-full rounded-xl border border-line bg-surface-2 py-2 text-xs font-medium text-ink-2 transition-colors hover:bg-accent-wash hover:text-accent-soft"
+                >
+                  Use the USDA reference
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         <button onClick={onClose} className="btn-accent mt-4 w-full rounded-xl py-3 text-sm">
           Done

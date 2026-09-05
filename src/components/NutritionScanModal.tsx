@@ -138,6 +138,8 @@ export function NutritionScanModal({ onClose }: { onClose: () => void }) {
         protein: perUnit.protein,
         carbs: perUnit.carbs,
         fat: perUnit.fat,
+        // A label the user scanned outranks the USDA reference from now on.
+        nutritionSource: "scan",
       });
       setSavedName(target.name);
     } else {
@@ -153,6 +155,7 @@ export function NutritionScanModal({ onClose }: { onClose: () => void }) {
         category: newCategory,
         emoji: "🥫",
         source: "manual",
+        nutritionSource: "scan",
       };
       addFood(food, 0);
       setSavedName(food.name);

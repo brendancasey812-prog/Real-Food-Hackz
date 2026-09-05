@@ -43,6 +43,13 @@ export interface Food {
   emoji: string;
   /** How this food entered the app. */
   source?: "manual" | "receipt_scan";
+  /**
+   * Where this food's calories and macros came from. Trust runs
+   * scan > manual > usda, and the USDA reference never overwrites the first two.
+   */
+  nutritionSource?: "scan" | "manual" | "usda";
+  /** The FDC record backing a "usda" figure, for traceability. */
+  fdcId?: number;
   /** Free-text detail appended from scans (e.g. "80/20", "organic"). */
   notes?: string;
 }

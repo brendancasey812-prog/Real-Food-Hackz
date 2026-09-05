@@ -187,6 +187,50 @@ history log for traceability. Unmatched items are added as new foods.
   **sample receipt** lets you try the whole flow with no key.
 - Model: `claude-opus-5` (vision). Change it in `src/lib/receipt.ts`.
 
+## Where nutrition numbers come from
+
+Every food's calories and macros carry a **source**, and the app trusts them in
+this order:
+
+| | Source | Set by |
+| --- | --- | --- |
+| 1 | `scan` | a Nutrition Facts label you photographed |
+| 2 | `manual` | numbers you typed in yourself |
+| 3 | `usda` | the built-in USDA reference |
+| 4 | — | whatever the food shipped with |
+
+The reference is **USDA FoodData Central (Foundation Foods)** — 323 foods with
+per-100 g calories, protein, carbs and fat, plus the portion weights needed to
+turn those into per-cup and per-item figures
+([`src/lib/usda-foods.json`](src/lib/usda-foods.json)). It is a lookup table,
+not a tab: nothing in the UI browses it.
+
+It never overwrites anything you established. **Food Tracker → Menu → Fill
+macros from USDA** proposes it for foods that have no nutrition yet, shows the
+matched USDA record and the exact numbers beside what the food has now, and
+leaves anything you scanned or typed out of the list entirely. Foods that
+already carry numbers are only shown if you ask, and start unticked — the
+figure already there may well be the better one. A single food can also take
+the reference from its own sheet in the fridge, where the source is displayed
+with the FDC record id.
+
+Matching a shopping name to an FDC description is the fiddly part
+([`src/lib/usda.ts`](src/lib/usda.ts)): "Ground beef 80/20" has to find "Beef,
+ground, 80% lean meat / 20% fat, raw" while "Butter" must *not* settle for
+"Almond butter, creamy", and "Almonds" must prefer "Nuts, almonds, whole, raw"
+over "Flour, almond". Scoring is token recall against the description, tempered
+by brevity, with three rules that kill the false positives: a compound head
+("Almond butter" for butter) is penalised, a record whose head noun has nothing
+to do with the query is rejected ("Anchovies, canned in olive oil" is not olive
+oil), and a processed form never wins over the whole food.
+
+The data is public domain. To refresh it, download the Foundation Foods JSON
+from <https://fdc.nal.usda.gov/download-datasets.html> and run:
+
+```bash
+node scripts/build-usda.mjs ~/Downloads/FoodData_Central_foundation_food_json_*.json
+```
+
 ## Nutrition label scanner (AI)
 
 **Food Tracker → Menu → Scan nutrition label.** Photograph or upload a Nutrition

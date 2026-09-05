@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Minus, Plus, ScanLine, Menu, Pencil, Calculator, X, ChevronDown, Sparkles } from "lucide-react";
+import { Minus, Plus, ScanLine, Menu, Pencil, Calculator, X, ChevronDown, Sparkles, BookMarked } from "lucide-react";
 import { useApp, neededQuantities } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
 import { fmtQty, unitLabel, pluralUnit, stepFor } from "@/lib/units";
@@ -10,6 +10,7 @@ import { AddFoodModal } from "@/components/AddFoodModal";
 import { ScanReceiptModal } from "@/components/ScanReceiptModal";
 import { ConversionsModal } from "@/components/ConversionsModal";
 import { NutritionScanModal } from "@/components/NutritionScanModal";
+import { UsdaFillModal } from "@/components/UsdaFillModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SearchFilterBar } from "@/components/SearchFilterBar";
 import type { Food, Location, Unit } from "@/lib/types";
@@ -28,6 +29,7 @@ export default function Kitchen() {
   const [scanning, setScanning] = useState(false);
   const [convOpen, setConvOpen] = useState(false);
   const [labelOpen, setLabelOpen] = useState(false);
+  const [usdaOpen, setUsdaOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [hidden, setHidden] = useState<Set<Location>>(new Set());
@@ -48,6 +50,7 @@ export default function Kitchen() {
     { label: "Add food", icon: Plus, run: () => setAdding("fridge") },
     { label: "Scan receipt", icon: ScanLine, run: () => setScanning(true) },
     { label: "Scan nutrition label", icon: Sparkles, run: () => setLabelOpen(true) },
+    { label: "Fill macros from USDA", icon: BookMarked, run: () => setUsdaOpen(true) },
     { label: editMode ? "Done editing" : "Edit (delete items)", icon: Pencil, run: () => setEditMode((v) => !v) },
     { label: "Conversions chart", icon: Calculator, run: () => setConvOpen(true) },
   ];
@@ -182,7 +185,7 @@ export default function Kitchen() {
                                   need={need[f.id] ?? 0}
                                   editMode={editMode}
                                   onChange={(q) => setInventory(f.id, q)}
-                                  onNutrition={(patch) => updateFood(f.id, patch)}
+                                  onNutrition={(patch) => updateFood(f.id, { ...patch, nutritionSource: "manual" })}
                                   onDelete={() => removeFood(f.id)}
                                 />
                               ))}
@@ -205,6 +208,7 @@ export default function Kitchen() {
       {scanning && <ScanReceiptModal onClose={() => setScanning(false)} />}
       {convOpen && <ConversionsModal onClose={() => setConvOpen(false)} />}
       {labelOpen && <NutritionScanModal onClose={() => setLabelOpen(false)} />}
+      {usdaOpen && <UsdaFillModal onClose={() => setUsdaOpen(false)} />}
     </div>
   );
 }
