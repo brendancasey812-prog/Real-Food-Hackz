@@ -13,7 +13,7 @@ list, and fridge/pantry levels all update together.
 | **Cookbook** | Browse recipes (calories auto-calculated from ingredients) and add your own. |
 | **Meal Plan** | Google-Calendar-style weekly grid — drop recipes onto breakfast/lunch/dinner/snack slots, and clear a day, week, month, year, hand-picked days, or any date range. |
 | **Groceries** | Auto-built list = what the week's plan needs − what's already in your kitchen. |
-| **Kitchen** | A fridge you can open — glass shelves and crisper drawers of food icons, each showing its amount. Also a List view with stock bars. |
+| **Food Tracker** | A fridge you can open — glass shelves and crisper drawers of food icons, each showing its amount. Also a List view with stock bars. |
 | **Costs** | The cost repository — every ingredient priced per its own unit, rolling up to per-recipe and per-week spend. |
 | **Stores** | Map of the grocery stores near you. Pick one and the whole app re-prices against it. |
 
@@ -65,7 +65,7 @@ Colors carry meaning rather than decoration:
 ```
 RECIPES ──▶ MEAL PLAN ─▶ DASHBOARD (calories vs goal, food spend)
                    ├──▶ GROCERIES (need − have, basket cost)
-                   └──▶ KITCHEN   (stock depletion)
+                   └──▶ FOOD TRACKER (stock depletion)
 
 STORES ──▶ (selected store) ──▶ COSTS ──▶ every dollar figure above
 ```

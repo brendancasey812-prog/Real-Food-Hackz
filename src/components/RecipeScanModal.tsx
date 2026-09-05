@@ -308,7 +308,7 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
                   </>
                 );
               })()}
-              <p className="text-[11px] text-muted">New ingredients join your kitchen with the calories shown above; leave one blank and you can set it in the Kitchen later.</p>
+              <p className="text-[11px] text-muted">New ingredients join your kitchen with the calories shown above; leave one blank and you can set it in the Food Tracker later.</p>
             </div>
           )}
 

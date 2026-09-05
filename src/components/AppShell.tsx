@@ -24,14 +24,15 @@ function useHydrated() {
   );
 }
 
+/** `short` is what the phone tab bar uses, where seven labels have to fit. */
 const nav = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/recipes", label: "Cookbook", icon: BookOpen },
-  { href: "/planner", label: "Meal Plan", icon: CalendarDays },
-  { href: "/groceries", label: "Groceries", icon: ShoppingCart },
-  { href: "/kitchen", label: "Kitchen", icon: Refrigerator },
-  { href: "/costs", label: "Costs", icon: DollarSign },
-  { href: "/stores", label: "Stores", icon: MapPin },
+  { href: "/", label: "Dashboard", short: "Home", icon: LayoutDashboard },
+  { href: "/recipes", label: "Cookbook", short: "Cookbook", icon: BookOpen },
+  { href: "/planner", label: "Meal Plan", short: "Plan", icon: CalendarDays },
+  { href: "/groceries", label: "Groceries", short: "Grocery", icon: ShoppingCart },
+  { href: "/kitchen", label: "Food Tracker", short: "Food", icon: Refrigerator },
+  { href: "/costs", label: "Costs", short: "Costs", icon: DollarSign },
+  { href: "/stores", label: "Stores", short: "Stores", icon: MapPin },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -96,12 +97,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Mobile bottom tab bar (app format) */}
       <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-line bar px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
-        {nav.map(({ href, label, icon: Icon }) => {
+        {nav.map(({ href, short, label, icon: Icon }) => {
           const active = pathname === href;
           return (
             <Link
               key={href}
               href={href}
+              aria-label={label}
               className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
                 active ? "text-accent-soft" : "text-muted"
               }`}
@@ -109,7 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className={`flex h-6 w-10 items-center justify-center rounded-full transition-all ${active ? "bg-accent-wash" : ""}`}>
                 <Icon size={17} />
               </span>
-              {label}
+              <span className="w-full truncate px-0.5 text-center">{short}</span>
             </Link>
           );
         })}
