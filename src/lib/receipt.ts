@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { classifyByName } from "./foodclass";
 import type { FoodCategory, Location, ScanResult, ScannedItem, Unit } from "./types";
 
 /** Vision model used for receipt OCR + extraction. */
@@ -142,8 +143,17 @@ const CATEGORY_MAP: Record<
   Pantry: { category: "condiment", location: "pantry", emoji: "🥫" },
 };
 
-export function mapCategory(cat: ScannedItem["category"]) {
-  return CATEGORY_MAP[cat];
+/**
+ * Where a scanned line belongs.
+ *
+ * The scanner's four buckets are coarse — everything it can't call produce or
+ * meat comes back as "Pantry" — so the name gets the final say when it says
+ * something specific. That is what keeps shallots out of the condiment shelf.
+ */
+export function mapCategory(cat: ScannedItem["category"], name?: string) {
+  const coarse = CATEGORY_MAP[cat];
+  const byName = name ? classifyByName(name) : null;
+  return byName ? { ...coarse, ...byName } : coarse;
 }
 
 /** The Unit a brand-new food gets, derived from the receipt unit. */

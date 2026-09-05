@@ -11,10 +11,18 @@ const CATS: Record<FoodCategory, string[]> = {
   starch: ["potato", "sweetpotato"],
   legume: ["blackbeans", "beans", "hummus"],
   nut: ["peanutbutter", "almondbutter", "almonds", "walnuts", "mixednuts", "trailmix"],
-  fat: ["oliveoil", "sesameoil", "butter", "vinaigrette", "caesar", "avocado"],
-  vegetable: ["broccoli", "spinach", "mushrooms", "peppers", "onion", "carrots", "greens", "brussels", "greenbeans", "asparagus", "tomatoes", "rootveg", "arugula", "garlic", "crushedtomatoes"],
+  fat: ["oliveoil", "sesameoil", "butter", "avocado"],
+  vegetable: ["broccoli", "spinach", "mushrooms", "peppers", "onion", "shallot", "carrots", "greens", "brussels", "greenbeans", "asparagus", "tomatoes", "rootveg", "arugula", "garlic", "crushedtomatoes"],
   fruit: ["banana", "berries", "apple", "orange", "grapes", "pineapple", "fruitsalad", "oj", "blueberries", "frozenstrawberries"],
-  condiment: ["honey", "salsa", "cinnamon", "coffee", "yangnyeom", "salt", "blackpepper"],
+  // Dressings sit here rather than under fats: they live in the door with the
+  // other jars, and you reach for them the way you reach for salsa.
+  condiment: ["honey", "salsa", "coffee", "yangnyeom", "vinaigrette", "caesar", "soysauce", "dijon", "ketchup"],
+  // Anything you measure in teaspoons for flavour — jarred or fresh-cut.
+  spice: [
+    "salt", "blackpepper", "cinnamon", "garlicpowder", "onionpowder", "paprika",
+    "cumin", "chiliflakes", "oregano", "italianseasoning", "turmeric", "bayleaf",
+    "vanilla", "basil", "cilantro", "parsley", "ginger",
+  ],
 };
 const CAT_OF: Record<string, FoodCategory> = {};
 (Object.keys(CATS) as FoodCategory[]).forEach((c) => CATS[c].forEach((id) => (CAT_OF[id] = c)));
@@ -84,7 +92,7 @@ const foods: Food[] = [
   F("spinach", "Spinach", "cup", 7, 0.9, 1.1, 0.1, "fridge", "🥬"),
   F("mushrooms", "Mushrooms", "cup", 15, 2.2, 2.3, 0.2, "fridge", "🍄"),
   F("peppers", "Bell peppers", "cup", 30, 1, 7, 0.3, "fridge", "🫑"),
-  F("onion", "Onion", "cup", 64, 1.8, 15, 0.2, "fridge", "🧅"),
+  F("onion", "Onion", "cup", 64, 1.8, 15, 0.2, "pantry", "🧅"),
   F("carrots", "Carrots", "cup", 50, 1.2, 12, 0.3, "fridge", "🥕"),
   F("greens", "Mixed greens", "cup", 8, 0.5, 1.5, 0.1, "fridge", "🥬"),
   F("brussels", "Brussels sprouts", "cup", 38, 3, 8, 0.3, "fridge", "🥬"),
@@ -122,10 +130,32 @@ const foods: Food[] = [
   F("jasminerice", "Jasmine rice", "oz", 100, 2, 22, 0.2, "pantry", "🍚"),
   F("corntortillas", "Corn tortillas", "each", 60, 1.5, 12, 0.7, "pantry", "🫓"),
   F("arugula", "Arugula", "cup", 5, 0.5, 0.7, 0.1, "fridge", "🥬"),
-  F("garlic", "Garlic", "each", 4, 0.2, 1, 0, "fridge", "🧄"),
+  F("garlic", "Garlic", "each", 4, 0.2, 1, 0, "pantry", "🧄"),
   F("blueberries", "Blueberries", "cup", 84, 1.1, 21, 0.5, "fridge", "🫐"),
   F("yangnyeom", "Yangnyeom sauce", "tbsp", 30, 0, 7, 0, "pantry", "🥫"),
   F("frozenstrawberries", "Frozen strawberries", "cup", 50, 1, 12, 0.3, "freezer", "🍓"),
+  F("shallot", "Shallots", "each", 20, 0.7, 4.7, 0, "pantry", "🧅"),
+
+  // The spice rack: dried jars in the pantry, cut herbs in the fridge.
+  F("garlicpowder", "Garlic powder", "tsp", 10, 0.5, 2.2, 0, "pantry", "🧄"),
+  F("onionpowder", "Onion powder", "tsp", 8, 0.2, 1.9, 0, "pantry", "🧅"),
+  F("paprika", "Paprika", "tsp", 6, 0.3, 1.2, 0.3, "pantry", "🌶️"),
+  F("cumin", "Ground cumin", "tsp", 8, 0.4, 0.9, 0.5, "pantry", "🌿"),
+  F("chiliflakes", "Red chili flakes", "tsp", 6, 0.2, 1, 0.3, "pantry", "🌶️"),
+  F("oregano", "Dried oregano", "tsp", 3, 0.1, 0.7, 0.1, "pantry", "🌿"),
+  F("italianseasoning", "Italian seasoning", "tsp", 4, 0.1, 0.8, 0.1, "pantry", "🌿"),
+  F("turmeric", "Turmeric", "tsp", 9, 0.3, 2, 0.1, "pantry", "🌿"),
+  F("bayleaf", "Bay leaves", "each", 2, 0.1, 0.5, 0.1, "pantry", "🍃"),
+  F("vanilla", "Vanilla extract", "tsp", 12, 0, 0.5, 0, "pantry", "🍦"),
+  F("basil", "Fresh basil", "tbsp", 1, 0.1, 0.1, 0, "fridge", "🌿"),
+  F("cilantro", "Fresh cilantro", "tbsp", 1, 0.1, 0.1, 0, "fridge", "🌿"),
+  F("parsley", "Fresh parsley", "tbsp", 1, 0.1, 0.2, 0, "fridge", "🌿"),
+  F("ginger", "Fresh ginger", "tsp", 2, 0, 0.4, 0, "fridge", "🫚"),
+
+  // Door-bin staples that were missing.
+  F("soysauce", "Soy sauce", "tbsp", 8, 1.3, 0.8, 0, "fridge", "🍶"),
+  F("dijon", "Dijon mustard", "tsp", 5, 0.3, 0.3, 0.3, "fridge", "🥫"),
+  F("ketchup", "Ketchup", "tbsp", 17, 0.2, 4.5, 0, "fridge", "🥫"),
 ];
 
 // Meal category from the recipe id suffix (mon-b → breakfast, tue-l → lunch, …).
@@ -283,13 +313,12 @@ const BASE_PRICE: Record<string, number> = {
   potato: 0.85, sweetpotato: 0.95, spaghetti: 0.12, panko: 0.9,
   // Boursin pasta additions
   boursin: 1.15, crushedtomatoes: 0.08, mozzarellaballs: 0.55,
-  salt: 0.01, blackpepper: 0.09,
   // Legumes & nuts
   blackbeans: 0.85, beans: 0.9, hummus: 0.22, peanutbutter: 0.18,
   almondbutter: 0.42, almonds: 0.62, walnuts: 0.75, mixednuts: 0.7, trailmix: 0.55,
-  // Fats
-  oliveoil: 0.3, sesameoil: 0.55, butter: 0.16, vinaigrette: 0.2,
-  caesar: 0.24, avocado: 1.35,
+  // Fats & dressings
+  oliveoil: 0.3, sesameoil: 0.55, butter: 0.16, avocado: 1.35,
+  vinaigrette: 0.2, caesar: 0.24,
   // Vegetables (per cup)
   broccoli: 0.75, spinach: 0.6, mushrooms: 0.9, peppers: 1.1, onion: 0.5,
   carrots: 0.45, greens: 1.1, brussels: 0.95, greenbeans: 0.7, asparagus: 1.4,
@@ -298,7 +327,14 @@ const BASE_PRICE: Record<string, number> = {
   banana: 0.3, berries: 2.2, apple: 0.85, orange: 0.8, grapes: 1.3,
   pineapple: 1.15, fruitsalad: 1.8, blueberries: 2.4, frozenstrawberries: 0.95,
   // Condiments
-  honey: 0.28, salsa: 0.15, cinnamon: 0.09, yangnyeom: 0.35,
+  honey: 0.28, salsa: 0.15, yangnyeom: 0.35, soysauce: 0.09, dijon: 0.05,
+  ketchup: 0.08,
+  // Spices & herbs — a jar's worth spread over the teaspoons it holds.
+  salt: 0.01, blackpepper: 0.09, cinnamon: 0.09, garlicpowder: 0.08,
+  onionpowder: 0.08, paprika: 0.09, cumin: 0.10, chiliflakes: 0.09,
+  oregano: 0.10, italianseasoning: 0.09, turmeric: 0.10, bayleaf: 0.06,
+  vanilla: 0.55, basil: 0.25, cilantro: 0.12, parsley: 0.12, ginger: 0.10,
+  shallot: 0.65,
 };
 
 const SEED_PRICED_ON = "2026-09-01";

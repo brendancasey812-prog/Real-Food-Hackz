@@ -93,7 +93,7 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
           return { foodId: existing.id, quantity };
         }
         const id = newId();
-        const map = mapCategory(ing.category);
+        const map = mapCategory(ing.category, ing.food);
         newFoods.push({
           id,
           name: ing.food.trim(),

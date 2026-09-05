@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Minus, Plus, ScanLine, Menu, Pencil, Calculator, X, ChevronDown, Sparkles, BookMarked } from "lucide-react";
+import { Minus, Plus, ScanLine, Menu, Calculator, Trash2, ChevronDown, Sparkles, BookMarked } from "lucide-react";
 import { useApp, neededQuantities } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
-import { fmtQty, unitLabel, pluralUnit, stepFor } from "@/lib/units";
+import { fmtQty, unitLabel, pluralUnit, stepFor, sliderMax } from "@/lib/units";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
 import { AddFoodModal } from "@/components/AddFoodModal";
 import { ScanReceiptModal } from "@/components/ScanReceiptModal";
@@ -13,7 +13,7 @@ import { NutritionScanModal } from "@/components/NutritionScanModal";
 import { UsdaFillModal } from "@/components/UsdaFillModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SearchFilterBar } from "@/components/SearchFilterBar";
-import type { Food, Location, Unit } from "@/lib/types";
+import type { Food, Location } from "@/lib/types";
 import { SettingsButton } from "@/components/SettingsButton";
 import { Fridge } from "@/components/Fridge";
 
@@ -31,7 +31,6 @@ export default function Kitchen() {
   const [labelOpen, setLabelOpen] = useState(false);
   const [usdaOpen, setUsdaOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [editMode, setEditMode] = useState(false);
   const [hidden, setHidden] = useState<Set<Location>>(new Set());
   const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
@@ -51,7 +50,6 @@ export default function Kitchen() {
     { label: "Scan receipt", icon: ScanLine, run: () => setScanning(true) },
     { label: "Scan nutrition label", icon: Sparkles, run: () => setLabelOpen(true) },
     { label: "Fill macros from USDA", icon: BookMarked, run: () => setUsdaOpen(true) },
-    { label: editMode ? "Done editing" : "Edit (delete items)", icon: Pencil, run: () => setEditMode((v) => !v) },
     { label: "Conversions chart", icon: Calculator, run: () => setConvOpen(true) },
   ];
 
@@ -62,7 +60,7 @@ export default function Kitchen() {
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Food Tracker</h1>
           <p className="mt-1 text-sm text-muted">
             {view === "fridge"
-              ? "Open a shelf to see what's in it · tap a food to set how much you have."
+              ? "Open a shelf to see what's in it · tap a food to set how much you have, move it, or edit it."
               : "Grouped by food type · drag a slider or type to set amounts."}
           </p>
         </div>
@@ -91,13 +89,6 @@ export default function Kitchen() {
         <SettingsButton className="hidden md:flex" />
         </div>
       </header>
-
-      {editMode && (
-        <div className="mb-4 flex items-center justify-between rounded-xl border border-danger/40 bg-danger/10 px-4 py-2.5 text-sm text-danger-soft">
-          <span>Editing — tap the <span className="font-semibold">✕</span> on any item to delete it.</span>
-          <button onClick={() => setEditMode(false)} className="rounded-lg bg-danger px-3 py-1 text-xs font-medium text-on-accent hover:brightness-110">Done</button>
-        </div>
-      )}
 
       <div className="mb-4 flex w-fit rounded-xl border border-line bg-surface p-0.5 text-sm">
         {([["fridge", "Fridge"], ["list", "List"]] as const).map(([k, label]) => (
@@ -183,7 +174,6 @@ export default function Kitchen() {
                                   food={f}
                                   have={qtyOf(f.id)}
                                   need={need[f.id] ?? 0}
-                                  editMode={editMode}
                                   onChange={(q) => setInventory(f.id, q)}
                                   onNutrition={(patch) => updateFood(f.id, { ...patch, nutritionSource: "manual" })}
                                   onDelete={() => removeFood(f.id)}
@@ -213,15 +203,12 @@ export default function Kitchen() {
   );
 }
 
-const SLIDER_MAX: Record<Unit, number> = { each: 12, cup: 12, tbsp: 32, tsp: 48, oz: 48 };
-
 function FoodTile({
-  food: f, have, need, editMode, onChange, onNutrition, onDelete,
+  food: f, have, need, onChange, onNutrition, onDelete,
 }: {
   food: Food;
   have: number;
   need: number;
-  editMode: boolean;
   onChange: (q: number) => void;
   onNutrition: (patch: Partial<Food>) => void;
   onDelete: () => void;
@@ -231,17 +218,12 @@ function FoodTile({
   const low = have - willUse <= 0 && need > 0;
   const onHandCals = Math.round(have * f.caloriesPerUnit);
   const step = stepFor(f.unit);
-  const sliderMax = Math.max(SLIDER_MAX[f.unit], Math.ceil(have * 1.5), Math.ceil(need * 1.5), step);
+  const max = sliderMax(f.unit, have, need);
   const [confirmDel, setConfirmDel] = useState(false);
   const [editNutrition, setEditNutrition] = useState(false);
 
   return (
     <div className="relative rounded-xl card p-3">
-      {editMode && (
-        <button onClick={() => setConfirmDel(true)} aria-label={`Delete ${f.name}`} className="absolute -left-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-danger text-on-accent shadow-lg hover:brightness-110">
-          <X size={13} />
-        </button>
-      )}
       {confirmDel && (
         <ConfirmDialog
           title="Delete food?"
@@ -258,6 +240,13 @@ function FoodTile({
           <span className="truncate">{f.name}</span>
         </span>
         <div className="flex shrink-0 items-center gap-1">
+          <button
+            onClick={() => setConfirmDel(true)}
+            aria-label={`Delete ${f.name}`}
+            className="mr-0.5 flex h-6 w-6 items-center justify-center rounded-md text-faint transition-colors hover:bg-danger/10 hover:text-danger-soft"
+          >
+            <Trash2 size={12} />
+          </button>
           <button onClick={() => onChange(have - step)} className="flex h-6 w-6 items-center justify-center rounded-md border border-line text-muted hover:bg-surface-3 hover:text-ink"><Minus size={12} /></button>
           <input
             type="number"
@@ -314,15 +303,20 @@ function FoodTile({
       <input
         type="range"
         min={0}
-        max={sliderMax}
+        max={max}
         step={step}
-        value={Math.min(have, sliderMax)}
+        value={Math.min(have, max)}
         onChange={(e) => onChange(Number(e.target.value))}
         className="mt-2.5 h-1.5 w-full cursor-pointer accent-accent"
         aria-label={`${f.name} slider`}
       />
 
-      <div className="mt-1.5 flex items-center justify-between text-xs">
+      <div className="mt-0.5 flex justify-between text-[10px] tabular-nums text-faint">
+        <span>0</span>
+        <span>{fmtQty(max)} {pluralUnit(max, f.unit)}</span>
+      </div>
+
+      <div className="mt-1 flex items-center justify-between text-xs">
         <span className="text-muted">{fmtQty(have)} {pluralUnit(have, f.unit)} on hand</span>
         {low ? (
           <span className="font-medium text-warn-soft">short {fmtQty(shortfall)} {pluralUnit(shortfall, f.unit)}</span>

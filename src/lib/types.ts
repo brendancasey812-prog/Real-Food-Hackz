@@ -18,7 +18,8 @@ export type FoodCategory =
   | "fat"
   | "vegetable"
   | "fruit"
-  | "condiment";
+  | "condiment"
+  | "spice";
 
 /** Grams of each macronutrient — used on foods (per unit) and rolled up everywhere. */
 export interface Macros {

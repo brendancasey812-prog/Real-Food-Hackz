@@ -11,7 +11,8 @@ export const FOOD_CATEGORIES: { key: FoodCategory; label: string; emoji: string 
   { key: "legume", label: "Legumes", emoji: "🫘" },
   { key: "nut", label: "Nuts & seeds", emoji: "🥜" },
   { key: "fat", label: "Fats & oils", emoji: "🫒" },
-  { key: "condiment", label: "Condiments", emoji: "🧂" },
+  { key: "condiment", label: "Condiments", emoji: "🥫" },
+  { key: "spice", label: "Spices & herbs", emoji: "🌿" },
 ];
 
 export const FOOD_CATEGORY_LABEL: Record<FoodCategory, string> = Object.fromEntries(

@@ -21,6 +21,7 @@ export const CATEGORY_TINT: Record<FoodCategory, string> = {
   vegetable: "from-accent/30 to-accent/10 ring-accent/25",
   fruit: "from-over/30 to-over/10 ring-over/25",
   condiment: "from-warn/30 to-warn/10 ring-warn/25",
+  spice: "from-sea/25 to-accent/8 ring-sea/20",
 };
 
 /** The brushed-steel cabinet everything sits inside. */

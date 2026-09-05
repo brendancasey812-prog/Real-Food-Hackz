@@ -22,7 +22,7 @@ const ZONES: { key: Location; label: string; icon: string }[] = [
  * drawers at the bottom and condiments in the door bin, the way a real fridge
  * is laid out — everything else sits on a glass shelf.
  */
-const FURNITURE: Record<FoodCategory, "shelf" | "drawer" | "door"> = {
+const FURNITURE: Record<FoodCategory, "shelf" | "drawer" | "door" | "rack"> = {
   protein: "shelf",
   dairy: "shelf",
   grain: "shelf",
@@ -33,6 +33,9 @@ const FURNITURE: Record<FoodCategory, "shelf" | "drawer" | "door"> = {
   vegetable: "drawer",
   fruit: "drawer",
   condiment: "door",
+  // Little jars and cut herbs get their own rack rather than sharing the
+  // door bin with the ketchup.
+  spice: "rack",
 };
 
 
@@ -65,6 +68,7 @@ export function Fridge() {
   const shelves = groups.filter((g) => FURNITURE[g.key] === "shelf");
   const drawers = groups.filter((g) => FURNITURE[g.key] === "drawer");
   const doors = groups.filter((g) => FURNITURE[g.key] === "door");
+  const racks = groups.filter((g) => FURNITURE[g.key] === "rack");
 
   const toggleChosen = (id: string) =>
     setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
@@ -164,6 +168,15 @@ export function Fridge() {
                     Door bin
                   </p>
                   {doors.map((g) => <FoodShelf key={g.key} {...groupProps(g)} />)}
+                </div>
+              )}
+
+              {racks.length > 0 && (
+                <div className="pt-1">
+                  <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted">
+                    Spice rack
+                  </p>
+                  {racks.map((g) => <FoodShelf key={g.key} {...groupProps(g)} />)}
                 </div>
               )}
 

@@ -17,6 +17,7 @@ import type {
 } from "./types";
 import { seedData } from "./seed";
 import { normalizeName, mapCategory, unitForNewFood, convertToUnit } from "./receipt";
+import { classifyByName } from "./foodclass";
 import { BASE_STORE_ID } from "./cost";
 
 interface Totals extends Macros {
@@ -296,7 +297,7 @@ export const useApp = create<AppState>()(
             }
           } else {
             const id = uid();
-            const map = mapCategory(item.category);
+            const map = mapCategory(item.category, item.food);
             const unit = unitForNewFood(item.unit);
             const qty = convertToUnit(item.quantity, item.unit, unit) ?? item.quantity;
             foods.push({
@@ -320,7 +321,7 @@ export const useApp = create<AppState>()(
       name: "mealplan-store-v6",
       // Bump whenever seed content is added that existing data should receive —
       // zustand only runs `migrate` when the stored version differs.
-      version: 3,
+      version: 4,
       // Preserve the user's own data across app updates; only fill in missing
       // defaults and restore items that earlier resets dropped.
       migrate: (persisted) => {
@@ -344,6 +345,37 @@ export const useApp = create<AppState>()(
           if (!foods.some((f) => f.id === fid)) {
             const sf = seedData.foods.find((f) => f.id === fid);
             if (sf) { foods.push(sf); inventory.push({ foodId: sf.id, quantity: 0 }); }
+          }
+        }
+        // The spice rack, the aromatics and the door-bin staples that arrived
+        // with the "Spices & herbs" shelf.
+        for (const fid of [
+          "shallot", "garlicpowder", "onionpowder", "paprika", "cumin", "chiliflakes",
+          "oregano", "italianseasoning", "turmeric", "bayleaf", "vanilla", "basil",
+          "cilantro", "parsley", "ginger", "soysauce", "dijon", "ketchup",
+        ]) {
+          if (!foods.some((f) => f.id === fid)) {
+            const sf = seedData.foods.find((f) => f.id === fid);
+            if (sf) { foods.push(sf); inventory.push({ foodId: sf.id, quantity: 0 }); }
+          }
+        }
+        // Re-file everything the app itself categorised. Foods we ship know
+        // where they belong; foods a receipt invented were only ever placed by
+        // its four coarse buckets, so their names get a second reading. A food
+        // the user typed in by hand is left exactly as they filed it.
+        for (let i = 0; i < foods.length; i++) {
+          const f = foods[i];
+          const shipped = seedData.foods.find((sf) => sf.id === f.id);
+          if (shipped) {
+            if (f.category !== shipped.category || f.location !== shipped.location) {
+              foods[i] = { ...f, category: shipped.category, location: shipped.location };
+            }
+            continue;
+          }
+          if (f.source !== "receipt_scan") continue;
+          const placed = classifyByName(f.name);
+          if (placed && placed.category !== f.category) {
+            foods[i] = { ...f, category: placed.category, location: placed.location };
           }
         }
         for (const rid of ["overnight-oats", "corn-egg-breakfast", "boursin-pasta-meatballs"]) {

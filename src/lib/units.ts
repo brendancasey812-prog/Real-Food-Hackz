@@ -33,3 +33,47 @@ export function fmtQty(n: number): string {
 export function qtyWithUnit(n: number, unit: Unit): string {
   return `${fmtQty(n)} ${pluralUnit(n, unit)}`;
 }
+
+// ---- Quantity sliders ----
+
+/**
+ * How far a quantity slider reaches by itself. Past this the slider only
+ * extends to cover a number the user typed in — nobody drags to 500 oz, but
+ * if you say you have 500 oz the handle still has to land on it.
+ */
+export const SLIDER_CAP = 100;
+
+/** Where a slider tops out for a food nobody has much of yet. */
+const SLIDER_BASE: Record<Unit, number> = {
+  each: 12,
+  cup: 12,
+  tbsp: 32,
+  tsp: 48,
+  oz: 48,
+};
+
+/** Round up to the next round-looking number: 13 → 20, 260 → 500. */
+function niceCeil(n: number): number {
+  if (n <= 0) return 0;
+  const mag = 10 ** Math.floor(Math.log10(n));
+  for (const m of [1, 2, 2.5, 5]) {
+    if (n <= m * mag) return m * mag;
+  }
+  return 10 * mag;
+}
+
+/**
+ * The `max` for a quantity slider on this food.
+ *
+ * Two rules, both about the handle staying where you put it:
+ *  - the range is derived from a *round* number above the values involved, not
+ *    from the current value, so dragging doesn't push the end of the track away
+ *    from you;
+ *  - it never stretches past `SLIDER_CAP` on its own. Only a quantity the user
+ *    entered by hand takes it further, and then only far enough to show it.
+ */
+export function sliderMax(unit: Unit, ...values: number[]): number {
+  const highest = Math.max(0, ...values.filter((v) => Number.isFinite(v)));
+  const reach = Math.max(SLIDER_BASE[unit] ?? SLIDER_CAP, niceCeil(highest));
+  return Math.max(stepFor(unit), Math.min(reach, Math.max(SLIDER_CAP, highest)));
+}
