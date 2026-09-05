@@ -11,7 +11,7 @@ list, and fridge/pantry levels all update together.
 | --- | --- |
 | **Dashboard** | Weekly calorie tracker vs. your daily goal, plus live stats pulled from every other tab. |
 | **Cookbook** | Browse recipes (calories auto-calculated from ingredients) and add your own. |
-| **Planner** | Google-Calendar-style weekly grid — drop recipes onto breakfast/lunch/dinner/snack slots. |
+| **Meal Plan** | Google-Calendar-style weekly grid — drop recipes onto breakfast/lunch/dinner/snack slots, and clear a day or a whole week at once. |
 | **Groceries** | Auto-built list = what the week's plan needs − what's already in your kitchen. |
 | **Kitchen** | A fridge you can open — glass shelves and crisper drawers of food icons, each showing its amount. Also a List view with stock bars. |
 | **Costs** | The cost repository — every ingredient priced per its own unit, rolling up to per-recipe and per-week spend. |
@@ -63,7 +63,7 @@ Colors carry meaning rather than decoration:
 ## How it stays in sync
 
 ```
-RECIPES ──▶ PLANNER ──▶ DASHBOARD (calories vs goal, food spend)
+RECIPES ──▶ MEAL PLAN ─▶ DASHBOARD (calories vs goal, food spend)
                    ├──▶ GROCERIES (need − have, basket cost)
                    └──▶ KITCHEN   (stock depletion)
 

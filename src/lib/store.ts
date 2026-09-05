@@ -34,6 +34,8 @@ interface AppState extends AppData {
   addPlannedMeal: (meal: PlannedMeal) => void;
   updatePlannedMeal: (id: string, patch: Partial<PlannedMeal>) => void;
   removePlannedMeal: (id: string) => void;
+  /** Wipe every planned meal on the given dates. Returns how many were removed. */
+  clearMeals: (dates: string[]) => number;
   addEvent: (event: CalendarEvent) => void;
   updateEvent: (id: string, patch: Partial<CalendarEvent>) => void;
   removeEvent: (id: string) => void;
@@ -146,6 +148,13 @@ export const useApp = create<AppState>()(
 
       updatePlannedMeal: (id, patch) =>
         set((s) => ({ plan: s.plan.map((p) => (p.id === id ? { ...p, ...patch } : p)) })),
+
+      clearMeals: (dates) => {
+        const drop = new Set(dates);
+        const before = get().plan.length;
+        set((s) => ({ plan: s.plan.filter((m) => !drop.has(m.date)) }));
+        return before - get().plan.length;
+      },
 
       removePlannedMeal: (id) =>
         set((s) => ({ plan: s.plan.filter((p) => p.id !== id) })),

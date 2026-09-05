@@ -27,7 +27,7 @@ function useHydrated() {
 const nav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/recipes", label: "Cookbook", icon: BookOpen },
-  { href: "/planner", label: "Planner", icon: CalendarDays },
+  { href: "/planner", label: "Meal Plan", icon: CalendarDays },
   { href: "/groceries", label: "Groceries", icon: ShoppingCart },
   { href: "/kitchen", label: "Kitchen", icon: Refrigerator },
   { href: "/costs", label: "Costs", icon: DollarSign },
