@@ -35,7 +35,7 @@ export default function Cookbook() {
   const [collapsed, setCollapsed] = useState<Set<MealType>>(new Set());
   const [search, setSearch] = useState("");
   const [secFilter, setSecFilter] = useState("all");
-  const [tab, setTab] = useState<"classic" | "v2">("classic");
+  const [tab, setTab] = useState<"classic" | "v2">("v2");
   const [openRecipeId, setOpenRecipeId] = useState<string | null>(null);
   const q = search.trim().toLowerCase();
 
