@@ -318,7 +318,9 @@ export const useApp = create<AppState>()(
     }),
     {
       name: "mealplan-store-v6",
-      version: 2,
+      // Bump whenever seed content is added that existing data should receive —
+      // zustand only runs `migrate` when the stored version differs.
+      version: 3,
       // Preserve the user's own data across app updates; only fill in missing
       // defaults and restore items that earlier resets dropped.
       migrate: (persisted) => {
@@ -333,7 +335,18 @@ export const useApp = create<AppState>()(
             if (sf) { foods.push(sf); inventory.push({ foodId: sf.id, quantity: 2 }); }
           }
         }
-        for (const rid of ["overnight-oats", "corn-egg-breakfast"]) {
+        // Ingredients for recipes added after a user's data was created. They
+        // start at zero on hand — a new recipe doesn't mean you have the food.
+        for (const fid of [
+          "spaghetti", "panko", "boursin", "crushedtomatoes", "mozzarellaballs",
+          "salt", "blackpepper",
+        ]) {
+          if (!foods.some((f) => f.id === fid)) {
+            const sf = seedData.foods.find((f) => f.id === fid);
+            if (sf) { foods.push(sf); inventory.push({ foodId: sf.id, quantity: 0 }); }
+          }
+        }
+        for (const rid of ["overnight-oats", "corn-egg-breakfast", "boursin-pasta-meatballs"]) {
           if (!recipes.some((r) => r.id === rid)) {
             const sr = seedData.recipes.find((r) => r.id === rid);
             if (sr) recipes.push(sr);

@@ -6,15 +6,15 @@ import { mondayIndex } from "./week";
 // Which food-type bucket each food id belongs to (groups the Kitchen).
 const CATS: Record<FoodCategory, string[]> = {
   protein: ["egg", "eggwhite", "chicken", "chickenthigh", "salmon", "whitefish", "beef937", "groundbeef80", "sirloin", "groundturkey", "turkeydeli", "turkeysausage", "shrimp", "tuna", "tofu", "proteinpowder", "proteinshake"],
-  dairy: ["greekyogurt", "cottagecheese", "stringcheese", "cheese", "milk", "oatmilk"],
-  grain: ["oats", "brownrice", "whiterice", "jasminerice", "quinoa", "farro", "wwbread", "wrap", "roll", "crackers", "englishmuffin", "granola", "corntortillas"],
+  dairy: ["greekyogurt", "cottagecheese", "stringcheese", "cheese", "milk", "oatmilk", "boursin", "mozzarellaballs"],
+  grain: ["oats", "brownrice", "whiterice", "jasminerice", "quinoa", "farro", "wwbread", "wrap", "roll", "crackers", "englishmuffin", "granola", "corntortillas", "spaghetti", "panko"],
   starch: ["potato", "sweetpotato"],
   legume: ["blackbeans", "beans", "hummus"],
   nut: ["peanutbutter", "almondbutter", "almonds", "walnuts", "mixednuts", "trailmix"],
   fat: ["oliveoil", "sesameoil", "butter", "vinaigrette", "caesar", "avocado"],
-  vegetable: ["broccoli", "spinach", "mushrooms", "peppers", "onion", "carrots", "greens", "brussels", "greenbeans", "asparagus", "tomatoes", "rootveg", "arugula", "garlic"],
+  vegetable: ["broccoli", "spinach", "mushrooms", "peppers", "onion", "carrots", "greens", "brussels", "greenbeans", "asparagus", "tomatoes", "rootveg", "arugula", "garlic", "crushedtomatoes"],
   fruit: ["banana", "berries", "apple", "orange", "grapes", "pineapple", "fruitsalad", "oj", "blueberries", "frozenstrawberries"],
-  condiment: ["honey", "salsa", "cinnamon", "coffee", "yangnyeom"],
+  condiment: ["honey", "salsa", "cinnamon", "coffee", "yangnyeom", "salt", "blackpepper"],
 };
 const CAT_OF: Record<string, FoodCategory> = {};
 (Object.keys(CATS) as FoodCategory[]).forEach((c) => CATS[c].forEach((id) => (CAT_OF[id] = c)));
@@ -108,6 +108,15 @@ const foods: Food[] = [
   F("coffee", "Black coffee", "cup", 2, 0.3, 0, 0, "pantry", "☕"),
   // Added from the Trader Joe's receipt
   F("groundbeef80", "Ground beef 80/20", "oz", 71, 6.7, 0, 4.9, "fridge", "🥩"),
+
+  // Boursin pasta with meatballs
+  F("spaghetti", "Spaghetti (dry)", "oz", 105, 3.7, 21.3, 0.4, "pantry", "🍝"),
+  F("panko", "Panko breadcrumbs", "cup", 220, 7, 40, 3, "pantry", "🍞"),
+  F("boursin", "Boursin cheese", "oz", 120, 2, 1, 13, "fridge", "🧀"),
+  F("crushedtomatoes", "Crushed tomatoes (canned)", "oz", 9, 0.5, 2, 0.1, "pantry", "🥫"),
+  F("mozzarellaballs", "Mozzarella balls", "each", 42, 2.7, 0.3, 3.2, "fridge", "🧀"),
+  F("salt", "Salt", "tsp", 0, 0, 0, 0, "pantry", "🧂"),
+  F("blackpepper", "Black pepper", "tsp", 6, 0.2, 1.5, 0.1, "pantry", "🧂"),
   F("tofu", "Tofu (firm)", "oz", 20, 2.3, 0.6, 1.2, "fridge", "⬜"),
   F("oatmilk", "Oat milk", "cup", 120, 3, 16, 5, "fridge", "🥛"),
   F("jasminerice", "Jasmine rice", "oz", 100, 2, 22, 0.2, "pantry", "🍚"),
@@ -179,6 +188,35 @@ const recipes: Recipe[] = [
   // Restored favorites (single-serving)
   R("overnight-oats", "Berry Overnight Oats", "🥣", [["oats", 0.5], ["oatmilk", 0.75], ["berries", 0.5], ["honey", 1]], ["Combine oats and oat milk in a jar.", "Top with berries and a drizzle of honey.", "Refrigerate overnight."]),
   R("corn-egg-breakfast", "Corn Tortilla & Egg Breakfast", "🌮", [["corntortillas", 2], ["egg", 2], ["cheese", 1]], ["Scramble the eggs.", "Warm the corn tortillas.", "Fill with egg and cheese."]),
+  // A four-serving dinner, so it is written out rather than built by R().
+  {
+    id: "boursin-pasta-meatballs",
+    name: "Boursin Pasta with Meatballs",
+    emoji: "🍝",
+    servings: 4,
+    category: "dinner",
+    ingredients: [
+      { foodId: "spaghetti", quantity: 16 },        // 1 lb
+      { foodId: "groundbeef80", quantity: 16 },     // 1 lb ground meat
+      { foodId: "panko", quantity: 0.5 },
+      { foodId: "egg", quantity: 1 },
+      { foodId: "boursin", quantity: 5.2 },         // one 5.2 oz container
+      { foodId: "crushedtomatoes", quantity: 28 },
+      { foodId: "butter", quantity: 2 },
+      { foodId: "mozzarellaballs", quantity: 8 },
+      { foodId: "salt", quantity: 1 },
+      { foodId: "blackpepper", quantity: 0.5 },
+    ],
+    steps: [
+      "Mix ground meat, panko, egg, half the salt, half the pepper. Roll into 1.5-inch meatballs (~12-16).",
+      "Melt butter in a large skillet over medium-high heat. Sear meatballs on all sides until browned.",
+      "Boil spaghetti in salted water until al dente. Reserve 1 cup pasta water, then drain.",
+      "Add canned tomatoes and remaining salt/pepper to the skillet with meatballs. Simmer until meatballs are cooked through.",
+      "Lower heat, stir in Boursin until melted and creamy. Add pasta water if too thick.",
+      "Add mozzarella balls, stir gently until softened.",
+      "Toss in drained spaghetti, coat well, plate with meatballs and mozzarella on top.",
+    ],
+  },
 ];
 
 // Which recipe fills each meal slot, per weekday (Monday = 0 … Sunday = 6).
@@ -242,7 +280,10 @@ const BASE_PRICE: Record<string, number> = {
   oats: 0.55, brownrice: 0.45, whiterice: 0.35, quinoa: 0.95, farro: 0.85,
   granola: 1.3, jasminerice: 0.09, wwbread: 0.22, wrap: 0.55, roll: 0.6,
   crackers: 0.06, englishmuffin: 0.6, corntortillas: 0.14,
-  potato: 0.85, sweetpotato: 0.95,
+  potato: 0.85, sweetpotato: 0.95, spaghetti: 0.12, panko: 0.9,
+  // Boursin pasta additions
+  boursin: 1.15, crushedtomatoes: 0.08, mozzarellaballs: 0.55,
+  salt: 0.01, blackpepper: 0.09,
   // Legumes & nuts
   blackbeans: 0.85, beans: 0.9, hummus: 0.22, peanutbutter: 0.18,
   almondbutter: 0.42, almonds: 0.62, walnuts: 0.75, mixednuts: 0.7, trailmix: 0.55,
