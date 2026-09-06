@@ -3,9 +3,11 @@
 import { useMemo, useState } from "react";
 import { X, ClipboardList, Check, ArrowLeft, TriangleAlert } from "lucide-react";
 import { useApp, newId, foodById } from "@/lib/store";
-import { normalizeName } from "@/lib/receipt";
-import { parseReceiptText, amountInUnit, unitPrice, type ReceiptTextLine } from "@/lib/receipttext";
-import { usdaFor, gramsPerUnit } from "@/lib/usda";
+import {
+  parseReceiptText, amountInUnit, unitPrice, rankFoods,
+  type ReceiptTextLine, type FoodSuggestion,
+} from "@/lib/receipttext";
+import { gramsForFood } from "@/lib/usda";
 import { UNITS, unitLabel, pluralUnit } from "@/lib/units";
 import { fmtMoney, BASE_STORE_ID } from "@/lib/cost";
 import type { Food, Unit } from "@/lib/types";
@@ -23,6 +25,10 @@ interface Row {
   price: number | null;
   /** True when the weight couldn't be turned into the food's unit. */
   needsAmount: boolean;
+  /** True when the amount came from a typical weight rather than a known one. */
+  estimated: boolean;
+  /** Other foods this line could be, best first. */
+  similar: FoodSuggestion[];
   /** For a brand-new food. */
   newUnit: Unit;
 }
@@ -49,46 +55,34 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
       ? "Base prices"
       : (stores.find((s) => s.id === storeId)?.name ?? "Base prices");
 
-  /** Best guess at which food a receipt line is, by name. */
-  const matchFood = (line: ReceiptTextLine): Food | undefined => {
-    const target = normalizeName(line.food);
-    const words = target.split(" ").filter((w) => w.length > 2);
-    let best: { food: Food; score: number } | undefined;
-    for (const f of foods) {
-      const name = normalizeName(f.name);
-      let score = 0;
-      if (name === target) score = 100;
-      else if (name.includes(target) || target.includes(name)) score = 60;
-      else score = words.filter((w) => name.includes(w)).length * 20;
-      // A food already in the right group is likelier to be the right one.
-      if (score > 0 && f.category === line.category) score += 10;
-      if (score > 0 && (!best || score > best.score)) best = { food: f, score };
-    }
-    return best && best.score >= 20 ? best.food : undefined;
-  };
-
   const buildRow = (line: ReceiptTextLine, food: Food | undefined): Row => {
+    const similar = rankFoods(foods, line.food, 4, line.category);
     const unit: Unit = food?.unit ?? (line.grams != null ? "oz" : "each");
-    const grams = food ? gramsFor(food, unit) : (unit === "oz" ? 28.35 : null);
-    const amount = amountInUnit(line, unit, grams);
+    const weight = food
+      ? gramsForFood(food)
+      : unit === "oz"
+        ? { grams: 28.349523, estimated: false }
+        : null;
+    const amount = amountInUnit(line, unit, weight?.grams ?? null);
     return {
       line,
       foodId: food?.id ?? NEW,
       amount: amount ?? 1,
       price: unitPrice(line.total, amount ?? 1),
       needsAmount: amount == null,
+      estimated: amount != null && Boolean(weight?.estimated),
+      similar,
       newUnit: unit,
     };
   };
 
-  const gramsFor = (food: Food, unit: Unit): number | null => {
-    const ref = usdaFor(food);
-    return ref ? gramsPerUnit(ref.match.entry, unit) : (unit === "oz" ? 28.35 : null);
-  };
-
   const parse = () => {
-    const lines = parseReceiptText(text);
-    setRows(lines.map((l) => buildRow(l, matchFood(l))));
+    setRows(
+      parseReceiptText(text).map((l) => {
+        const best = rankFoods(foods, l.food, 1, l.category)[0];
+        return buildRow(l, best && best.score >= 0.3 ? best.food : undefined);
+      }),
+    );
     setStep("review");
   };
 
@@ -230,9 +224,8 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
               {totals.unresolved > 0 && (
                 <p className="mb-3 flex items-start gap-2 rounded-xl border border-warn/40 bg-warn/10 px-3 py-2 text-[11px] leading-4 text-warn-soft">
                   <TriangleAlert size={13} className="mt-px shrink-0" />
-                  {totals.unresolved} {totals.unresolved === 1 ? "line was" : "lines were"} sold by weight
-                  into a food measured by volume, and nothing here says how much a cup of it
-                  weighs. Set the amount yourself and the price follows.
+                  {totals.unresolved} {totals.unresolved === 1 ? "line" : "lines"} couldn&apos;t be
+                  converted into the food&apos;s unit. Set the amount yourself and the price follows.
                 </p>
               )}
 
@@ -246,6 +239,39 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
                         {r.line.label} · {fmtMoney(r.line.total)}
                         {r.line.grams != null && ` · ${(r.line.grams / 453.6).toFixed(2)} lb`}
                       </div>
+                      {/* Similar foods, best first — one tap rather than
+                          hunting a hundred-item dropdown. */}
+                      {r.similar.length > 0 && (
+                        <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                          {r.similar.map((sg) => (
+                            <button
+                              key={sg.food.id}
+                              onClick={() => retarget(i, sg.food.id)}
+                              aria-pressed={r.foodId === sg.food.id}
+                              title={`Matched on ${sg.matched.join(", ")}`}
+                              className={`rounded-lg px-2 py-1 text-[11px] font-medium transition-colors ${
+                                r.foodId === sg.food.id
+                                  ? "bg-accent text-on-accent"
+                                  : "border border-line text-ink-2 hover:bg-surface-3"
+                              }`}
+                            >
+                              {sg.food.name}
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => retarget(i, NEW)}
+                            aria-pressed={r.foodId === NEW}
+                            className={`rounded-lg px-2 py-1 text-[11px] font-medium transition-colors ${
+                              r.foodId === NEW
+                                ? "bg-accent text-on-accent"
+                                : "border border-dashed border-line text-muted hover:bg-surface-3"
+                            }`}
+                          >
+                            New food
+                          </button>
+                        </div>
+                      )}
+
                       <div className="flex flex-wrap items-center gap-2">
                         <select
                           value={r.foodId}
@@ -280,6 +306,11 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
 
                         <span className={`shrink-0 text-xs tabular-nums ${r.price ? "text-accent-soft" : "text-warn-soft"}`}>
                           {r.price ? `${fmtMoney(r.price)} / ${unitLabel(unit)}` : "no price"}
+                          {r.estimated && (
+                            <span className="ml-1 font-normal not-italic text-muted" title="Converted using a typical weight — adjust the amount if you know better.">
+                              est.
+                            </span>
+                          )}
                         </span>
                       </div>
                     </div>

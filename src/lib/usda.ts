@@ -1,5 +1,5 @@
 import raw from "./usda-foods.json";
-import type { Food, Unit } from "./types";
+import type { Food, FoodCategory, Unit } from "./types";
 
 /**
  * USDA FoodData Central (Foundation Foods) as the app's fallback nutrition
@@ -207,6 +207,95 @@ export function usdaFor(food: Pick<Food, "name" | "unit">): {
   if (!match) return null;
   const nutrition = usdaPerUnit(match.entry, food.unit);
   return nutrition ? { match, nutrition } : null;
+}
+
+/**
+ * Typical weight of one unit, when USDA has no figure for this food.
+ *
+ * Deliberately coarse: these are the difference between a receipt line
+ * converting at all and the user typing a number by hand, and a cup of
+ * chopped vegetables really is about 120 g whatever the vegetable. Anything
+ * derived from these is labelled an estimate.
+ */
+const CUP_GRAMS: Record<FoodCategory, number> = {
+  protein: 140,
+  dairy: 240,
+  grain: 180,
+  starch: 200,
+  legume: 180,
+  nut: 140,
+  fat: 218,
+  vegetable: 120,
+  fruit: 150,
+  condiment: 240,
+  spice: 100,
+};
+
+const TBSP_PER_CUP_ = 16;
+const TSP_PER_CUP_ = 48;
+
+/**
+ * What one of a thing typically weighs. Only 30 of the 323 USDA records carry
+ * a per-item weight, so without this a receipt for 2.63 lb of bananas can't
+ * say how many bananas that is — which is the whole question.
+ *
+ * Longest key wins, so "sweet potato" beats "potato".
+ */
+const EACH_GRAMS: [string, number][] = [
+  ["sweet potato", 130], ["bell pepper", 119], ["garlic clove", 3],
+  ["mozzarella ball", 10], ["english muffin", 57], ["corn tortilla", 26],
+  ["tortilla", 45], ["banana", 118], ["apple", 200], ["orange", 131],
+  ["lemon", 84], ["lime", 67], ["peach", 150], ["pear", 178], ["kiwi", 75],
+  ["avocado", 200], ["potato", 173], ["onion", 110], ["shallot", 25],
+  ["garlic", 45], ["tomato", 123], ["cucumber", 300], ["carrot", 61],
+  ["pepper", 119], ["egg", 50], ["bread", 28], ["roll", 43], ["bun", 43],
+  ["muffin", 57], ["wrap", 62], ["sausage", 57], ["cheese stick", 28],
+];
+
+/** The typical weight of one of this food, by name. */
+function eachGrams(name: string): number | null {
+  const n = name.toLowerCase();
+  let best: { key: string; grams: number } | null = null;
+  for (const [key, grams] of EACH_GRAMS) {
+    if (n.includes(key) && (!best || key.length > best.key.length)) {
+      best = { key, grams };
+    }
+  }
+  return best?.grams ?? null;
+}
+
+/**
+ * How much one of a food's own units weighs, and how sure we are.
+ *
+ * `usdaFor` can't answer this: it returns null whenever the reference has no
+ * gram weight, which is exactly the case we need to handle rather than give
+ * up on. This goes to the matched entry directly, then falls back to a
+ * category average — because "about right" beats making someone weigh their
+ * groceries.
+ */
+export function gramsForFood(
+  food: Pick<Food, "name" | "unit" | "category">,
+): { grams: number; estimated: boolean } | null {
+  const match = matchUsda(food.name);
+  const known = match ? gramsPerUnit(match.entry, food.unit) : null;
+  if (known != null && known > 0) return { grams: known, estimated: false };
+
+  // An ounce is an ounce; nothing to estimate.
+  if (food.unit === "oz") return { grams: G_PER_OZ, estimated: false };
+
+  const cup = CUP_GRAMS[food.category];
+  if (cup == null) return null;
+  switch (food.unit) {
+    case "cup": return { grams: cup, estimated: true };
+    case "tbsp": return { grams: cup / TBSP_PER_CUP_, estimated: true };
+    case "tsp": return { grams: cup / TSP_PER_CUP_, estimated: true };
+    // "Each" can't be averaged across categories — an egg and a watermelon are
+    // both one of something — so it needs the food to be recognised by name.
+    case "each": {
+      const g = eachGrams(food.name);
+      return g == null ? null : { grams: g, estimated: true };
+    }
+  }
 }
 
 /** True when a food has no real nutrition on it yet. */
