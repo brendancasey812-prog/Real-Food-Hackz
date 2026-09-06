@@ -12,9 +12,10 @@ import { UNITS, unitLabel, pluralUnit } from "@/lib/units";
 import { fmtMoney, BASE_STORE_ID } from "@/lib/cost";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
 import { StorePicker } from "./StorePicker";
+import { FoodPicker, NEW_FOOD } from "./FoodPicker";
 import type { FoodCategory, Unit } from "@/lib/types";
 
-const NEW = "__new__";
+const NEW = NEW_FOOD;
 
 /** Below this the match is a guess and the row says so. */
 const SURE = 0.55;
@@ -389,16 +390,11 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
                             className="field min-w-0 flex-1 rounded-lg px-2 py-1.5 text-sm"
                           />
                         ) : (
-                          <select
+                          <FoodPicker
                             value={r.foodId}
-                            onChange={(e) => retarget(i, e.target.value)}
-                            className="field min-w-0 flex-1 rounded-lg px-2 py-1.5 text-sm"
-                          >
-                            <option value={NEW}>New food…</option>
-                            {[...foods].sort((a, b) => a.name.localeCompare(b.name)).map((f) => (
-                              <option key={f.id} value={f.id}>{f.name}</option>
-                            ))}
-                          </select>
+                            onChange={(id) => retarget(i, id)}
+                            newLabel={`New food — “${titleCase(r.line.food)}”`}
+                          />
                         )}
 
                         {r.foodId === NEW && (

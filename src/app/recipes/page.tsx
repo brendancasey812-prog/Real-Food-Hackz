@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Trash2, X, Flame, Menu, ChevronDown, Camera, PenLine, ClipboardList, Search, CalendarPlus } from "lucide-react";
+import { Plus, Trash2, X, Flame, Menu, ChevronDown, Camera, PenLine, ClipboardList, CalendarPlus } from "lucide-react";
 import {
   useApp,
   recipeCaloriesPerServing,
@@ -25,6 +25,7 @@ import type { Food, FoodCategory, Location, MealType, Recipe, RecipeComponent, U
 import { SettingsButton } from "@/components/SettingsButton";
 import { AddToPlanSheet } from "@/components/AddToPlanSheet";
 import { SingleFoodsTab } from "@/components/SingleFoodsTab";
+import { FoodPicker, NEW_FOOD } from "@/components/FoodPicker";
 
 export default function Cookbook() {
   const { recipes, foods, removeRecipe } = useApp();
@@ -298,83 +299,7 @@ function RecipeCard({ recipe: r, foods, recipes, onOpen, onEdit, onRemove }: { r
 
 // ---- Collapsible, categorized ingredient picker ----
 
-const NEW = "__new__";
-
-function IngredientPicker({ foods, value, onChange }: { foods: Food[]; value: string; onChange: (v: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const [expanded, setExpanded] = useState<Set<FoodCategory>>(new Set());
-  const [query, setQuery] = useState("");
-  const selected = value === NEW ? null : foods.find((f) => f.id === value);
-  const toggle = (k: FoodCategory) => setExpanded((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
-  const close = () => { setOpen(false); setQuery(""); };
-  const pick = (id: string) => { onChange(id); close(); };
-
-  const q = query.trim().toLowerCase();
-  const matches = q ? foods.filter((f) => f.name.toLowerCase().includes(q)) : [];
-
-  return (
-    <div className="relative min-w-0 flex-1">
-      <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between gap-1 rounded-lg field px-2 py-1.5 text-left text-sm">
-        <span className="truncate">{value === NEW ? "New ingredient…" : selected ? selected.name : "Select ingredient…"}</span>
-        <ChevronDown size={14} className="shrink-0 text-muted" />
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={close} />
-          <div className="absolute z-50 mt-1 flex max-h-80 w-full min-w-[220px] flex-col overflow-hidden rounded-xl border border-line bg-page shadow-2xl">
-            {/* Search box */}
-            <div className="relative border-b border-line p-2">
-              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
-              <input
-                autoFocus
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search ingredients…"
-                className="w-full rounded-lg field py-1.5 pl-8 pr-2 text-sm"
-              />
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto p-1">
-              <button type="button" onClick={() => pick(NEW)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm font-medium text-accent-soft hover:bg-accent-wash">
-                New ingredient…
-              </button>
-
-              {q ? (
-                <>
-                  {matches.length === 0 && <p className="px-3 py-4 text-center text-xs text-muted">No ingredients match “{query}”.</p>}
-                  {matches.map((f) => (
-                    <button key={f.id} type="button" onClick={() => pick(f.id)} className={`flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-ink hover:bg-accent-wash ${f.id === value ? "bg-accent-wash" : ""}`}>
-                      <span className="truncate">{f.name}</span>
-                    </button>
-                  ))}
-                </>
-              ) : (
-                FOOD_CATEGORIES.map((cat) => {
-                  const list = foods.filter((f) => f.category === cat.key);
-                  if (list.length === 0) return null;
-                  const isOpen = expanded.has(cat.key);
-                  return (
-                    <div key={cat.key}>
-                      <button type="button" onClick={() => toggle(cat.key)} className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-muted hover:bg-surface-3">
-                        <span>{cat.label} <span className="font-normal text-faint">· {list.length}</span></span>
-                        <ChevronDown size={13} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                      </button>
-                      {isOpen && list.map((f) => (
-                        <button key={f.id} type="button" onClick={() => pick(f.id)} className={`flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-sm text-ink hover:bg-accent-wash ${f.id === value ? "bg-accent-wash" : ""}`}>
-                          <span className="truncate">{f.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
+const NEW = NEW_FOOD;
 
 // ---- Add recipe modal (manual) ----
 
@@ -535,7 +460,7 @@ function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => v
                 return (
                   <div key={i} className="rounded-xl border border-line p-2.5">
                     <div className="flex gap-2">
-                      <IngredientPicker foods={foods} value={row.foodId} onChange={(v) => update(i, { foodId: v })} />
+                      <FoodPicker value={row.foodId} onChange={(v) => update(i, { foodId: v })} newLabel="New ingredient…" placeholder="Select ingredient…" />
                       <input type="number" value={row.quantity} onChange={(e) => update(i, { quantity: Number(e.target.value) })} className="w-16 rounded-lg field px-2 py-1.5 text-sm" />
                       <span className="flex w-12 items-center text-xs text-muted">{unitLabel(unit)}</span>
                     </div>
