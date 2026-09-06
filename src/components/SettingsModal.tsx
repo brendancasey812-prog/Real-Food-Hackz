@@ -4,9 +4,10 @@ import { useState } from "react";
 import {
   X, ChevronDown, User, Target, CreditCard, ShieldCheck, Info,
   Check, LogIn, LogOut, Cloud, CloudOff, RefreshCw, Users, Trash2, Plus,
-  Palette, Sun, Moon, Monitor
+  Palette, Sun, Moon, Monitor, Download, Upload
 } from "lucide-react";
-import { useApp, blankMember } from "@/lib/store";
+import { useApp, blankMember, exportData, importData } from "@/lib/store";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { useCloud, type SyncStatus } from "@/lib/cloud";
 import { useTheme, THEME_OPTIONS, type Theme } from "@/lib/theme";
 import { HOUSEHOLD_LABEL } from "@/lib/household";
@@ -95,6 +96,44 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const cloud = useCloud();
   const theme = useTheme((s) => s.theme);
   const setTheme = useTheme((s) => s.setTheme);
+  const [pendingRestore, setPendingRestore] = useState<File | null>(null);
+  const [restoreNote, setRestoreNote] = useState<{ ok: boolean; text: string } | null>(null);
+
+  /** Everything this browser holds, as a file you can carry. */
+  const downloadBackup = () => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    const blob = new Blob([JSON.stringify(exportData(), null, 2)], {
+      type: "application/json;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `real-food-hackz-backup-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setRestoreNote({ ok: true, text: "Backup downloaded. Open the site on the other device and load it there." });
+  };
+
+  /** Read a backup file, checking it is one before replacing anything. */
+  const restore = async (file: File) => {
+    try {
+      const data = JSON.parse(await file.text());
+      if (!data || !Array.isArray(data.foods) || !Array.isArray(data.recipes)) {
+        setRestoreNote({ ok: false, text: "That file isn't a Real Food Hackz backup." });
+        return;
+      }
+      importData(data);
+      setRestoreNote({
+        ok: true,
+        text: `Loaded ${data.foods.length} foods, ${data.recipes.length} recipes and ${(data.plan ?? []).length} planned meals.`,
+      });
+    } catch {
+      setRestoreNote({ ok: false, text: "That file couldn't be read." });
+    }
+  };
+
   const ft = Math.floor(profile.heightIn / 12);
   const inch = profile.heightIn % 12;
   const derivedAge = ageFrom(profile.birthDate);
@@ -366,6 +405,46 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             {cloud.error && <p className="mt-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-[11px] text-danger-soft">{cloud.error}</p>}
           </Section>
 
+          {/* Backup — the way to move data between devices without an account */}
+          <Section icon={Download} title="Backup" subtitle="Move your data to another device">
+            <p className="text-xs leading-5 text-muted">
+              Everything lives in this browser. A backup file is how you carry it to
+              another one — download it here, open the site there, and load it in.
+            </p>
+
+            <button
+              onClick={downloadBackup}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-line py-2.5 text-sm font-medium text-ink hover:bg-surface-3"
+            >
+              <Download size={15} /> Download a backup
+            </button>
+
+            <label className="mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line py-2.5 text-sm font-medium text-ink hover:bg-surface-3">
+              <Upload size={15} /> Load a backup
+              <input
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) setPendingRestore(file);
+                }}
+              />
+            </label>
+
+            {restoreNote && (
+              <p className={`mt-2 text-[11px] leading-4 ${restoreNote.ok ? "text-accent-soft" : "text-warn-soft"}`}>
+                {restoreNote.text}
+              </p>
+            )}
+
+            <p className="mt-2 text-[11px] leading-4 text-muted">
+              Loading a backup replaces everything on this device — it is a copy, not a
+              merge. Take one here first if this device has anything worth keeping.
+            </p>
+          </Section>
+
           {/* Security and privacy */}
           <Section icon={ShieldCheck} title="Security and privacy" subtitle="Where your data lives">
             <ul className="space-y-2 text-sm text-ink-2">
@@ -392,6 +471,16 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           </Section>
         </div>
       </div>
+
+      {pendingRestore && (
+        <ConfirmDialog
+          title="Replace everything on this device?"
+          message={`Loading “${pendingRestore.name}” overwrites the foods, recipes, prices and meal plan in this browser with the ones in that file. This can't be undone.`}
+          confirmLabel="Load the backup"
+          onConfirm={() => { const f = pendingRestore; setPendingRestore(null); if (f) restore(f); }}
+          onCancel={() => setPendingRestore(null)}
+        />
+      )}
     </div>
   );
 }
