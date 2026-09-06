@@ -9,9 +9,6 @@
 import type { Food, FoodCategory, Location, Unit } from "./types";
 import { classifyByName } from "./foodclass";
 
-const G_PER_LB = 453.59237;
-const G_PER_OZ = 28.349523;
-
 /** One item read off a pasted receipt. */
 export interface ReceiptTextLine {
   /** The line the item came from, kept so the review screen can show it. */
@@ -34,6 +31,8 @@ export interface ReceiptTextLine {
   perLb?: number;
   /** The section it appeared under (DELI, PRODUCE, …), as a hint. */
   section?: string;
+  /** True when the till taxed the line, which in most states means not food. */
+  taxable?: boolean;
   category: FoodCategory;
   location: Location;
 }
@@ -84,6 +83,9 @@ export function foodFromLabel(label: string): string {
 
 const money = (s: string) => Number(s.replace(/[$,]/g, ""));
 
+const G_PER_LB = 453.59237;
+const G_PER_OZ = 28.349523;
+
 /** Fluid ounces in a US cup, for package sizes printed in liquid measure. */
 export const FL_OZ_PER_CUP = 8;
 
@@ -130,6 +132,60 @@ export function packSizeFrom(label: string): { grams?: number; flOz?: number } {
 }
 
 /**
+ * A till-printed line, the shape supermarkets actually hand you:
+ *
+ *   7 <tab> WHITE ONIONS <tab> 0.44 lb <tab> 1.09 <tab> 0.48 <tab> F
+ *   ^item#     description      amount     unit price  line total  taxed?
+ *
+ * Better data than the emailed kind: the amount is its own column rather than
+ * something to infer, and the tax flag separates the groceries from the face
+ * scrub. No dollar signs anywhere, which is why a parser looking for them
+ * finds nothing at all.
+ */
+const TILL_LINE =
+  /^\s*(?:\d{1,4}[\s\t]+)?(.+?)[\s\t]+([\d.]+)\s*(ea|each|lb|lbs|oz|kg|g|ct)\b[\s\t]+\$?([\d,]+\.\d{2})[\s\t]+\$?([\d,]+\.\d{2})(?:[\s\t]+([A-Za-z]))?\s*$/i;
+
+/** Read one till line, or null when it isn't one. */
+function parseTillLine(line: string, section: string | undefined): ReceiptTextLine | null {
+  const m = line.match(TILL_LINE);
+  if (!m) return null;
+
+  const [, label, amountText, unitText, unitPriceText, totalText, flag] = m;
+  const amount = Number(amountText);
+  const total = money(totalText);
+  const rate = money(unitPriceText);
+  if (!Number.isFinite(amount) || amount <= 0 || !Number.isFinite(total) || total <= 0) return null;
+
+  const unit = unitText.toLowerCase();
+  const weighed = unit === "lb" || unit === "lbs" || unit === "oz" || unit === "kg" || unit === "g";
+  const grams = weighed
+    ? amount * (unit === "oz" ? G_PER_OZ : unit === "kg" ? 1000 : unit === "g" ? 1 : G_PER_LB)
+    : undefined;
+
+  const clean = label.replace(/[\s\t]+$/, "").trim();
+  const food = foodFromLabel(clean);
+  const placed = classifyByName(food) ?? classifyByName(clean);
+  const pack = weighed ? {} : packSizeFrom(clean);
+
+  return {
+    raw: line,
+    label: clean,
+    food,
+    total,
+    quantity: weighed ? 1 : amount,
+    grams,
+    packGrams: pack.grams,
+    packFlOz: pack.flOz,
+    // A per-pound rate is only that when the line was sold by weight.
+    perLb: weighed && unit !== "oz" ? rate : undefined,
+    section,
+    taxable: flag ? flag.toUpperCase() === "T" : undefined,
+    category: placed?.category ?? "condiment",
+    location: placed?.location ?? sectionLocation(section),
+  };
+}
+
+/**
  * Parse pasted receipt text into items.
  *
  * Handles the two shapes receipts use: a plain "name … $price" line, and a
@@ -162,6 +218,14 @@ export function parseReceiptText(text: string): ReceiptTextLine[] {
     }
 
     if (NOT_AN_ITEM.test(line)) continue;
+
+    // Till format first: it carries its own amount column, so there is
+    // nothing to infer when it matches.
+    const till = parseTillLine(line, section);
+    if (till) {
+      out.push(till);
+      continue;
+    }
 
     // The price is the last money figure on the line.
     const prices = [...line.matchAll(/\$\s?([\d,]+\.\d{2})/g)];

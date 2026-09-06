@@ -49,6 +49,12 @@ const RULES: { category: FoodCategory; location: Location; words: string[] }[] =
     ]
   },
 
+  // --- Drinks: checked early, so "coffee beans" is not a legume ---
+  {
+    category: "condiment", location: "pantry",
+    words: ["coffee", "espresso", "tea bag", "cocoa", "kombucha", "seltzer", "sparkling water"],
+  },
+
   // --- Protein ---
   {
     category: "protein", location: "fridge",
@@ -119,6 +125,7 @@ const RULES: { category: FoodCategory; location: Location; words: string[] }[] =
     words: [
       "almond", "cashew", "pecan", "walnut", "pistachio", "hazelnut", "macadamia",
       "peanut", "nut butter", "mixed nut", "trail mix", "chia", "flax", "sunflower seed",
+      "pinenut", "pine nut", "pignoli",
       "pumpkin seed", "tahini", "nut",
     ]
   },
@@ -129,6 +136,7 @@ const RULES: { category: FoodCategory; location: Location; words: string[] }[] =
     words: [
       "bread", "bagel", "roll", "bun", "tortilla", "wrap", "pita", "naan",
       "cracker", "pasta", "spaghetti", "penne", "macaroni", "noodle", "rice",
+      "rotini", "fusilli", "linguine", "fettuccine", "angel hair", "orzo", "rigatoni",
       "quinoa", "farro", "barley", "couscous", "oat", "cereal", "granola", "muesli",
       "flour", "panko", "breadcrumb", "muffin", "waffle", "pancake mix", "tortilla chip",
     ]
@@ -154,12 +162,31 @@ const RULES: { category: FoodCategory; location: Location; words: string[] }[] =
 ];
 
 /**
- * Match on whole words, so "Clover" is not a clove and "Grapefruit" is not a
- * grape. Plurals and possessives still count, since a receipt says "Apples".
+ * Whether two words name the same thing.
+ *
+ * Two allowances, each needed by real receipts and each kept narrow enough not
+ * to collide. Plurals only via actual plural endings — "blueberr" covers
+ * "blueberries" while "clove" still does not cover "clover". And truncations,
+ * because tills cut names to fit: "CUCUMB" is cucumber and "ROTIN" is rotini,
+ * but only from five characters up, below which the stub means nothing.
  */
+function sameWord(token: string, word: string): boolean {
+  if (token === word) return true;
+  if (token.startsWith(word)) {
+    const tail = token.slice(word.length);
+    if (tail === "s" || tail === "es" || tail === "ies") return true;
+  }
+  return word.startsWith(token) && token.length >= 5;
+}
+
+/** Match on whole words, so "Clover" is not a clove. */
 function hasWord(haystack: string, phrase: string): boolean {
-  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(^|[^a-z])${escaped}(e?s)?([^a-z]|$)`, "i").test(haystack);
+  const h = haystack.toLowerCase();
+  if (phrase.includes(" ")) return h.includes(phrase);
+  return h
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .some((token) => sameWord(token, phrase));
 }
 
 /** Reads a food's name and says where it belongs, or null if it can't tell. */

@@ -8,7 +8,7 @@ import {
   type ReceiptTextLine, type FoodSuggestion,
 } from "@/lib/receipttext";
 import { gramsForFood, searchUsda, unitNutrition } from "@/lib/usda";
-import { UNITS, unitLabel, pluralUnit, fmtQty } from "@/lib/units";
+import { UNITS, unitLabel, pluralUnit } from "@/lib/units";
 import { fmtMoney, BASE_STORE_ID } from "@/lib/cost";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
 import type { FoodCategory, Unit } from "@/lib/types";
@@ -42,6 +42,8 @@ interface Row {
   similar: FoodSuggestion[];
   /** Per-unit nutrition — the matched food's, or looked up for a new one. */
   nutrition: Nutrition;
+  /** Left out of the import — a receipt has more on it than groceries. */
+  skip: boolean;
   /** For a brand-new food. */
   newName: string;
   newUnit: Unit;
@@ -107,6 +109,9 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
       nutrition: food
         ? { caloriesPerUnit: food.caloriesPerUnit, protein: food.protein, carbs: food.carbs, fat: food.fat }
         : referenceNutrition(line.food, unit, line.category),
+      // Most states don't tax food, so a taxed line is usually the shampoo.
+      // Defaulted out rather than dropped, because the till isn't always right.
+      skip: line.taxable === true,
       newName: titleCase(line.food),
       newUnit: unit,
       newCategory: line.category,
@@ -170,17 +175,18 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
   const priceOf = (r: Row) => unitPrice(r.line.total, r.amount);
 
   /** Rows that still need a person: no amount, or a match we aren't sure of. */
+  const kept = rows.filter((r) => !r.skip);
   const unsettled = useMemo(
-    () => rows.filter((r) => r.amount <= 0 || r.guessedAmount || r.confidence < SURE),
+    () => rows.filter((r) => !r.skip && (r.amount <= 0 || r.guessedAmount || r.confidence < SURE)),
     [rows],
   );
-  const blocked = rows.filter((r) => r.amount <= 0);
+  const blocked = kept.filter((r) => r.amount <= 0);
 
   const commit = () => {
     let stocked = 0, priced = 0, created = 0;
 
     for (const r of rows) {
-      if (r.amount <= 0) continue;
+      if (r.skip || r.amount <= 0) continue;
       let id = r.foodId;
 
       if (id === NEW) {
@@ -225,7 +231,7 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
     setStep("done");
   };
 
-  const spend = rows.reduce((s, r) => s + r.line.total, 0);
+  const spend = kept.reduce((s, r) => s + r.line.total, 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-4" onClick={onClose}>
@@ -245,7 +251,7 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
           )}
           {step === "review" && (
             <span className="text-sm font-semibold text-ink">
-              {rows.length} items · {fmtMoney(spend)}
+              {kept.length} items · {fmtMoney(spend)}
             </span>
           )}
           <button onClick={onClose} aria-label="Close" className="text-muted hover:text-ink"><X size={20} /></button>
@@ -310,11 +316,13 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
                     <div
                       key={i}
                       className={`rounded-xl border p-2.5 ${
-                        r.amount <= 0
-                          ? "border-danger/60 bg-danger/5"
-                          : unsure
-                            ? "border-warn/50 bg-warn/5"
-                            : "border-line"
+                        r.skip
+                          ? "border-line opacity-50"
+                          : r.amount <= 0
+                            ? "border-danger/60 bg-danger/5"
+                            : unsure
+                              ? "border-warn/50 bg-warn/5"
+                              : "border-line"
                       }`}
                     >
                       {/* The receipt line, verbatim */}
@@ -322,16 +330,34 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
                         <span className="truncate text-[11px] text-muted" title={r.line.raw}>
                           {r.line.label}
                         </span>
-                        <span className="shrink-0 text-[11px] font-medium text-ink-2">
+                        <span className="flex shrink-0 items-center gap-2 text-[11px] font-medium text-ink-2">
                           {fmtMoney(r.line.total)}
                           {r.line.grams != null && (
-                            <span className="ml-1 font-normal text-muted">
+                            <span className="font-normal text-muted">
                               · {(r.line.grams / 453.6).toFixed(2)} lb
                             </span>
                           )}
+                          <button
+                            onClick={() => patch(i, { skip: !r.skip })}
+                            aria-pressed={r.skip}
+                            title={r.skip ? "Include this line" : "Leave this line out"}
+                            className={`rounded-lg px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                              r.skip
+                                ? "bg-accent text-on-accent"
+                                : "border border-line text-muted hover:bg-surface-3"
+                            }`}
+                          >
+                            {r.skip ? "Skipped" : "Skip"}
+                          </button>
                         </span>
                       </div>
 
+                      {r.skip ? (
+                        <p className="text-[11px] text-muted">
+                          Left out — the till taxed this line, so it probably isn&apos;t food.
+                        </p>
+                      ) : (
+                      <>
                       {/* Which food — alternatives up front when we aren't sure */}
                       {(unsure || r.similar.length > 0) && (
                         <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
@@ -462,6 +488,8 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
                           <span className="text-[10px] text-warn-soft">no calories yet</span>
                         )}
                       </div>
+                      </>
+                      )}
                     </div>
                   );
                 })}
@@ -503,11 +531,11 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
               >
                 {blocked.length > 0
                   ? `${blocked.length} ${blocked.length === 1 ? "line needs" : "lines need"} a quantity`
-                  : `Stock ${rows.length} items and price them at ${storeName}`}
+                  : `Stock ${kept.length} items and price them at ${storeName}`}
               </button>
               <p className="mt-2 text-center text-[11px] text-muted">
-                {fmtQty(rows.reduce((s, r) => s + r.amount, 0))} units · {fmtMoney(spend)} ·
-                {" "}{rows.filter((r) => r.nutrition.caloriesPerUnit === 0).length} without calories
+                {fmtMoney(spend)} · {kept.filter((r) => r.nutrition.caloriesPerUnit === 0).length} without
+                calories{rows.length !== kept.length && ` · ${rows.length - kept.length} skipped`}
               </p>
             </>
           )}
