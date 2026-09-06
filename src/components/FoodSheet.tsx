@@ -8,6 +8,7 @@ import { fmtQty, pluralUnit, stepFor, unitLabel, sliderMax } from "@/lib/units";
 import { FOOD_CATEGORIES, FOOD_CATEGORY_LABEL } from "@/lib/foodcat";
 import { BASE_STORE_ID, fmtMoney, priceFor } from "@/lib/cost";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { FdcLookup } from "./FdcLookup";
 import type { Food, FoodCategory, Location } from "@/lib/types";
 
 const LOCATIONS: { key: Location; label: string }[] = [
@@ -50,6 +51,9 @@ export function FoodSheet({
 
   const [editing, setEditing] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
+  // Offered without asking when a food has no numbers at all — which is how
+  // anything created from a receipt starts life.
+  const [lookup, setLookup] = useState(false);
   const step = stepFor(f.unit);
   const max = sliderMax(f.unit, quantity, buy);
   const set = (q: number) => onQuantity(Math.max(0, Number(q.toFixed(2))));
@@ -311,6 +315,25 @@ export function FoodSheet({
               </>
             )}
           </div>
+        )}
+
+        {/* The bundled reference covers staples; this reaches the rest of
+            FoodData Central for everything it doesn't have. */}
+        {(lookup || (!reference && f.caloriesPerUnit === 0)) ? (
+          <FdcLookup
+            food={f}
+            onApply={(n, fdcId) => {
+              updateFood(f.id, { ...n, nutritionSource: "usda", fdcId });
+              setLookup(false);
+            }}
+          />
+        ) : (
+          <button
+            onClick={() => setLookup(true)}
+            className="mt-3 w-full rounded-xl border border-line bg-surface py-2 text-[11px] font-medium text-muted transition-colors hover:bg-surface-3 hover:text-ink-2"
+          >
+            Look this up in FoodData Central
+          </button>
         )}
 
         {/* Rename it or fix its numbers, without leaving the shelf */}
