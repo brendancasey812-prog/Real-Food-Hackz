@@ -1,49 +1,70 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { X, ClipboardList, Check, ArrowLeft, TriangleAlert } from "lucide-react";
+import { X, ClipboardList, Check, ArrowLeft, TriangleAlert, Store as StoreIcon } from "lucide-react";
 import { useApp, newId, foodById } from "@/lib/store";
 import {
   parseReceiptText, amountInUnit, unitPrice, rankFoods,
   type ReceiptTextLine, type FoodSuggestion,
 } from "@/lib/receipttext";
-import { gramsForFood } from "@/lib/usda";
-import { UNITS, unitLabel, pluralUnit } from "@/lib/units";
+import { gramsForFood, searchUsda, unitNutrition } from "@/lib/usda";
+import { UNITS, unitLabel, pluralUnit, fmtQty } from "@/lib/units";
 import { fmtMoney, BASE_STORE_ID } from "@/lib/cost";
-import type { Food, Unit } from "@/lib/types";
+import { FOOD_CATEGORIES } from "@/lib/foodcat";
+import type { FoodCategory, Unit } from "@/lib/types";
 
 const NEW = "__new__";
+
+/** Below this the match is a guess and the row says so. */
+const SURE = 0.55;
+
+interface Nutrition {
+  caloriesPerUnit: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
 
 /** One receipt line, resolved against the catalogue and ready to commit. */
 interface Row {
   line: ReceiptTextLine;
   /** The food it goes to, or NEW to create one. */
   foodId: string;
-  /** How much of it, in the food's unit. */
+  /** How much of it, in the food's unit. Never left at zero on commit. */
   amount: number;
-  /** What one unit worked out at, in dollars. */
-  price: number | null;
-  /** True when the weight couldn't be turned into the food's unit. */
-  needsAmount: boolean;
-  /** True when the amount came from a typical weight rather than a known one. */
+  /** True when the amount is the app's guess rather than something it knew. */
+  guessedAmount: boolean;
+  /** True when the amount came from a typical weight rather than a published one. */
   estimated: boolean;
+  /** How sure the food match is, 0-1. */
+  confidence: number;
   /** Other foods this line could be, best first. */
   similar: FoodSuggestion[];
+  /** Per-unit nutrition — the matched food's, or looked up for a new one. */
+  nutrition: Nutrition;
   /** For a brand-new food. */
+  newName: string;
   newUnit: Unit;
+  newCategory: FoodCategory;
 }
 
 /**
  * Paste a receipt, get a stocked kitchen and a priced store.
  *
- * A photographed receipt tells us what you bought; a pasted one also tells us
- * what it weighed and what it cost, which is enough to work out what a unit
- * actually costs at that store. Everything is shown before it lands, because a
- * receipt names products and the kitchen holds foods — "Dannon Oikos Triple
- * Zero" is your Greek yogurt, and only you can say so.
+ * A photographed receipt says what you bought; a pasted one also says what it
+ * weighed and what it cost, which is enough to work out what a unit actually
+ * costs at that store. Three rules shape this screen:
+ *
+ *  - Every line lands with a quantity and a price. A row the app can't work
+ *    out is not skipped and not silently defaulted — it is marked and blocks
+ *    the button until you settle it.
+ *  - When the match is a guess, it says so and puts the alternatives in front
+ *    of you rather than hiding them in a dropdown.
+ *  - Calories are editable here, because a food created from a receipt would
+ *    otherwise enter the app worth nothing in a calorie planner.
  */
 export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
-  const { foods, stores, selectedStoreId, setInventory, inventory, addFood, setPrice } = useApp();
+  const { foods, stores, selectedStoreId, setInventory, inventory, addFood, updateFood, setPrice } = useApp();
   const [step, setStep] = useState<"paste" | "review" | "done">("paste");
   const [text, setText] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
@@ -55,8 +76,16 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
       ? "Base prices"
       : (stores.find((s) => s.id === storeId)?.name ?? "Base prices");
 
-  const buildRow = (line: ReceiptTextLine, food: Food | undefined): Row => {
+  /** What the bundled reference says a food of this name and unit is worth. */
+  const referenceNutrition = (name: string, unit: Unit, category: FoodCategory): Nutrition => {
+    const hit = searchUsda(name, 1)[0];
+    const per = hit ? unitNutrition(hit.entry, unit, { category }) : null;
+    return per?.nutrition ?? { caloriesPerUnit: 0, protein: 0, carbs: 0, fat: 0 };
+  };
+
+  const buildRow = (line: ReceiptTextLine, pick: FoodSuggestion | undefined): Row => {
     const similar = rankFoods(foods, line.food, 4, line.category);
+    const food = pick?.food;
     const unit: Unit = food?.unit ?? (line.grams != null ? "oz" : "each");
     const weight = food
       ? gramsForFood(food)
@@ -64,15 +93,23 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
         ? { grams: 28.349523, estimated: false }
         : null;
     const amount = amountInUnit(line, unit, weight?.grams ?? null);
+
     return {
       line,
       foodId: food?.id ?? NEW,
-      amount: amount ?? 1,
-      price: unitPrice(line.total, amount ?? 1),
-      needsAmount: amount == null,
+      // A row always carries a number; when it is ours rather than the
+      // receipt's, it is flagged and has to be confirmed.
+      amount: amount ?? line.quantity,
+      guessedAmount: amount == null,
       estimated: amount != null && Boolean(weight?.estimated),
+      confidence: pick?.score ?? 0,
       similar,
+      nutrition: food
+        ? { caloriesPerUnit: food.caloriesPerUnit, protein: food.protein, carbs: food.carbs, fat: food.fat }
+        : referenceNutrition(line.food, unit, line.category),
+      newName: titleCase(line.food),
       newUnit: unit,
+      newCategory: line.category,
     };
   };
 
@@ -80,7 +117,7 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
     setRows(
       parseReceiptText(text).map((l) => {
         const best = rankFoods(foods, l.food, 1, l.category)[0];
-        return buildRow(l, best && best.score >= 0.3 ? best.food : undefined);
+        return buildRow(l, best && best.score >= 0.3 ? best : undefined);
       }),
     );
     setStep("review");
@@ -89,39 +126,58 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
   const patch = (i: number, p: Partial<Row>) =>
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...p } : r)));
 
-  /** Re-derive the amount when the row is pointed at a different food. */
-  const retarget = (i: number, foodId: string) => {
+  /**
+   * Changing a new food's unit or type changes what the reference says it is
+   * worth — a cup of romaine and one romaine are different numbers — so the
+   * calories are looked up again rather than left stale. An amount already
+   * typed by hand is left alone; one the app derived is re-derived.
+   */
+  const rebase = (i: number, p: { newUnit?: Unit; newCategory?: FoodCategory }) =>
+    setRows((rs) =>
+      rs.map((r, idx) => {
+        if (idx !== i) return r;
+        const unit = p.newUnit ?? r.newUnit;
+        const category = p.newCategory ?? r.newCategory;
+        const weight = gramsForFood({ name: r.newName, unit, category });
+        const derived = amountInUnit(r.line, unit, weight?.grams ?? null);
+        return {
+          ...r,
+          ...p,
+          nutrition: referenceNutrition(r.line.food, unit, category),
+          amount: r.guessedAmount ? (derived ?? r.amount) : r.amount,
+          guessedAmount: r.guessedAmount && derived == null,
+          estimated: derived != null && Boolean(weight?.estimated),
+        };
+      }),
+    );
+
+  /** Point a row at a different food, and re-derive everything that follows. */
+  const retarget = (i: number, foodId: string) =>
     setRows((rs) =>
       rs.map((r, idx) => {
         if (idx !== i) return r;
         const food = foodId === NEW ? undefined : foodById(foods, foodId);
-        const next = buildRow(r.line, food);
-        return { ...next, foodId };
+        const next = buildRow(r.line, food ? { food, score: 1, matched: [] } : undefined);
+        // A choice made by hand is certain by definition.
+        return { ...next, foodId, confidence: 1, newName: r.newName, newCategory: r.newCategory };
       }),
     );
-  };
 
-  const setAmount = (i: number, amount: number) =>
-    setRows((rs) =>
-      rs.map((r, idx) =>
-        idx === i
-          ? { ...r, amount, price: unitPrice(r.line.total, amount), needsAmount: false }
-          : r,
-      ),
-    );
+  const unitOf = (r: Row) =>
+    r.foodId === NEW ? r.newUnit : foodById(foods, r.foodId)?.unit ?? r.newUnit;
 
-  const totals = useMemo(
-    () => ({
-      spend: rows.reduce((s, r) => s + r.line.total, 0),
-      unresolved: rows.filter((r) => r.needsAmount).length,
-    }),
+  /** Price per unit, derived — never typed, never missing while there's an amount. */
+  const priceOf = (r: Row) => unitPrice(r.line.total, r.amount);
+
+  /** Rows that still need a person: no amount, or a match we aren't sure of. */
+  const unsettled = useMemo(
+    () => rows.filter((r) => r.amount <= 0 || r.guessedAmount || r.confidence < SURE),
     [rows],
   );
+  const blocked = rows.filter((r) => r.amount <= 0);
 
   const commit = () => {
-    let stocked = 0;
-    let priced = 0;
-    let created = 0;
+    let stocked = 0, priced = 0, created = 0;
 
     for (const r of rows) {
       if (r.amount <= 0) continue;
@@ -132,27 +188,35 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
         addFood(
           {
             id,
-            name: titleCase(r.line.food),
+            name: r.newName.trim() || titleCase(r.line.food),
             unit: r.newUnit,
-            caloriesPerUnit: 0,
-            protein: 0,
-            carbs: 0,
-            fat: 0,
+            caloriesPerUnit: Math.max(0, r.nutrition.caloriesPerUnit),
+            protein: Math.max(0, r.nutrition.protein),
+            carbs: Math.max(0, r.nutrition.carbs),
+            fat: Math.max(0, r.nutrition.fat),
             location: r.line.location,
-            category: r.line.category,
+            category: r.newCategory,
             source: "receipt_scan",
+            nutritionSource: r.nutrition.caloriesPerUnit > 0 ? "usda" : undefined,
           },
           0,
         );
         created++;
+      } else {
+        // Calories edited here belong to the food, not just this receipt.
+        const existing = foodById(foods, id);
+        if (existing && existing.caloriesPerUnit !== r.nutrition.caloriesPerUnit) {
+          updateFood(id, { ...r.nutrition, nutritionSource: "manual" });
+        }
       }
 
       const have = inventory.find((i) => i.foodId === id)?.quantity ?? 0;
       setInventory(id, have + r.amount);
       stocked++;
 
-      if (r.price != null && r.price > 0) {
-        setPrice(storeId, id, r.price);
+      const p = priceOf(r);
+      if (p != null && p > 0) {
+        setPrice(storeId, id, p);
         priced++;
       }
     }
@@ -160,6 +224,8 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
     setSummary({ stocked, priced, created });
     setStep("done");
   };
+
+  const spend = rows.reduce((s, r) => s + r.line.total, 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-4" onClick={onClose}>
@@ -177,7 +243,11 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
               <ClipboardList size={16} className="text-accent-soft" /> Paste a receipt
             </span>
           )}
-          {step === "review" && <span className="text-sm font-semibold text-ink">Check {rows.length} items</span>}
+          {step === "review" && (
+            <span className="text-sm font-semibold text-ink">
+              {rows.length} items · {fmtMoney(spend)}
+            </span>
+          )}
           <button onClick={onClose} aria-label="Close" className="text-muted hover:text-ink"><X size={20} /></button>
         </div>
 
@@ -186,8 +256,8 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
             <>
               <p className="mb-3 text-sm text-muted">
                 Paste the text of an order summary or emailed receipt. Weighed lines
-                (&ldquo;1.05lb @6.99/lb&rdquo;) let the app work out what a unit costs, so
-                your prices update at the same time as your kitchen.
+                (&ldquo;1.05lb @6.99/lb&rdquo;) and printed pack sizes (&ldquo;32oz&rdquo;) let the app work
+                out what a unit costs, so your prices update with your kitchen.
               </p>
               <textarea
                 autoFocus
@@ -202,53 +272,75 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
 
           {step === "review" && (
             <>
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <span className="text-muted">Prices go to</span>
-                  <select
-                    value={storeId}
-                    onChange={(e) => setStoreId(e.target.value)}
-                    className="field rounded-xl px-3 py-2 text-sm"
-                  >
-                    <option value={BASE_STORE_ID}>Base prices (any store)</option>
-                    {stores.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}{s.city ? ` — ${s.city}` : ""}</option>
-                    ))}
-                  </select>
-                </label>
-                <span className="text-sm text-muted">
-                  {rows.length} items · <span className="font-medium text-ink">{fmtMoney(totals.spend)}</span>
+              {/* Which store these prices belong to */}
+              <label className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5">
+                <StoreIcon size={15} className="shrink-0 text-muted" />
+                <span className="text-sm text-ink-2">Shopped at</span>
+                <select
+                  value={storeId}
+                  onChange={(e) => setStoreId(e.target.value)}
+                  className="field min-w-0 flex-1 rounded-lg px-2 py-1.5 text-sm"
+                >
+                  <option value={BASE_STORE_ID}>Base prices (any store)</option>
+                  {stores.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}{s.city ? ` — ${s.city}` : ""}</option>
+                  ))}
+                </select>
+                <span className="w-full text-[11px] leading-4 text-muted">
+                  Every price below is recorded against {storeName}, and the foods go to
+                  your fridge, freezer or pantry as filed.
                 </span>
-              </div>
+              </label>
 
-              {totals.unresolved > 0 && (
+              {unsettled.length > 0 && (
                 <p className="mb-3 flex items-start gap-2 rounded-xl border border-warn/40 bg-warn/10 px-3 py-2 text-[11px] leading-4 text-warn-soft">
                   <TriangleAlert size={13} className="mt-px shrink-0" />
-                  {totals.unresolved} {totals.unresolved === 1 ? "line" : "lines"} couldn&apos;t be
-                  converted into the food&apos;s unit. Set the amount yourself and the price follows.
+                  {unsettled.length} {unsettled.length === 1 ? "line is" : "lines are"} highlighted
+                  below — either the food is a guess or the amount is. Check those and
+                  the rest will follow.
                 </p>
               )}
 
               <div className="space-y-2">
                 {rows.map((r, i) => {
-                  const food = r.foodId === NEW ? undefined : foodById(foods, r.foodId);
-                  const unit = food?.unit ?? r.newUnit;
+                  const unit = unitOf(r);
+                  const price = priceOf(r);
+                  const unsure = r.confidence < SURE || r.guessedAmount;
                   return (
-                    <div key={i} className={`rounded-xl border p-2.5 ${r.needsAmount ? "border-warn/50" : "border-line"}`}>
-                      <div className="mb-1.5 truncate text-[11px] text-muted" title={r.line.raw}>
-                        {r.line.label} · {fmtMoney(r.line.total)}
-                        {r.line.grams != null && ` · ${(r.line.grams / 453.6).toFixed(2)} lb`}
+                    <div
+                      key={i}
+                      className={`rounded-xl border p-2.5 ${
+                        r.amount <= 0
+                          ? "border-danger/60 bg-danger/5"
+                          : unsure
+                            ? "border-warn/50 bg-warn/5"
+                            : "border-line"
+                      }`}
+                    >
+                      {/* The receipt line, verbatim */}
+                      <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                        <span className="truncate text-[11px] text-muted" title={r.line.raw}>
+                          {r.line.label}
+                        </span>
+                        <span className="shrink-0 text-[11px] font-medium text-ink-2">
+                          {fmtMoney(r.line.total)}
+                          {r.line.grams != null && (
+                            <span className="ml-1 font-normal text-muted">
+                              · {(r.line.grams / 453.6).toFixed(2)} lb
+                            </span>
+                          )}
+                        </span>
                       </div>
-                      {/* Similar foods, best first — one tap rather than
-                          hunting a hundred-item dropdown. */}
-                      {r.similar.length > 0 && (
+
+                      {/* Which food — alternatives up front when we aren't sure */}
+                      {(unsure || r.similar.length > 0) && (
                         <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
                           {r.similar.map((sg) => (
                             <button
                               key={sg.food.id}
                               onClick={() => retarget(i, sg.food.id)}
                               aria-pressed={r.foodId === sg.food.id}
-                              title={`Matched on ${sg.matched.join(", ")}`}
+                              title={sg.matched.length ? `Matched on ${sg.matched.join(", ")}` : undefined}
                               className={`rounded-lg px-2 py-1 text-[11px] font-medium transition-colors ${
                                 r.foodId === sg.food.id
                                   ? "bg-accent text-on-accent"
@@ -273,45 +365,102 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
                       )}
 
                       <div className="flex flex-wrap items-center gap-2">
-                        <select
-                          value={r.foodId}
-                          onChange={(e) => retarget(i, e.target.value)}
-                          className="field min-w-0 flex-1 rounded-lg px-2 py-1.5 text-sm"
-                        >
-                          <option value={NEW}>New food — &ldquo;{titleCase(r.line.food)}&rdquo;</option>
-                          {[...foods].sort((a, b) => a.name.localeCompare(b.name)).map((f) => (
-                            <option key={f.id} value={f.id}>{f.name}</option>
-                          ))}
-                        </select>
-
-                        {r.foodId === NEW && (
+                        {r.foodId === NEW ? (
+                          <input
+                            value={r.newName}
+                            onChange={(e) => patch(i, { newName: e.target.value })}
+                            aria-label={`Name for ${r.line.label}`}
+                            className="field min-w-0 flex-1 rounded-lg px-2 py-1.5 text-sm"
+                          />
+                        ) : (
                           <select
-                            value={r.newUnit}
-                            onChange={(e) => patch(i, { newUnit: e.target.value as Unit })}
-                            className="field rounded-lg px-2 py-1.5 text-sm"
+                            value={r.foodId}
+                            onChange={(e) => retarget(i, e.target.value)}
+                            className="field min-w-0 flex-1 rounded-lg px-2 py-1.5 text-sm"
                           >
-                            {UNITS.map((u) => <option key={u.value} value={u.value}>per {u.label}</option>)}
+                            <option value={NEW}>New food…</option>
+                            {[...foods].sort((a, b) => a.name.localeCompare(b.name)).map((f) => (
+                              <option key={f.id} value={f.id}>{f.name}</option>
+                            ))}
                           </select>
                         )}
 
-                        <div className="flex items-center gap-1.5">
+                        {r.foodId === NEW && (
+                          <>
+                            <select
+                              value={r.newUnit}
+                              onChange={(e) => rebase(i, { newUnit: e.target.value as Unit })}
+                              className="field rounded-lg px-2 py-1.5 text-sm"
+                              aria-label="Unit"
+                            >
+                              {UNITS.map((u) => <option key={u.value} value={u.value}>per {u.label}</option>)}
+                            </select>
+                            <select
+                              value={r.newCategory}
+                              onChange={(e) => rebase(i, { newCategory: e.target.value as FoodCategory })}
+                              className="field rounded-lg px-2 py-1.5 text-sm"
+                              aria-label="Food type"
+                            >
+                              {FOOD_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                            </select>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Quantity, the price it implies, and what it's worth */}
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                        <label className="flex items-center gap-1.5">
+                          <span className="text-[10px] uppercase tracking-wide text-muted">Qty</span>
                           <input
                             type="number" min={0} step={0.25} value={r.amount}
-                            onChange={(e) => setAmount(i, Math.max(0, Number(e.target.value) || 0))}
+                            onChange={(e) =>
+                              patch(i, {
+                                amount: Math.max(0, Number(e.target.value) || 0),
+                                guessedAmount: false,
+                              })
+                            }
                             aria-label={`Amount of ${r.line.label}`}
-                            className="field w-20 rounded-lg px-2 py-1.5 text-right text-sm"
+                            className="field w-20 rounded-lg px-2 py-1 text-right text-sm"
                           />
-                          <span className="w-10 shrink-0 text-xs text-muted">{pluralUnit(r.amount, unit)}</span>
-                        </div>
+                          <span className="w-10 text-xs text-muted">{pluralUnit(r.amount, unit)}</span>
+                        </label>
 
-                        <span className={`shrink-0 text-xs tabular-nums ${r.price ? "text-accent-soft" : "text-warn-soft"}`}>
-                          {r.price ? `${fmtMoney(r.price)} / ${unitLabel(unit)}` : "no price"}
+                        <span className="text-xs tabular-nums">
+                          {price != null && price > 0 ? (
+                            <span className="text-accent-soft">
+                              {fmtMoney(price)} / {unitLabel(unit)}
+                            </span>
+                          ) : (
+                            <span className="text-danger-soft">set a quantity to price it</span>
+                          )}
                           {r.estimated && (
-                            <span className="ml-1 font-normal not-italic text-muted" title="Converted using a typical weight — adjust the amount if you know better.">
+                            <span className="ml-1 text-muted" title="Converted using a typical weight — adjust if you know better.">
                               est.
                             </span>
                           )}
                         </span>
+
+                        <label className="flex items-center gap-1.5">
+                          <span className="text-[10px] uppercase tracking-wide text-muted">Cal</span>
+                          <input
+                            type="number" min={0} value={r.nutrition.caloriesPerUnit}
+                            onChange={(e) =>
+                              patch(i, {
+                                nutrition: {
+                                  ...r.nutrition,
+                                  caloriesPerUnit: Math.max(0, Number(e.target.value) || 0),
+                                },
+                              })
+                            }
+                            aria-label={`Calories per ${unitLabel(unit)} of ${r.line.label}`}
+                            className="field w-16 rounded-lg px-2 py-1 text-right text-sm"
+                          />
+                          <span className="text-xs text-muted">/ {unitLabel(unit)}</span>
+                        </label>
+
+                        {r.nutrition.caloriesPerUnit === 0 && (
+                          <span className="text-[10px] text-warn-soft">no calories yet</span>
+                        )}
                       </div>
                     </div>
                   );
@@ -335,20 +484,32 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        <div className="flex shrink-0 gap-2 border-t border-line px-5 py-4">
+        <div className="shrink-0 border-t border-line px-5 py-4">
           {step === "paste" && (
             <button
               onClick={parse}
               disabled={!text.trim()}
               className="btn-accent w-full rounded-xl py-3 text-sm disabled:opacity-40"
             >
-              Read {text.trim() ? "receipt" : "…"}
+              Read receipt
             </button>
           )}
           {step === "review" && (
-            <button onClick={commit} className="btn-accent w-full rounded-xl py-3 text-sm">
-              Stock {rows.length} items and price them at {storeName}
-            </button>
+            <>
+              <button
+                onClick={commit}
+                disabled={blocked.length > 0}
+                className="btn-accent w-full rounded-xl py-3 text-sm disabled:opacity-40"
+              >
+                {blocked.length > 0
+                  ? `${blocked.length} ${blocked.length === 1 ? "line needs" : "lines need"} a quantity`
+                  : `Stock ${rows.length} items and price them at ${storeName}`}
+              </button>
+              <p className="mt-2 text-center text-[11px] text-muted">
+                {fmtQty(rows.reduce((s, r) => s + r.amount, 0))} units · {fmtMoney(spend)} ·
+                {" "}{rows.filter((r) => r.nutrition.caloriesPerUnit === 0).length} without calories
+              </p>
+            </>
           )}
           {step === "done" && (
             <button onClick={onClose} className="btn-accent w-full rounded-xl py-3 text-sm">Done</button>
@@ -359,5 +520,4 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-const titleCase = (s: string) =>
-  s.replace(/\b[a-z]/g, (c) => c.toUpperCase());
+const titleCase = (s: string) => s.replace(/\b[a-z]/g, (c) => c.toUpperCase());
