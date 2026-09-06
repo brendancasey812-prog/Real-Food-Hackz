@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { X, ClipboardList, Check, ArrowLeft, TriangleAlert, Store as StoreIcon } from "lucide-react";
+import { X, ClipboardList, Check, ArrowLeft, TriangleAlert } from "lucide-react";
 import { useApp, newId, foodById } from "@/lib/store";
 import {
   parseReceiptText, amountInUnit, unitPrice, rankFoods,
@@ -11,6 +11,7 @@ import { gramsForFood, searchUsda, unitNutrition } from "@/lib/usda";
 import { UNITS, unitLabel, pluralUnit } from "@/lib/units";
 import { fmtMoney, BASE_STORE_ID } from "@/lib/cost";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
+import { StorePicker } from "./StorePicker";
 import type { FoodCategory, Unit } from "@/lib/types";
 
 const NEW = "__new__";
@@ -279,24 +280,13 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
           {step === "review" && (
             <>
               {/* Which store these prices belong to */}
-              <label className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5">
-                <StoreIcon size={15} className="shrink-0 text-muted" />
-                <span className="text-sm text-ink-2">Shopped at</span>
-                <select
-                  value={storeId}
-                  onChange={(e) => setStoreId(e.target.value)}
-                  className="field min-w-0 flex-1 rounded-lg px-2 py-1.5 text-sm"
-                >
-                  <option value={BASE_STORE_ID}>Base prices (any store)</option>
-                  {stores.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}{s.city ? ` — ${s.city}` : ""}</option>
-                  ))}
-                </select>
-                <span className="w-full text-[11px] leading-4 text-muted">
+              <div className="mb-3">
+                <StorePicker value={storeId} onChange={setStoreId} />
+                <p className="mt-1 px-1 text-[11px] leading-4 text-muted">
                   Every price below is recorded against {storeName}, and the foods go to
                   your fridge, freezer or pantry as filed.
-                </span>
-              </label>
+                </p>
+              </div>
 
               {unsettled.length > 0 && (
                 <p className="mb-3 flex items-start gap-2 rounded-xl border border-warn/40 bg-warn/10 px-3 py-2 text-[11px] leading-4 text-warn-soft">
