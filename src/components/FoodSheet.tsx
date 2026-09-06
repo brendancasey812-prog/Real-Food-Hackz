@@ -8,7 +8,7 @@ import { fmtQty, pluralUnit, stepFor, unitLabel, sliderMax } from "@/lib/units";
 import { FOOD_CATEGORIES, FOOD_CATEGORY_LABEL } from "@/lib/foodcat";
 import { BASE_STORE_ID, fmtMoney, priceFor } from "@/lib/cost";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { FdcLookup } from "./FdcLookup";
+import { NutritionLookup } from "./NutritionLookup";
 import type { Food, FoodCategory, Location } from "@/lib/types";
 
 const LOCATIONS: { key: Location; label: string }[] = [
@@ -320,8 +320,10 @@ export function FoodSheet({
         {/* The bundled reference covers staples; this reaches the rest of
             FoodData Central for everything it doesn't have. */}
         {(lookup || (!reference && f.caloriesPerUnit === 0)) ? (
-          <FdcLookup
-            food={f}
+          <NutritionLookup
+            name={f.name}
+            unit={f.unit}
+            category={f.category}
             onApply={(n, fdcId) => {
               updateFood(f.id, { ...n, nutritionSource: "usda", fdcId });
               setLookup(false);
@@ -332,7 +334,7 @@ export function FoodSheet({
             onClick={() => setLookup(true)}
             className="mt-3 w-full rounded-xl border border-line bg-surface py-2 text-[11px] font-medium text-muted transition-colors hover:bg-surface-3 hover:text-ink-2"
           >
-            Look this up in FoodData Central
+            Look up the numbers for this food
           </button>
         )}
 

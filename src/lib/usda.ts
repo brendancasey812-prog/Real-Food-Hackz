@@ -198,6 +198,33 @@ export function matchUsda(name: string, minScore = 0.6): UsdaMatch | null {
   return best && best.score >= minScore ? best : null;
 }
 
+/**
+ * Search the bundled table by name, best first.
+ *
+ * `matchUsda` answers "which record is this food", which is the right question
+ * when the app is filling a gap by itself. A person typing a name wants the
+ * other thing: a few candidates to choose between, including the ones a strict
+ * matcher would have rejected.
+ */
+export function searchUsda(query: string, limit = 6): UsdaMatch[] {
+  const q = meaningful(tokenize(query));
+  if (q.length === 0) return [];
+
+  const scored: UsdaMatch[] = [];
+  for (const entry of USDA_FOODS) {
+    const all = tokenize(entry.n);
+    const core = meaningful(all);
+    if (core.length === 0) continue;
+    const hits = q.filter((t) => all.includes(t)).length;
+    if (hits === 0) continue;
+    const recall = hits / q.length;
+    const brevity = 1 / (1 + Math.max(0, core.length - hits) * 0.16);
+    const headBonus = q.includes(core[0]) ? 0.12 : 0;
+    scored.push({ entry, score: Math.min(1, recall * brevity + headBonus) });
+  }
+  return scored.sort((a, b) => b.score - a.score).slice(0, limit);
+}
+
 /** The USDA numbers for a food, in that food's own unit. */
 export function usdaFor(food: Pick<Food, "name" | "unit">): {
   match: UsdaMatch;
@@ -280,22 +307,58 @@ export function gramsForFood(
   const known = match ? gramsPerUnit(match.entry, food.unit) : null;
   if (known != null && known > 0) return { grams: known, estimated: false };
 
-  // An ounce is an ounce; nothing to estimate.
-  if (food.unit === "oz") return { grams: G_PER_OZ, estimated: false };
+  return fallbackGrams(food.unit, food.category, food.name);
+}
 
-  const cup = CUP_GRAMS[food.category];
-  if (cup == null) return null;
-  switch (food.unit) {
-    case "cup": return { grams: cup, estimated: true };
-    case "tbsp": return { grams: cup / TBSP_PER_CUP_, estimated: true };
-    case "tsp": return { grams: cup / TSP_PER_CUP_, estimated: true };
-    // "Each" can't be averaged across categories — an egg and a watermelon are
-    // both one of something — so it needs the food to be recognised by name.
-    case "each": {
-      const g = eachGrams(food.name);
-      return g == null ? null : { grams: g, estimated: true };
-    }
+/**
+ * An entry's numbers in one of the app's units, falling back to a typical
+ * weight when FDC publishes none.
+ *
+ * `usdaPerUnit` returns null in that case, which is right when the app is
+ * filling in a value by itself and wrong when a person is choosing from a
+ * list: hiding "Lettuce, romaine, raw" because FDC never weighed a cup of it
+ * is not a helpful answer to "what is romaine".
+ */
+export function unitNutrition(
+  entry: UsdaFood,
+  unit: Unit,
+  hint?: { category?: FoodCategory; name?: string },
+): { nutrition: UsdaNutrition; estimated: boolean } | null {
+  const known = gramsPerUnit(entry, unit);
+  const grams =
+    known != null && known > 0
+      ? { grams: known, estimated: false }
+      : fallbackGrams(unit, hint?.category, hint?.name ?? entry.n);
+  if (!grams) return null;
+
+  const scale = grams.grams / 100;
+  const g = (v: number) => Math.round(v * scale * 10) / 10;
+  return {
+    nutrition: {
+      caloriesPerUnit: Math.round(entry.k * scale),
+      protein: g(entry.p),
+      carbs: g(entry.cb),
+      fat: g(entry.f),
+    },
+    estimated: grams.estimated,
+  };
+}
+
+/** A typical weight for one unit, when nothing exact is published. */
+function fallbackGrams(
+  unit: Unit,
+  category: FoodCategory | undefined,
+  name: string,
+): { grams: number; estimated: boolean } | null {
+  if (unit === "oz") return { grams: G_PER_OZ, estimated: false };
+  if (unit === "each") {
+    const g = eachGrams(name);
+    return g == null ? null : { grams: g, estimated: true };
   }
+  const cup = category ? CUP_GRAMS[category] : null;
+  if (cup == null) return null;
+  const per = unit === "cup" ? cup : unit === "tbsp" ? cup / TBSP_PER_CUP_ : cup / TSP_PER_CUP_;
+  return { grams: per, estimated: true };
 }
 
 /** True when a food has no real nutrition on it yet. */

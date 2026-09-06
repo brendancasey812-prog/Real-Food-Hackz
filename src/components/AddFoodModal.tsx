@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { useApp, newId } from "@/lib/store";
 import { UNITS } from "@/lib/units";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
+import { NutritionLookup } from "./NutritionLookup";
 import type { FoodCategory, Location, Unit } from "@/lib/types";
 
 const LOCATIONS: { value: Location; label: string }[] = [
@@ -37,6 +38,10 @@ export function AddFoodModal({
   const [location, setLocation] = useState<Location>(defaultLocation);
   const [category, setCategory] = useState<FoodCategory>("protein");
   const [quantity, setQuantity] = useState(1);
+  const [lookup, setLookup] = useState(false);
+  // Set when the numbers came from a reference rather than being typed, so
+  // the food records where they came from.
+  const [fdcId, setFdcId] = useState<number | null>(null);
 
   const save = () => {
     if (!name.trim()) return;
@@ -51,7 +56,10 @@ export function AddFoodModal({
         carbs: Math.max(0, carbs),
         fat: Math.max(0, fat),
         location,
-        category
+        category,
+        ...(fdcId != null
+          ? { nutritionSource: "usda" as const, fdcId }
+          : { nutritionSource: "manual" as const })
       },
       context === "kitchen" ? quantity : 0,
     );
@@ -84,6 +92,44 @@ export function AddFoodModal({
             />
           </div>
 
+          {/* Find the numbers rather than inventing them. Placed above the
+              fields it fills, so the order reads: what is it, what is it made
+              of, where does it go. */}
+          <div className="rounded-xl border border-line bg-surface p-3">
+            {lookup ? (
+              <NutritionLookup
+                compact
+                name={name}
+                unit={unit}
+                category={category}
+                onApply={(n, id) => {
+                  setCalories(n.caloriesPerUnit);
+                  setProtein(n.protein);
+                  setCarbs(n.carbs);
+                  setFat(n.fat);
+                  setFdcId(id);
+                  setLookup(false);
+                }}
+              />
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] leading-4 text-muted">
+                  {fdcId != null
+                    ? "Numbers filled in from USDA FoodData Central."
+                    : "Don't know the calories? Look the food up instead of guessing."}
+                </span>
+                <button
+                  onClick={() => setLookup(true)}
+                  disabled={!name.trim()}
+                  className="shrink-0 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-3 disabled:opacity-40"
+                  title={name.trim() ? undefined : "Name it first"}
+                >
+                  {fdcId != null ? "Look up again" : "Look it up"}
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <label className="text-sm">
               <span className="mb-1 block text-muted">Measured in</span>
@@ -104,7 +150,7 @@ export function AddFoodModal({
               <input
                 type="number"
                 value={calories}
-                onChange={(e) => setCalories(Number(e.target.value))}
+                onChange={(e) => { setCalories(Number(e.target.value)); setFdcId(null); }}
                 className="w-full rounded-lg field px-2 py-2"
               />
             </label>
@@ -113,9 +159,9 @@ export function AddFoodModal({
           <div>
             <span className="mb-1 block text-sm text-muted">Macros per {unit} (grams)</span>
             <div className="grid grid-cols-3 gap-3">
-              <input type="number" value={protein} onChange={(e) => setProtein(Number(e.target.value))} placeholder="protein" className="w-full rounded-lg field px-2 py-2 text-sm" />
-              <input type="number" value={carbs} onChange={(e) => setCarbs(Number(e.target.value))} placeholder="carbs" className="w-full rounded-lg field px-2 py-2 text-sm" />
-              <input type="number" value={fat} onChange={(e) => setFat(Number(e.target.value))} placeholder="fat" className="w-full rounded-lg field px-2 py-2 text-sm" />
+              <input type="number" value={protein} onChange={(e) => { setProtein(Number(e.target.value)); setFdcId(null); }} placeholder="protein" className="w-full rounded-lg field px-2 py-2 text-sm" />
+              <input type="number" value={carbs} onChange={(e) => { setCarbs(Number(e.target.value)); setFdcId(null); }} placeholder="carbs" className="w-full rounded-lg field px-2 py-2 text-sm" />
+              <input type="number" value={fat} onChange={(e) => { setFat(Number(e.target.value)); setFdcId(null); }} placeholder="fat" className="w-full rounded-lg field px-2 py-2 text-sm" />
             </div>
           </div>
 
