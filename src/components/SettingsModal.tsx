@@ -82,8 +82,11 @@ function Section({
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-line py-2.5 text-sm last:border-0">
-      <span className="text-muted">{label}</span>
-      <span className="text-right font-medium text-ink">{value}</span>
+      <span className="shrink-0 text-muted">{label}</span>
+      {/* A long, unbroken value (an email, a Firebase uid) has nowhere to wrap
+          on its own and runs off a narrow phone screen — break-words lets it
+          wrap mid-string instead of overflowing past the row. */}
+      <span className="min-w-0 flex-1 break-words text-right font-medium text-ink">{value}</span>
     </div>
   );
 }
