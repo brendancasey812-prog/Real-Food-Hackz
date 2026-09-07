@@ -8,6 +8,8 @@ import {
 import { householdSize, householdName, portionsFor, portionNote, scaleRecipe } from "@/lib/household";
 import { ServingsStepper } from "./ServingsStepper";
 import { pluralUnit, fmtQty } from "@/lib/units";
+import { ingredientCost, recipeCostPerServing, fmtMoney } from "@/lib/cost";
+import { FoodSheet } from "./FoodSheet";
 import { mealStart, clockLabel } from "@/lib/mealtime";
 import { MEAL_LABEL } from "@/lib/week";
 import type { Food, RecipeIngredient, RecipeComponent } from "@/lib/types";
@@ -20,7 +22,10 @@ interface Draft {
 }
 
 export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: () => void }) {
-  const { plan, recipes, foods, addRecipe, updateRecipe, updatePlannedMeal, householdMode, members } = useApp();
+  const {
+    plan, recipes, foods, addRecipe, updateRecipe, updatePlannedMeal,
+    householdMode, members, prices, selectedStoreId, inventory, setInventory,
+  } = useApp();
   const meal = plan.find((m) => m.id === mealId);
   const recipe = recipes.find((r) => r.id === meal?.recipeId);
 
@@ -29,6 +34,8 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
   const [savePrompt, setSavePrompt] = useState(false);
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState("");
+  // Tapping an ingredient opens the food, where its price at every shop is.
+  const [openFood, setOpenFood] = useState<string | null>(null);
 
   if (!meal || !recipe) {
     // Meal or recipe vanished (e.g. deleted) — nothing to show.
@@ -133,6 +140,22 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
                 <p className="text-xs text-muted">
                   {clockLabel(mealStart(meal))} · the recipe makes {portionNote(portions)}
                 </p>
+                {(() => {
+                  const per = recipeCostPerServing(recipe, recipes, prices, selectedStoreId);
+                  if (per.priced === 0) return null;
+                  const short = per.lines - per.priced;
+                  return (
+                    <p className="mt-0.5 text-xs text-accent-soft">
+                      {fmtMoney(per.cost)} a serving · {fmtMoney(per.cost * meal.servings)} for
+                      the {meal.servings} on this day
+                      {short > 0 && (
+                        <span className="ml-1 text-warn-soft">
+                          ({short} ingredient{short === 1 ? "" : "s"} unpriced)
+                        </span>
+                      )}
+                    </p>
+                  );
+                })()}
               </div>
 
               {/* Portions, right here — the number you actually change most */}
@@ -210,7 +233,17 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
               const cal = ingredientCalories(ing, foods);
               return (
                 <div key={ing.foodId} className="flex items-center gap-2 border-b border-line px-3 py-2.5 text-sm last:border-0">
-                  <span className="min-w-0 flex-1 truncate">{f?.name ?? ing.foodId}</span>
+                  {editing || !f ? (
+                    <span className="min-w-0 flex-1 truncate">{f?.name ?? ing.foodId}</span>
+                  ) : (
+                    <button
+                      onClick={() => setOpenFood(f.id)}
+                      className="min-w-0 flex-1 truncate text-left hover:text-accent-soft"
+                      title={`Open ${f.name} — its price at every shop, calories, and where it's kept`}
+                    >
+                      {f.name}
+                    </button>
+                  )}
                   {editing && draft ? (
                     <>
                       <input
@@ -226,6 +259,14 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
                     <span className="shrink-0 text-right text-muted">
                       {fmtQty(ing.quantity)} {f ? pluralUnit(ing.quantity, f.unit) : ""}
                       {" · "}<span className="text-cal-soft">{cal} cal</span>
+                      {(() => {
+                        const c = ingredientCost(ing, prices, selectedStoreId);
+                        return c != null ? (
+                          <span className="text-accent-soft"> · {fmtMoney(c)}</span>
+                        ) : (
+                          <span className="text-warn-soft"> · no price</span>
+                        );
+                      })()}
                     </span>
                   )}
                 </div>
@@ -293,6 +334,18 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
           </div>
         )}
       </div>
+
+      {openFood && (() => {
+        const f = foodById(foods, openFood);
+        return f ? (
+          <FoodSheet
+            food={f}
+            quantity={inventory.find((i) => i.foodId === f.id)?.quantity ?? 0}
+            onQuantity={(v) => setInventory(f.id, v)}
+            onClose={() => setOpenFood(null)}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

@@ -8,12 +8,11 @@ import {
   TriangleAlert, Store as StoreIcon, X, ExternalLink, DollarSign
 } from "lucide-react";
 import { useApp, newId } from "@/lib/store";
-import { BASE_STORE_ID, priceFor, fmtMoney, plannedCost } from "@/lib/cost";
+import { BASE_STORE_ID, priceFor } from "@/lib/cost";
 import {
   geocode, nearbyStores, currentPosition, distanceMi, fmtDistance,
   addressQuery, geoMessage, type LatLng, type NearbyStore
 } from "@/lib/geo";
-import { weekDays, isoOf } from "@/lib/week";
 import type { Store } from "@/lib/types";
 import type { MapMarker } from "@/components/StoreMap";
 import { SettingsButton } from "@/components/SettingsButton";
@@ -34,7 +33,7 @@ const BLANK = { name: "", address: "", city: "", state: "", zip: "", website: ""
 
 export default function Stores() {
   const {
-    stores, prices, foods, recipes, plan, selectedStoreId, home,
+    stores, prices, foods, selectedStoreId, home,
     addStore, updateStore, removeStore, selectStore, setHome, seedStorePricesFromBase
   } = useApp();
 
@@ -184,9 +183,6 @@ export default function Stores() {
     );
   };
 
-  const week = weekDays(new Date()).map(isoOf);
-  const weekMeals = plan.filter((m) => week.includes(m.date));
-
   const withDistance = useMemo(
     () =>
       stores
@@ -197,7 +193,6 @@ export default function Stores() {
               ? distanceMi(origin, { lat: s.lat, lng: s.lng })
               : null,
           coverage: foods.filter((f) => priceFor(prices, s.id, f.id) !== null).length,
-          week: plannedCost(weekMeals, recipes, prices, s.id)
         }))
         .sort((a, b) => {
           if (a.dist == null && b.dist == null) return a.store.name.localeCompare(b.store.name);
@@ -205,7 +200,7 @@ export default function Stores() {
           if (b.dist == null) return -1;
           return a.dist - b.dist;
         }),
-    [stores, origin, foods, prices, recipes, weekMeals],
+    [stores, origin, foods, prices],
   );
 
   const markers: MapMarker[] = useMemo(() => {
@@ -411,7 +406,7 @@ export default function Stores() {
           </div>
         ) : (
           <div className="space-y-2">
-            {withDistance.map(({ store: s, dist, coverage, week: cost }) => {
+            {withDistance.map(({ store: s, dist, coverage }) => {
               const active = s.id === selectedStoreId;
               return (
                 <div
@@ -428,12 +423,6 @@ export default function Stores() {
                         {s.website && ` · ${hostOf(s.website)}`}
                         {s.lat == null && " · not on map"}
                       </div>
-                    </div>
-                    <div className="hidden shrink-0 text-right sm:block">
-                      <div className="text-xs tabular-nums text-ink-2">
-                        {cost.priced > 0 ? fmtMoney(cost.cost) : "—"}
-                      </div>
-                      <div className="text-[10px] text-muted">this week</div>
                     </div>
                     {dist != null && (
                       <span className="shrink-0 text-xs tabular-nums text-muted">{fmtDistance(dist)}</span>

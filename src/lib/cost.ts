@@ -10,7 +10,7 @@
 // reports how many lines it could actually price so the UI never shows a
 // confident dollar figure that is silently missing half its ingredients.
 
-import type { Food, Price, Recipe, PlannedMeal } from "./types";
+import type { Food, Price, Recipe } from "./types";
 
 /** The pseudo-store holding fallback prices used when a store has none. */
 export const BASE_STORE_ID = "base";
@@ -207,22 +207,13 @@ export function recipeCostPerServing(
   return perServingCostRaw(recipe, recipes, prices, storeId, new Set());
 }
 
-/** Cost of a set of planned meals (the week's food spend). */
-export function plannedCost(
-  meals: PlannedMeal[],
-  recipes: Recipe[],
-  prices: Price[],
-  storeId: string,
-): CostTotals {
-  let acc = empty();
-  for (const meal of meals) {
-    const recipe = recipes.find((r) => r.id === meal.recipeId);
-    if (!recipe) continue;
-    const per = recipeCostPerServing(recipe, recipes, prices, storeId);
-    acc = add(acc, { cost: per.cost * meal.servings, priced: per.priced, lines: per.lines });
-  }
-  return acc;
-}
+/**
+ * Deliberately absent: a cost for a set of planned meals.
+ *
+ * Prices here describe what things cost, not what a week will cost. Totalling
+ * a plan turns a set of known prices into a forecast of spending, which this
+ * app does not make — see the per-ingredient and per-recipe figures instead.
+ */
 
 /** Cost of a `foodId -> quantity` map, as produced by `neededQuantities`. */
 export function quantitiesCost(

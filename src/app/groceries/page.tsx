@@ -8,7 +8,7 @@ import { useApp, neededQuantities, foodById } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
 import { AddFoodModal } from "@/components/AddFoodModal";
 import type { Food } from "@/lib/types";
-import { BASE_STORE_ID, quantityCost, quantitiesCost, fmtMoney } from "@/lib/cost";
+import { BASE_STORE_ID, quantityCost } from "@/lib/cost";
 import { SettingsButton } from "@/components/SettingsButton";
 import { FoodShelves } from "@/components/FoodShelves";
 import { ExportSheet } from "@/components/ExportSheet";
@@ -62,12 +62,6 @@ export default function Groceries() {
     0,
   );
 
-  // What this list costs at whichever store the app is currently costing against.
-  const basket = quantitiesCost(
-    Object.fromEntries(items.map((x) => [x.food!.id, x.buy])),
-    prices,
-    selectedStoreId,
-  );
   const storeName =
     selectedStoreId === BASE_STORE_ID
       ? "base prices"
@@ -151,14 +145,6 @@ export default function Groceries() {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-muted">{totalCals.toLocaleString()} cal</span>
-          <span className="font-medium text-accent-soft tabular-nums">
-            {basket.priced > 0 ? fmtMoney(basket.cost) : "—"}
-            {basket.lines - basket.priced > 0 && (
-              <span className="ml-1 text-[11px] font-normal text-warn-soft">
-                +{basket.lines - basket.priced} unpriced
-              </span>
-            )}
-          </span>
         </div>
       </div>
 

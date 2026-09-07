@@ -2,17 +2,17 @@
 
 import { useState } from "react";
 import { addWeeks, format, isToday } from "date-fns";
-import Link from "next/link";
-import { Flame, Beef, Wheat, Droplet, User, DollarSign, ChevronLeft, ChevronRight } from "lucide-react";
-import { useApp, plannedTotals, household, combinedGoals } from "@/lib/store";
-import { weekDays, isoOf } from "@/lib/week";
+import { Flame, Beef, Wheat, Droplet, User, ChevronLeft, ChevronRight } from "lucide-react";
+import { useApp, plannedTotals, household, combinedGoals, recipeTotalsPerServing } from "@/lib/store";
+import { weekDays, isoOf, MEAL_LABEL } from "@/lib/week";
+import { mealStart, clockLabel } from "@/lib/mealtime";
+import { recipeCostPerServing, fmtMoney } from "@/lib/cost";
 import { HOUSEHOLD_LABEL } from "@/lib/household";
 import { SettingsButton } from "@/components/SettingsButton";
-import { BASE_STORE_ID, plannedCost, fmtMoney } from "@/lib/cost";
+import { MealDetailModal } from "@/components/MealDetailModal";
 
 export default function Dashboard() {
-  const { recipes, foods, plan, goals, profile, members, householdMode, setGoals,
-    prices, stores, selectedStoreId } = useApp();
+  const { recipes, foods, plan, goals, profile, members, householdMode, setGoals, prices, selectedStoreId } = useApp();
   // "all" = the whole household; otherwise a single eater's id ("me" or member id).
   const [scope, setScope] = useState<string>("all");
   // Which week the whole page is reporting on, like the Meal Plan.
@@ -21,6 +21,8 @@ export default function Dashboard() {
   // in the chart pins another day, which is the only way to inspect a day on a
   // week that doesn't contain today.
   const [focusIso, setFocusIso] = useState<string | null>(null);
+  // Tapping a meal on the focused day opens it, prices and all.
+  const [openMealId, setOpenMealId] = useState<string | null>(null);
 
   const eaters = household({ goals, profile, members });
   const multi = householdMode !== "individual" && eaters.length > 1;
@@ -50,13 +52,6 @@ export default function Dashboard() {
   };
 
   // Money twin of the calorie roll-up above, costed at the selected store.
-  const weekIsos = days.map(isoOf);
-  const weekCost = plannedCost(plan.filter((m) => weekIsos.includes(m.date)), recipes, prices, selectedStoreId);
-  const focusCost = plannedCost(plan.filter((m) => m.date === focusCol.iso), recipes, prices, selectedStoreId);
-  const costStore =
-    selectedStoreId === BASE_STORE_ID
-      ? "base prices"
-      : (stores.find((st) => st.id === selectedStoreId)?.name ?? "base prices");
   const weekTotal = perDay.reduce((s, d) => s + d.calories, 0);
   const maxBar = Math.max(target, ...perDay.map((d) => d.calories)) * 1.12;
   const targetPct = (target / maxBar) * 100;
@@ -66,6 +61,21 @@ export default function Dashboard() {
     { key: "carbs", label: "Carbs", value: focusCol.carbs, target: activeGoals.carbsTarget, icon: Wheat, bar: "bg-gradient-to-r from-carbs-deep to-carbs", text: "text-carbs-soft" },
     { key: "fat", label: "Fat", value: focusCol.fat, target: activeGoals.fatTarget, icon: Droplet, bar: "bg-gradient-to-r from-fat-deep to-fat", text: "text-fat-soft" },
   ];
+
+  // What is actually on the focused day, in the order it gets eaten. Each row
+  // carries its own calories and what the dish costs to cook — the same figures
+  // the meal itself shows, never summed into a spend for the day.
+  const focusMeals = plan
+    .filter((m) => m.date === focusCol.iso)
+    .map((m) => {
+      const recipe = recipes.find((r) => r.id === m.recipeId);
+      if (!recipe) return null;
+      const per = recipeTotalsPerServing(recipe, foods, recipes);
+      const cost = recipeCostPerServing(recipe, recipes, prices, selectedStoreId);
+      return { meal: m, recipe, calories: per.calories * m.servings, cost };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+    .sort((a, b) => mealStart(a.meal) - mealStart(b.meal));
 
   const ft = Math.floor(profile.heightIn / 12);
   const inch = profile.heightIn % 12;
@@ -180,36 +190,43 @@ export default function Dashboard() {
             );
           })}
         </div>
-      </section>
-
-      {/* Food spend — the same plan, costed */}
-      <section className="mt-6 rounded-2xl card p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="font-semibold">Food spend</h2>
-            <p className="text-xs text-muted">
-              {thisWeek ? "This week" : "That week"}&apos;s plan at {costStore}
-              {weekCost.lines - weekCost.priced > 0 && (
-                <span className="text-warn-soft">
-                  {" "}· {weekCost.lines - weekCost.priced} ingredient lines still unpriced
-                </span>
-              )}
-            </p>
-          </div>
-          <Link
-            href="/costs"
-            className="rounded-lg px-3 py-1.5 text-xs font-medium field hover:brightness-125"
-          >
-            Edit prices
-          </Link>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <SpendStat label="This week" value={weekCost.priced > 0 ? fmtMoney(weekCost.cost) : "—"} />
-          <SpendStat label={focusIsToday ? "Today" : format(focusCol.date, "EEE d")} value={focusCost.priced > 0 ? fmtMoney(focusCost.cost) : "—"} />
-          <SpendStat
-            label="Avg / day"
-            value={weekCost.priced > 0 ? fmtMoney(weekCost.cost / 7) : "—"}
-          />
+        {/* The day's meals — tap one for its ingredients and their prices */}
+        <div className="mt-5 border-t border-line pt-4">
+          {focusMeals.length === 0 ? (
+            <p className="text-sm text-muted">Nothing planned for this day yet.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {focusMeals.map(({ meal, recipe, calories, cost }) => (
+                <li key={meal.id}>
+                  <button
+                    onClick={() => setOpenMealId(meal.id)}
+                    className="flex w-full items-center gap-3 rounded-xl border border-line bg-surface px-3 py-2.5 text-left transition-colors hover:bg-surface-3"
+                  >
+                    <span className="w-16 shrink-0 text-xs font-medium text-muted">
+                      {clockLabel(mealStart(meal))}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{recipe.name}</span>
+                      <span className="block text-xs text-muted">
+                        {MEAL_LABEL[meal.mealType] ?? meal.mealType} · {meal.servings} serving{meal.servings === 1 ? "" : "s"}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className="block text-sm font-semibold text-cal-soft">
+                        {calories.toLocaleString()} cal
+                      </span>
+                      {cost.priced > 0 && (
+                        <span className="block text-xs text-muted">
+                          {fmtMoney(cost.cost)} a serving
+                        </span>
+                      )}
+                    </span>
+                    <ChevronRight size={16} className="shrink-0 text-faint" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </section>
 
@@ -299,17 +316,8 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {openMealId && <MealDetailModal mealId={openMealId} onClose={() => setOpenMealId(null)} />}
     </div>
   );
 }
 
-function SpendStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-surface px-4 py-3">
-      <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted">
-        <DollarSign size={12} /> {label}
-      </div>
-      <div className="mt-1 text-xl font-semibold tabular-nums text-accent-soft">{value}</div>
-    </div>
-  );
-}

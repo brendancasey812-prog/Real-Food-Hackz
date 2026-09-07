@@ -21,6 +21,7 @@ import { MEAL_COLOR } from "@/lib/mealtime";
 import { fileToThumbnail } from "@/lib/image";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AddToPlanSheet } from "./AddToPlanSheet";
+import { FoodSheet } from "./FoodSheet";
 
 /**
  * The full-screen read view of a recipe, opened by clicking a card in either
@@ -35,13 +36,21 @@ export function RecipeDetailModal({
   onEdit: () => void;
   onRemove: () => void;
 }) {
-  const { recipes, foods, updateRecipe, prices, selectedStoreId, householdMode, members } = useApp();
+  const {
+    recipes, foods, updateRecipe, prices, selectedStoreId, householdMode, members,
+    inventory, setInventory,
+  } = useApp();
   const recipe = recipes.find((r) => r.id === recipeId);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [imgError, setImgError] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [planning, setPlanning] = useState(false);
+  // An ingredient row opens the food itself — its price at every shop lives
+  // there, and a recipe is exactly where you notice a price is wrong.
+  const [openFood, setOpenFood] = useState<string | null>(null);
+  // A recipe folded into this one opens as a recipe, as deep as they nest.
+  const [openSub, setOpenSub] = useState<string | null>(null);
 
   if (!recipe) return null;
 
@@ -197,12 +206,24 @@ export function RecipeDetailModal({
                       {comps.map((c) => {
                         const sub = recipes.find((x) => x.id === c.recipeId);
                         return (
-                          <div key={`c-${c.recipeId}`} className="flex items-center justify-between gap-3 border-t border-line px-3 py-2.5 text-sm">
+                          <button
+                            key={`c-${c.recipeId}`}
+                            onClick={() => sub && setOpenSub(sub.id)}
+                            disabled={!sub}
+                            className="flex w-full items-center justify-between gap-3 border-t border-line px-3 py-2.5 text-left text-sm transition-colors enabled:hover:bg-surface-3"
+                          >
                             <span className="truncate font-medium text-accent-soft">{sub?.name ?? "Unknown recipe"}</span>
                             <span className="shrink-0 text-muted">
-                              {fmtQty(c.servings)} serv · <span className="text-cal-soft">{componentCalories(c, foods, recipes)} cal</span>
+                              {fmtQty(c.servings)} serv ·{" "}
+                              <span className="text-cal-soft">{componentCalories(c, foods, recipes)} cal</span>
+                              {sub && (() => {
+                                const per = recipeCostPerServing(sub, recipes, prices, selectedStoreId);
+                                return per.priced > 0 ? (
+                                  <span className="text-accent-soft"> · {fmtMoney(per.cost * c.servings)}</span>
+                                ) : null;
+                              })()}
                             </span>
-                          </div>
+                          </button>
                         );
                       })}
                     </IngredientGroup>
@@ -219,7 +240,12 @@ export function RecipeDetailModal({
                         const f = foodById(foods, ing.foodId);
                         const c = ingredientCost(ing, prices, selectedStoreId);
                         return (
-                          <div key={ing.foodId} className="flex items-center justify-between gap-3 border-t border-line px-3 py-2.5 text-sm">
+                          <button
+                            key={ing.foodId}
+                            onClick={() => f && setOpenFood(f.id)}
+                            disabled={!f}
+                            className="flex w-full items-center justify-between gap-3 border-t border-line px-3 py-2.5 text-left text-sm transition-colors enabled:hover:bg-surface-3"
+                          >
                             <span className="min-w-0 truncate text-ink">{f?.name ?? ing.foodId}</span>
                             <span className="shrink-0 text-muted">
                               {fmtQty(ing.quantity)} {f ? pluralUnit(ing.quantity, f.unit) : ""} ·{" "}
@@ -230,7 +256,7 @@ export function RecipeDetailModal({
                                 <span className="text-warn-soft"> · no price</span>
                               )}
                             </span>
-                          </div>
+                          </button>
                         );
                       })}
                     </IngredientGroup>
@@ -283,6 +309,28 @@ export function RecipeDetailModal({
       </div>
 
       {planning && <AddToPlanSheet recipe={recipe} onClose={() => setPlanning(false)} />}
+
+      {openFood && (() => {
+        const f = foodById(foods, openFood);
+        return f ? (
+          <FoodSheet
+            food={f}
+            quantity={inventory.find((i) => i.foodId === f.id)?.quantity ?? 0}
+            onQuantity={(v) => setInventory(f.id, v)}
+            onClose={() => setOpenFood(null)}
+          />
+        ) : null;
+      })()}
+
+      {/* A recipe inside a recipe, opened as itself — and so on down. */}
+      {openSub && (
+        <RecipeDetailModal
+          recipeId={openSub}
+          onClose={() => setOpenSub(null)}
+          onEdit={() => setOpenSub(null)}
+          onRemove={() => setOpenSub(null)}
+        />
+      )}
 
       {confirming && (
         <ConfirmDialog
