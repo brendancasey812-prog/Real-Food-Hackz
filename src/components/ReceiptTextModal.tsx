@@ -9,7 +9,7 @@ import {
 } from "@/lib/receipttext";
 import { gramsForFood, searchUsda, unitNutrition } from "@/lib/usda";
 import { UNITS, unitLabel, pluralUnit } from "@/lib/units";
-import { fmtMoney, BASE_STORE_ID } from "@/lib/cost";
+import { fmtMoney, BASE_STORE_ID, BEST_STORE_ID } from "@/lib/cost";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
 import { StorePicker } from "./StorePicker";
 import { FoodPicker, NEW_FOOD } from "./FoodPicker";
@@ -72,7 +72,12 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState<"paste" | "review" | "done">("paste");
   const [text, setText] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
-  const [storeId, setStoreId] = useState(selectedStoreId);
+  // "Cheapest anywhere" isn't a shop you can have shopped at, so a receipt
+  // filed while that is selected records against base prices until a real
+  // store is chosen.
+  const [storeId, setStoreId] = useState(
+    selectedStoreId === BEST_STORE_ID ? BASE_STORE_ID : selectedStoreId,
+  );
   const [summary, setSummary] = useState({ stocked: 0, priced: 0, created: 0 });
 
   const storeName =

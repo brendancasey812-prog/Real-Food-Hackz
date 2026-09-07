@@ -15,6 +15,21 @@ import type { Food, Price, Recipe, PlannedMeal } from "./types";
 /** The pseudo-store holding fallback prices used when a store has none. */
 export const BASE_STORE_ID = "base";
 
+/**
+ * The pseudo-store meaning "whichever shop sells it cheapest".
+ *
+ * Once you shop at more than one place, the honest cost of a recipe is not
+ * what one store charges — it is what you would actually pay, buying each
+ * thing where it is cheapest. Selecting this costs everything that way, and
+ * because it is just another store id, every total in the app follows without
+ * any of them knowing about it.
+ */
+export const BEST_STORE_ID = "best";
+
+/** True for the two ids that aren't real shops. */
+export const isPseudoStore = (id: string) =>
+  id === BASE_STORE_ID || id === BEST_STORE_ID;
+
 /** A money total plus how complete it is. */
 export interface CostTotals {
   /** Dollars, summed over the lines that had a price. */
@@ -48,9 +63,39 @@ export function fmtMoneyShort(n: number): string {
 
 export interface ResolvedPrice {
   pricePerUnit: number;
-  /** Whether this came from the store itself or fell back to the base row. */
-  source: "store" | "base";
+  /** Where the number came from: the store asked for, the base fallback, or
+   *  the cheapest shop that sells it. */
+  source: "store" | "base" | "best";
   updatedAt: string;
+  /** Which store actually charged this, when the answer came from elsewhere. */
+  storeId?: string;
+}
+
+/** Every price recorded for one food, cheapest first. */
+export function pricesForFood(prices: Price[], foodId: string): Price[] {
+  return prices
+    .filter((p) => p.foodId === foodId)
+    .sort((a, b) => a.pricePerUnit - b.pricePerUnit);
+}
+
+/**
+ * The cheapest price anyone charges for a food.
+ *
+ * Base prices are typical figures rather than a shop you can walk into, so
+ * they only answer when no real store has priced the food — otherwise a
+ * guessed number could undercut a real one and quietly make every total wrong.
+ */
+export function bestPriceFor(prices: Price[], foodId: string): ResolvedPrice | null {
+  const rows = pricesForFood(prices, foodId);
+  const real = rows.filter((p) => p.storeId !== BASE_STORE_ID);
+  const pick = real[0] ?? rows[0];
+  if (!pick) return null;
+  return {
+    pricePerUnit: pick.pricePerUnit,
+    source: pick.storeId === BASE_STORE_ID ? "base" : "best",
+    updatedAt: pick.updatedAt,
+    storeId: pick.storeId,
+  };
 }
 
 /**
@@ -62,11 +107,22 @@ export function priceFor(
   storeId: string,
   foodId: string,
 ): ResolvedPrice | null {
+  if (storeId === BEST_STORE_ID) return bestPriceFor(prices, foodId);
+
   const own = prices.find((p) => p.storeId === storeId && p.foodId === foodId);
-  if (own) return { pricePerUnit: own.pricePerUnit, source: "store", updatedAt: own.updatedAt };
+  if (own) {
+    return { pricePerUnit: own.pricePerUnit, source: "store", updatedAt: own.updatedAt, storeId };
+  }
   if (storeId !== BASE_STORE_ID) {
     const base = prices.find((p) => p.storeId === BASE_STORE_ID && p.foodId === foodId);
-    if (base) return { pricePerUnit: base.pricePerUnit, source: "base", updatedAt: base.updatedAt };
+    if (base) {
+      return {
+        pricePerUnit: base.pricePerUnit,
+        source: "base",
+        updatedAt: base.updatedAt,
+        storeId: BASE_STORE_ID,
+      };
+    }
   }
   return null;
 }

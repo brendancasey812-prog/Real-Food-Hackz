@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Minus, Plus, X, BookMarked, PenLine, Trash2, Check, RotateCcw } from "lucide-react";
+import { Minus, Plus, X, BookMarked, PenLine, Trash2, Check } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { usdaFor, canApplyUsda, SOURCE_LABEL } from "@/lib/usda";
 import { fmtQty, pluralUnit, stepFor, unitLabel, sliderMax } from "@/lib/units";
 import { FOOD_CATEGORIES, FOOD_CATEGORY_LABEL } from "@/lib/foodcat";
-import { BASE_STORE_ID, fmtMoney, priceFor } from "@/lib/cost";
+
 import { ConfirmDialog } from "./ConfirmDialog";
+import { FoodPrices } from "./FoodPrices";
 import { NutritionLookup } from "./NutritionLookup";
 import type { Food, FoodCategory, Location } from "@/lib/types";
 
@@ -47,7 +48,7 @@ export function FoodSheet({
   // shelf handed over: everything below edits it, and the sheet has to show the
   // change. The fallback covers the moment after a delete, before it closes.
   const f = useApp((s) => s.foods.find((x) => x.id === food.id)) ?? food;
-  const { updateFood, removeFood, prices, stores, selectedStoreId, setPrice } = useApp();
+  const { updateFood, removeFood } = useApp();
 
   const [editing, setEditing] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -57,14 +58,6 @@ export function FoodSheet({
   const step = stepFor(f.unit);
   const max = sliderMax(f.unit, quantity, buy);
   const set = (q: number) => onQuantity(Math.max(0, Number(q.toFixed(2))));
-
-  const storeName =
-    selectedStoreId === BASE_STORE_ID
-      ? "base prices"
-      : (stores.find((st) => st.id === selectedStoreId)?.name ?? "base prices");
-  const own = prices.find((p) => p.storeId === selectedStoreId && p.foodId === f.id);
-  const effective = priceFor(prices, selectedStoreId, f.id);
-  const usingBase = effective?.source === "base" && selectedStoreId !== BASE_STORE_ID;
 
   // The USDA table is the fallback reference: offered when the user hasn't
   // established better numbers themselves, never applied behind their back.
@@ -178,51 +171,8 @@ export function FoodSheet({
           )}
         </div>
 
-        {/* What it costs */}
-        <div className="mt-3 rounded-2xl border border-line bg-surface p-4">
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-              Price at {storeName}
-            </p>
-            {effective && quantity > 0 && (
-              <p className="text-xs text-muted">
-                {fmtMoney(effective.pricePerUnit * quantity)} on hand
-              </p>
-            )}
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-lg font-semibold text-muted">$</span>
-            <input
-              type="number"
-              min={0}
-              step={0.01}
-              value={own ? own.pricePerUnit : (usingBase ? "" : (effective?.pricePerUnit ?? ""))}
-              placeholder={usingBase ? effective!.pricePerUnit.toFixed(2) : "0.00"}
-              onChange={(e) => {
-                const v = e.target.value.trim();
-                setPrice(selectedStoreId, f.id, v === "" ? null : Math.max(0, Number(v) || 0));
-              }}
-              aria-label={`Price per ${unitLabel(f.unit)}`}
-              className="field w-28 rounded-xl px-3 py-2 text-right text-lg font-semibold tabular-nums"
-            />
-            <span className="text-sm text-muted">/ {unitLabel(f.unit)}</span>
-            {own && (
-              <button
-                onClick={() => setPrice(selectedStoreId, f.id, null)}
-                className="ml-auto flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] text-muted hover:bg-surface-3 hover:text-ink"
-              >
-                <RotateCcw size={12} /> Clear
-              </button>
-            )}
-          </div>
-          <p className="mt-2 text-[11px] text-muted">
-            {usingBase
-              ? `Falling back to the base price of ${fmtMoney(effective!.pricePerUnit)} — type one to set it for this store.`
-              : effective
-                ? "Used by the grocery list, the cookbook and the weekly spend."
-                : "No price yet, so this food is missing from every total."}
-          </p>
-        </div>
+        {/* What it costs, everywhere you shop */}
+        <FoodPrices food={f} />
 
         {/* Where it lives — moving a food re-shelves it everywhere at once */}
         <div className="mt-3 rounded-2xl border border-line bg-surface p-4">

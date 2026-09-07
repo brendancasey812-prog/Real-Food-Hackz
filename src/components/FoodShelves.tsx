@@ -5,7 +5,7 @@ import { Search, X } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
 import { fmtQty, pluralUnit, unitLabel } from "@/lib/units";
-import { fmtMoney, priceFor, BASE_STORE_ID } from "@/lib/cost";
+import { fmtMoney, priceFor, BASE_STORE_ID, type ResolvedPrice } from "@/lib/cost";
 import { Appliance, Shelf, TileGrid, AppTile, TileTick, CATEGORY_TINT } from "./shelf";
 import { FoodSheet } from "./FoodSheet";
 import type { Food, FoodCategory, Location } from "@/lib/types";
@@ -190,7 +190,7 @@ function FoodTile({
   mode: ShelfMode;
   have: number;
   buy: number;
-  price: { pricePerUnit: number; source: "store" | "base" } | null;
+  price: ResolvedPrice | null;
   baseStore: boolean;
   done: boolean;
   picking: boolean;

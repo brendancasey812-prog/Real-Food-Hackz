@@ -8,6 +8,8 @@ import { useApp, neededQuantities, recipeCaloriesPerServing } from "@/lib/store"
 import { weekDays, isoOf } from "@/lib/week";
 import {
   BASE_STORE_ID,
+  BEST_STORE_ID,
+  bestPriceFor,
   priceFor,
   fmtMoney,
   recipeTotalCost,
@@ -20,6 +22,7 @@ import {
 } from "@/lib/cost";
 import { SettingsButton } from "@/components/SettingsButton";
 import { FoodShelves } from "@/components/FoodShelves";
+import { unitLabel } from "@/lib/units";
 
 /** A money figure that says out loud when it is missing prices. */
 function Money({ t, className = "" }: { t: CostTotals; className?: string }) {
@@ -48,9 +51,11 @@ export default function Costs() {
   const [copied, setCopied] = useState<number | null>(null);
 
   const storeName =
-    selectedStoreId === BASE_STORE_ID
-      ? "Base prices"
-      : (stores.find((s) => s.id === selectedStoreId)?.name ?? "Base prices");
+    selectedStoreId === BEST_STORE_ID
+      ? "Best price"
+      : selectedStoreId === BASE_STORE_ID
+        ? "Base prices"
+        : (stores.find((s) => s.id === selectedStoreId)?.name ?? "Base prices");
 
   const week = weekDays(addWeeks(new Date(), 0)).map(isoOf);
   const weekMeals = plan.filter((m) => week.includes(m.date));
@@ -89,6 +94,7 @@ export default function Costs() {
       }).filter(([, qty]) => (qty as number) > 0.001),
     );
     const rows = [
+      { id: BEST_STORE_ID, name: "Best price — cheapest of your stores" },
       { id: BASE_STORE_ID, name: "Base prices" },
       ...stores.map((st) => ({ id: st.id, name: st.name })),
     ].map((st) => ({
@@ -102,6 +108,25 @@ export default function Costs() {
       : null;
     return { rows, calories: Math.round(calories), cheapest };
   }, [weekMeals, recipes, foods, inventory, prices, stores]);
+
+  /**
+   * Every ingredient priced somewhere real, across every shop. Foods only the
+   * base row knows about are left out: a single column of typical figures is
+   * not a comparison, and it would bury the rows that are.
+   */
+  const comparison = useMemo(() => {
+    const columns = [BASE_STORE_ID, ...stores.map((s) => s.id)];
+    return foods
+      .map((food) => {
+        const cells = columns.map((storeId) => ({
+          storeId,
+          price: prices.find((p) => p.storeId === storeId && p.foodId === food.id)?.pricePerUnit ?? null,
+        }));
+        return { food, cells, best: bestPriceFor(prices, food.id)?.storeId };
+      })
+      .filter((r) => r.cells.some((c) => c.storeId !== BASE_STORE_ID && c.price != null))
+      .sort((a, b) => a.food.name.localeCompare(b.food.name));
+  }, [foods, prices, stores]);
 
   const recipeRows = useMemo(
     () =>
@@ -137,6 +162,7 @@ export default function Costs() {
             onChange={(e) => selectStore(e.target.value)}
             className="field rounded-xl px-3 py-2 text-sm"
           >
+            <option value={BEST_STORE_ID}>Best price — cheapest of your stores</option>
             <option value={BASE_STORE_ID}>Base prices (any store)</option>
             {stores.map((s) => (
               <option key={s.id} value={s.id}>
@@ -184,6 +210,69 @@ export default function Costs() {
 
       {/* --- The repository itself: the same shelves the other two tabs use --- */}
       <FoodShelves mode="price" foods={foods} />
+
+      {/* --- Every ingredient, at every shop --- */}
+      <section className="mt-8">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">
+            Price by store
+          </h2>
+          <span className="text-[11px] text-muted">
+            cheapest is what &ldquo;Best price&rdquo; costs against
+          </span>
+        </div>
+        <div className="overflow-x-auto rounded-2xl card">
+          <table className="w-full min-w-[520px] text-sm">
+            <thead>
+              <tr className="border-b border-line bg-surface text-[11px] font-medium uppercase tracking-wide text-muted">
+                <th className="px-4 py-2 text-left font-medium">Ingredient</th>
+                <th className="px-3 py-2 text-right font-medium">Base</th>
+                {stores.map((st) => (
+                  <th key={st.id} className="px-3 py-2 text-right font-medium">
+                    <span className="block max-w-24 truncate">{st.name}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {comparison.map(({ food, cells, best }) => (
+                <tr key={food.id} className="border-b border-line last:border-0">
+                  <td className="px-4 py-2">
+                    <span className="block truncate">{food.name}</span>
+                    <span className="text-[10px] text-muted">per {unitLabel(food.unit)}</span>
+                  </td>
+                  {cells.map((c) => (
+                    <td
+                      key={c.storeId}
+                      className={`px-3 py-2 text-right tabular-nums ${
+                        c.price == null
+                          ? "text-faint"
+                          : c.storeId === best
+                            ? "font-semibold text-accent-soft"
+                            : "text-ink-2"
+                      }`}
+                    >
+                      {c.price == null ? "—" : fmtMoney(c.price)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {comparison.length === 0 && (
+          <p className="mt-2 text-[11px] text-muted">
+            No ingredient is priced at more than one place yet — import a receipt at a
+            second store and the comparison fills in.
+          </p>
+        )}
+        {stores.length === 0 && (
+          <p className="mt-2 text-[11px] text-muted">
+            Only base prices so far. Add a store on the Stores tab, or file a receipt
+            against one, and its column appears here.
+          </p>
+        )}
+      </section>
 
       {/* --- The week, costed at each store --- */}
       <section className="mt-8">

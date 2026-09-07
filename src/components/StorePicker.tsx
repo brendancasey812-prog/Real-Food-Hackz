@@ -7,7 +7,7 @@ import {
   geocode, nearbyStores, currentPosition, geoMessage, fmtDistance,
   type NearbyStore,
 } from "@/lib/geo";
-import { BASE_STORE_ID } from "@/lib/cost";
+import { BASE_STORE_ID, BEST_STORE_ID } from "@/lib/cost";
 import type { Store } from "@/lib/types";
 
 /**
@@ -112,6 +112,7 @@ export function StorePicker({
           onChange={(e) => onChange(e.target.value)}
           className="field min-w-0 flex-1 rounded-lg px-2 py-1.5 text-sm"
         >
+          <option value={BEST_STORE_ID}>Best price — cheapest of your stores</option>
           <option value={BASE_STORE_ID}>Base prices (any store)</option>
           {stores.map((s) => (
             <option key={s.id} value={s.id}>{s.name}{s.city ? ` — ${s.city}` : ""}</option>

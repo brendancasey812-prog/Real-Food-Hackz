@@ -19,7 +19,7 @@ import type {
 import { seedData } from "./seed";
 import { normalizeName, mapCategory, unitForNewFood, convertToUnit } from "./receipt";
 import { classifyByName } from "./foodclass";
-import { BASE_STORE_ID } from "./cost";
+import { BASE_STORE_ID, BEST_STORE_ID } from "./cost";
 
 interface Totals extends Macros {
   calories: number;
@@ -382,7 +382,7 @@ export const useApp = create<AppState>()(
       name: "mealplan-store-v6",
       // Bump whenever seed content is added that existing data should receive —
       // zustand only runs `migrate` when the stored version differs.
-      version: 5,
+      version: 6,
       // Preserve the user's own data across app updates; only fill in missing
       // defaults and restore items that earlier resets dropped.
       migrate: (persisted) => {
@@ -464,7 +464,12 @@ export const useApp = create<AppState>()(
           stores: s.stores ?? [],
           priceQuotes: s.priceQuotes ?? [],
           prices: s.prices?.length ? s.prices : seedData.prices,
-          selectedStoreId: s.selectedStoreId ?? seedData.selectedStoreId,
+          // Anyone still on the default costs against the cheapest shop now
+          // that more than one can be priced; a store they picked is theirs.
+          selectedStoreId:
+            !s.selectedStoreId || s.selectedStoreId === BASE_STORE_ID
+              ? BEST_STORE_ID
+              : s.selectedStoreId,
           home: { ...seedData.home, ...(s.home ?? {}) }
         } as AppData;
       }

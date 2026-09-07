@@ -1,6 +1,6 @@
 import { startOfMonth, endOfMonth, addDays, format } from "date-fns";
 import type { AppData, Food, FoodCategory, Recipe, MealType, PlannedMeal, Price } from "./types";
-import { BASE_STORE_ID } from "./cost";
+import { BASE_STORE_ID, BEST_STORE_ID } from "./cost";
 import { mondayIndex } from "./week";
 
 // Which food-type bucket each food id belongs to (groups the Kitchen).
@@ -360,7 +360,7 @@ export const seedData: AppData = {
   stores: [],
   prices,
   priceQuotes: [],
-  selectedStoreId: BASE_STORE_ID,
+  selectedStoreId: BEST_STORE_ID,
   home: { city: "", state: "", zip: "" },
   goals: {
     dailyCalorieTarget: 2900,
