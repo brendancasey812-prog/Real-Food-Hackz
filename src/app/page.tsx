@@ -13,8 +13,11 @@ import { MealDetailModal } from "@/components/MealDetailModal";
 
 export default function Dashboard() {
   const { recipes, foods, plan, goals, profile, members, householdMode, setGoals, prices, selectedStoreId } = useApp();
-  // "all" = the whole household; otherwise a single eater's id ("me" or member id).
-  const [scope, setScope] = useState<string>("all");
+  // Whose numbers the page is reporting: an eater's id, or "all" for the whole
+  // household. It opens on you — this is your dashboard, with your body and
+  // your goals on it, so the calories beside them should be yours too. The
+  // household is one tap away.
+  const [scope, setScope] = useState<string>("me");
   // Which week the whole page is reporting on, like the Meal Plan.
   const [weekOffset, setWeekOffset] = useState(0);
   // Which day the "today" panels describe. Null follows today; clicking a bar
@@ -184,7 +187,7 @@ export default function Dashboard() {
       {/* Household filter — total vs. one person */}
       {multi && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-muted">Showing goals for</span>
+          <span className="text-xs font-medium text-muted">Showing</span>
           <div className="flex flex-wrap gap-1.5">
             <button
               onClick={() => setScope("all")}
