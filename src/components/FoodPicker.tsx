@@ -36,14 +36,20 @@ export function FoodPicker({
 
   const selected = value === NEW_FOOD ? null : foods.find((f) => f.id === value);
 
-  /** Foods you have touched: stocked, cooked with, or priced. */
-  const used = useMemo(() => {
+  /** Foods actually on the shelf right now — the first place to look. */
+  const stocked = useMemo(() => {
     const seen = new Set<string>();
     for (const i of inventory) if (i.quantity > 0) seen.add(i.foodId);
+    return seen;
+  }, [inventory]);
+
+  /** Foods you have touched: stocked, cooked with, or priced. */
+  const used = useMemo(() => {
+    const seen = new Set(stocked);
     for (const r of recipes) for (const ing of r.ingredients) seen.add(ing.foodId);
     for (const p of prices) seen.add(p.foodId);
     return seen;
-  }, [inventory, recipes, prices]);
+  }, [stocked, recipes, prices]);
 
   const q = query.trim().toLowerCase();
   const matches = useMemo(() => {
@@ -52,17 +58,25 @@ export function FoodPicker({
       .filter((f) => f.name.toLowerCase().includes(q))
       .sort(
         (a, b) =>
-          // Ones you use first, then the closer name match, then alphabetical.
+          // What's in the fridge/pantry first, then anything else you use,
+          // then the closer name match, then alphabetical.
+          Number(stocked.has(b.id)) - Number(stocked.has(a.id)) ||
           Number(used.has(b.id)) - Number(used.has(a.id)) ||
           a.name.toLowerCase().indexOf(q) - b.name.toLowerCase().indexOf(q) ||
           a.name.localeCompare(b.name),
       )
       .slice(0, 30);
-  }, [foods, q, used]);
+  }, [foods, q, used, stocked]);
 
   const recent = useMemo(
-    () => foods.filter((f) => used.has(f.id)).sort((a, b) => a.name.localeCompare(b.name)),
-    [foods, used],
+    () =>
+      foods
+        .filter((f) => used.has(f.id))
+        .sort(
+          (a, b) =>
+            Number(stocked.has(b.id)) - Number(stocked.has(a.id)) || a.name.localeCompare(b.name),
+        ),
+    [foods, used, stocked],
   );
 
   const close = () => { setOpen(false); setQuery(""); };
@@ -70,21 +84,32 @@ export function FoodPicker({
   const toggle = (k: FoodCategory) =>
     setExpanded((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
-  const Row = ({ food }: { food: Food }) => (
-    <button
-      type="button"
-      onClick={() => pick(food.id)}
-      className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-accent-wash ${
-        food.id === value ? "bg-accent-wash text-accent-soft" : "text-ink"
-      }`}
-    >
-      <span className="min-w-0 flex-1 truncate">{food.name}</span>
-      <span className="shrink-0 text-[10px] text-muted">
-        {food.caloriesPerUnit} cal / {unitLabel(food.unit)}
-      </span>
-      {food.id === value && <Check size={13} className="shrink-0 text-accent-soft" />}
-    </button>
-  );
+  /** How much of this food is actually on hand, so a search can say so. */
+  const stockOf = (foodId: string) => inventory.find((i) => i.foodId === foodId && i.quantity > 0);
+
+  const Row = ({ food }: { food: Food }) => {
+    const stock = stockOf(food.id);
+    return (
+      <button
+        type="button"
+        onClick={() => pick(food.id)}
+        className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-accent-wash ${
+          food.id === value ? "bg-accent-wash text-accent-soft" : "text-ink"
+        }`}
+      >
+        <span className="min-w-0 flex-1 truncate">{food.name}</span>
+        {stock && (
+          <span className="shrink-0 rounded-md bg-accent/15 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-accent-soft">
+            in {food.location}
+          </span>
+        )}
+        <span className="shrink-0 text-[10px] text-muted">
+          {food.caloriesPerUnit} cal / {unitLabel(food.unit)}
+        </span>
+        {food.id === value && <Check size={13} className="shrink-0 text-accent-soft" />}
+      </button>
+    );
+  };
 
   return (
     <div className="relative min-w-0 flex-1">

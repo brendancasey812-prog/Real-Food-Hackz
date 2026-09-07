@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Trash2, X, Flame, Menu, ChevronDown, Camera, PenLine, ClipboardList, CalendarPlus } from "lucide-react";
+import { Plus, Trash2, X, Flame, Menu, ChevronDown, Camera, PenLine, ClipboardList, CalendarPlus, DollarSign } from "lucide-react";
 import {
   useApp,
   recipeCaloriesPerServing,
@@ -12,7 +12,7 @@ import {
   foodById,
   newId
 } from "@/lib/store";
-import { UNITS, unitLabel, pluralUnit, fmtQty } from "@/lib/units";
+import { UNITS, unitLabel, pluralUnit, fmtQty, BUY_UNITS, pricePerOwnUnit, pricePerBuyUnit } from "@/lib/units";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
 import { householdSize, portionsFor, portionNote } from "@/lib/household";
 import { MEAL_ORDER, MEAL_LABEL } from "@/lib/week";
@@ -26,6 +26,11 @@ import { SettingsButton } from "@/components/SettingsButton";
 import { AddToPlanSheet } from "@/components/AddToPlanSheet";
 import { SingleFoodsTab } from "@/components/SingleFoodsTab";
 import { FoodPicker, NEW_FOOD } from "@/components/FoodPicker";
+import { parseTextLocally } from "@/lib/recipescan";
+import { normalizeName, mapCategory } from "@/lib/receipt";
+import { convertUnits } from "@/lib/foodtable";
+import { gramsForFood } from "@/lib/usda";
+import { ingredientCost, recipeCostPerServing, fmtMoney, BASE_STORE_ID, BEST_STORE_ID } from "@/lib/cost";
 
 export default function Cookbook() {
   const { recipes, foods, removeRecipe } = useApp();
@@ -314,15 +319,18 @@ interface Row {
   newFat: number;
   newLocation: Location;
   newCategory: FoodCategory;
+  /** Price for a not-yet-created food — $ per `newUnit`. 0 = not priced. */
+  newPrice: number;
 }
 
 const emptyRow = (foodId: string): Row => ({
   foodId, quantity: 1, newName: "", newUnit: "each",
-  newCalories: 50, newProtein: 0, newCarbs: 0, newFat: 0, newLocation: "fridge", newCategory: "vegetable"
+  newCalories: 50, newProtein: 0, newCarbs: 0, newFat: 0, newLocation: "fridge", newCategory: "vegetable",
+  newPrice: 0
 });
 
 function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => void }) {
-  const { foods, recipes, addRecipe, updateRecipe, addFood } = useApp();
+  const { foods, recipes, addRecipe, updateRecipe, addFood, prices, setPrice, selectedStoreId } = useApp();
   const editing = !!recipe;
   const [name, setName] = useState(recipe?.name ?? "");
   const [servings, setServings] = useState(recipe?.servings ?? 1);
@@ -334,8 +342,15 @@ function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => v
   );
   const [components, setComponents] = useState<RecipeComponent[]>(recipe?.components ?? []);
   const [steps, setSteps] = useState((recipe?.steps ?? []).join("\n"));
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [pasteNotice, setPasteNotice] = useState("");
 
   const update = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+
+  // "Best price" isn't a shop you can type a number into — a typed price
+  // lands on the base row instead, same as the receipt importer.
+  const writeStoreId = selectedStoreId === BEST_STORE_ID ? BASE_STORE_ID : selectedStoreId;
 
   // Recipes that can be folded in: everything except this one and ones already added.
   const availableRecipes = recipes.filter((r) => !r.single && r.id !== recipe?.id && !components.some((c) => c.recipeId === r.id));
@@ -350,9 +365,83 @@ function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => v
     return { total: Math.round(t), perServing: Math.round(t / Math.max(1, servings)) };
   }, [rows, components, servings, foods, recipes]);
 
+  // What this recipe costs so far, from whichever ingredient lines have a
+  // price — same shape as the read view, so building and reading agree.
+  const { cost, pricedLines, costLines } = useMemo(() => {
+    let sum = 0, priced = 0, lines = 0;
+    for (const row of rows) {
+      if (row.quantity <= 0) continue;
+      lines++;
+      if (row.foodId === NEW) {
+        if (row.newPrice > 0) { sum += row.newPrice * row.quantity; priced++; }
+      } else {
+        const c = ingredientCost({ foodId: row.foodId, quantity: row.quantity }, prices, writeStoreId);
+        if (c != null) { sum += c; priced++; }
+      }
+    }
+    for (const c of components) {
+      const sub = recipes.find((r) => r.id === c.recipeId);
+      if (!sub) continue;
+      lines++;
+      const per = recipeCostPerServing(sub, recipes, prices, writeStoreId);
+      if (per.priced > 0) { sum += per.cost * c.servings; priced++; }
+    }
+    return { cost: sum, pricedLines: priced, costLines: lines };
+  }, [rows, components, prices, writeStoreId, recipes]);
+
+  // Turn pasted text — one ingredient per line, or a whole table — into rows,
+  // matching each name against the kitchen's own foods before offering to
+  // make a new one. Reuses the exact parser the "Paste text" scanner uses, so
+  // a table with quantity/unit/serving-size/calorie columns and TOTAL / PER
+  // SERVING rows reads the same way here as it does there.
+  const applyPaste = () => {
+    const t = pasteText.trim();
+    if (!t) return;
+    const parsed = parseTextLocally(t);
+    if (parsed.ingredients.length === 0) {
+      setPasteNotice("Couldn't find any ingredients in that text.");
+      return;
+    }
+    let matched = 0;
+    const parsedRows: Row[] = parsed.ingredients.map((ing) => {
+      const existing = foods.find((f) => normalizeName(f.name) === normalizeName(ing.food));
+      if (existing) {
+        matched++;
+        const factor = convertUnits(1, ing.unit, existing.unit);
+        const quantity = Math.round(ing.quantity * (factor ?? 1) * 100) / 100;
+        return { ...emptyRow(existing.id), quantity: quantity || 1 };
+      }
+      const mapped = mapCategory(ing.category, ing.food);
+      return {
+        ...emptyRow(NEW),
+        quantity: ing.quantity || 1,
+        newName: ing.food,
+        newUnit: ing.unit,
+        newCalories: ing.caloriesPerUnit ?? 50,
+        newProtein: ing.protein ?? 0,
+        newCarbs: ing.carbs ?? 0,
+        newFat: ing.fat ?? 0,
+        newLocation: mapped.location,
+        newCategory: mapped.category,
+      };
+    });
+    setRows((rs) => {
+      const pristine = rs.length === 1 && rs[0].foodId === (foods[0]?.id ?? NEW) && rs[0].quantity === 1 && !rs[0].newName;
+      return pristine ? parsedRows : [...rs, ...parsedRows];
+    });
+    if (!name.trim() && parsed.name && !/^Pasted (recipe|food list)$/i.test(parsed.name)) setName(parsed.name);
+    if (parsed.servings > 0) setServings(parsed.servings);
+    const added = parsedRows.length;
+    setPasteNotice(
+      `Added ${added} ingredient${added === 1 ? "" : "s"} — ${matched} matched food${matched === 1 ? "" : "s"} already in your kitchen, ${added - matched} new.`
+    );
+    setPasteText("");
+  };
+
   const save = () => {
     if (!name.trim()) return;
     const newFoods: Food[] = [];
+    const newPrices: { foodId: string; price: number }[] = [];
     const ingredients = rows
       .map((row) => {
         if (row.quantity <= 0) return null;
@@ -365,6 +454,7 @@ function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => v
             carbs: Math.max(0, row.newCarbs), fat: Math.max(0, row.newFat),
             location: row.newLocation, category: row.newCategory
           });
+          if (row.newPrice > 0) newPrices.push({ foodId: id, price: row.newPrice });
           return { foodId: id, quantity: row.quantity };
         }
         return { foodId: row.foodId, quantity: row.quantity };
@@ -386,6 +476,7 @@ function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => v
     } else {
       addRecipe(built, newFoods);
     }
+    newPrices.forEach((p) => setPrice(writeStoreId, p.foodId, p.price));
     onClose();
   };
 
@@ -451,18 +542,90 @@ function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => v
           </div>
 
           <div>
-            <div className="mb-2 text-sm font-medium text-muted">Ingredients</div>
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-sm font-medium text-muted">Ingredients</div>
+              <button
+                type="button"
+                onClick={() => setPasteOpen((v) => !v)}
+                className="flex items-center gap-1 text-xs font-medium text-accent-soft hover:text-accent-soft"
+              >
+                <ClipboardList size={13} /> {pasteOpen ? "Hide paste" : "Paste ingredients"}
+              </button>
+            </div>
+
+            {pasteOpen && (
+              <div className="mb-3 space-y-2 rounded-xl border border-line bg-surface p-3">
+                <p className="text-xs leading-4 text-muted">
+                  Paste an ingredient list — one item per line (“2 eggs”, “1 cup oats”) — or a whole food
+                  table copied out of a spreadsheet or doc. Columns for quantity, unit, serving size and
+                  calories are read as columns, TOTAL and PER SERVING rows set the servings, and the
+                  calories land on each food. Each name is matched against your kitchen first — a match
+                  is added as itself, anything unrecognized is added as a new ingredient to fill in.
+                </p>
+                <textarea
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  rows={4}
+                  placeholder={"2 eggs\n1 cup oats\n1 banana"}
+                  className="w-full rounded-lg field px-3 py-2 text-sm"
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={applyPaste}
+                    className="rounded-lg bg-gradient-to-b from-accent to-accent-deep px-3 py-1.5 text-xs font-medium text-on-accent shadow hover:brightness-110"
+                  >
+                    Add to ingredients
+                  </button>
+                  {pasteNotice && <span className="text-xs text-muted">{pasteNotice}</span>}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3">
               {rows.map((row, i) => {
                 const isNew = row.foodId === NEW;
-                const unit = isNew ? row.newUnit : foods.find((f) => f.id === row.foodId)?.unit ?? "each";
-                const rowCals = Math.round((isNew ? row.newCalories : foodById(foods, row.foodId)?.caloriesPerUnit ?? 0) * row.quantity);
+                const food = isNew ? undefined : foods.find((f) => f.id === row.foodId);
+                const unit = isNew ? row.newUnit : food?.unit ?? "each";
+                const rowCals = Math.round((isNew ? row.newCalories : food?.caloriesPerUnit ?? 0) * row.quantity);
+                const rowCost = isNew
+                  ? (row.newPrice > 0 ? row.newPrice * row.quantity : null)
+                  : ingredientCost({ foodId: row.foodId, quantity: row.quantity }, prices, writeStoreId);
+
+                // A price is entered the way the shelf reads, same as the Food
+                // Tracker — beef stays $/lb here even though recipes cost it by
+                // the ounce underneath.
+                const grams = food ? gramsForFood(food)?.grams ?? null : null;
+                const buy = food ? (BUY_UNITS.find((b) => b.key === food.buyUnit) ?? BUY_UNITS[0]) : BUY_UNITS[0];
+                const explicitPrice = food ? prices.find((p) => p.storeId === writeStoreId && p.foodId === food.id) : undefined;
+                const shownPrice = food && explicitPrice ? pricePerBuyUnit(explicitPrice.pricePerUnit, food, grams) : null;
+
                 return (
                   <div key={i} className="rounded-xl border border-line p-2.5">
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <FoodPicker value={row.foodId} onChange={(v) => update(i, { foodId: v })} newLabel="New ingredient…" placeholder="Select ingredient…" />
                       <input type="number" value={row.quantity} onChange={(e) => update(i, { quantity: Number(e.target.value) })} className="w-16 rounded-lg field px-2 py-1.5 text-sm" />
                       <span className="flex w-12 items-center text-xs text-muted">{unitLabel(unit)}</span>
+                      {!isNew && food && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-muted">$</span>
+                          <input
+                            type="number" step="0.01" min="0"
+                            value={shownPrice ? shownPrice.amount : ""}
+                            placeholder="0.00"
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              if (raw === "") { setPrice(writeStoreId, food.id, null); return; }
+                              const typed = Math.max(0, Number(raw));
+                              const own = buy.key === "unit" ? typed : pricePerOwnUnit(typed, buy.key, food.unit, grams);
+                              if (own != null) setPrice(writeStoreId, food.id, own);
+                            }}
+                            aria-label={`Price of ${food.name}`}
+                            className="w-16 rounded-lg field px-2 py-1.5 text-sm"
+                          />
+                          <span className="text-[10px] text-muted">/ {buy.key === "unit" ? unitLabel(food.unit) : buy.short}</span>
+                        </div>
+                      )}
                     </div>
 
                     {isNew && (
@@ -472,6 +635,15 @@ function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => v
                           {UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
                         </select>
                         <input type="number" value={row.newCalories} onChange={(e) => update(i, { newCalories: Number(e.target.value) })} placeholder="cal/unit" className="rounded-lg field px-2 py-1.5 text-sm" />
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-muted">$</span>
+                          <input
+                            type="number" step="0.01" min="0" value={row.newPrice || ""}
+                            onChange={(e) => update(i, { newPrice: e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)) })}
+                            placeholder={`per ${unitLabel(row.newUnit)}`}
+                            className="min-w-0 flex-1 rounded-lg field px-2 py-1.5 text-sm"
+                          />
+                        </div>
                         <div className="col-span-2 grid grid-cols-3 gap-2">
                           <input type="number" value={row.newProtein} onChange={(e) => update(i, { newProtein: Number(e.target.value) })} placeholder="protein g" className="rounded-lg field px-2 py-1.5 text-sm" />
                           <input type="number" value={row.newCarbs} onChange={(e) => update(i, { newCarbs: Number(e.target.value) })} placeholder="carbs g" className="rounded-lg field px-2 py-1.5 text-sm" />
@@ -489,7 +661,10 @@ function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => v
                     )}
 
                     <div className="mt-1.5 flex items-center justify-between">
-                      <span className="text-[11px] text-cal-soft">{rowCals} cal</span>
+                      <span className="text-[11px] text-cal-soft">
+                        {rowCals} cal
+                        {rowCost != null && <span className="text-accent-soft"> · {fmtMoney(rowCost)}</span>}
+                      </span>
                       {rows.length > 1 && (
                         <button onClick={() => setRows((rs) => rs.filter((_, idx) => idx !== i))} className="text-[11px] text-muted hover:text-danger-soft">remove</button>
                       )}
@@ -510,6 +685,18 @@ function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: () => v
             <span className="flex items-center gap-1.5 font-medium text-cal-soft"><Flame size={15} /> {perServing} cal / serving</span>
             <span className="text-cal-soft">{total} cal total</span>
           </div>
+
+          {pricedLines > 0 && (
+            <div className="flex items-center justify-between rounded-xl bg-accent-wash px-4 py-3 text-sm">
+              <span className="flex items-center gap-1.5 font-medium text-accent-soft">
+                <DollarSign size={15} /> {fmtMoney(cost / Math.max(1, servings))} / serving
+              </span>
+              <span className="text-accent-soft">
+                {fmtMoney(cost)} total
+                {pricedLines < costLines && <span className="ml-1 text-warn-soft">+{costLines - pricedLines} unpriced</span>}
+              </span>
+            </div>
+          )}
 
           <button onClick={save} className="w-full rounded-xl bg-gradient-to-b from-accent to-accent-deep py-3 font-medium text-on-accent shadow-lg hover:brightness-110">{editing ? "Save changes" : "Save recipe"}</button>
         </div>
