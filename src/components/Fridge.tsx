@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, ChefHat } from "lucide-react";
+import { Check, ChefHat, ListChecks } from "lucide-react";
 import { useApp, neededQuantities } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
 import { FoodShelves } from "./FoodShelves";
 import { RecipeBuilderSheet } from "./RecipeBuilderSheet";
+import { EditItemsSheet } from "./EditItems";
 
 /**
  * The Food Tracker's shelves: the shared browser showing what you have, plus
@@ -20,6 +21,7 @@ export function Fridge() {
   const [chosen, setChosen] = useState<string[]>([]);
   const [building, setBuilding] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
+  const [editingItems, setEditingItems] = useState(false);
 
   // What this week's plan still needs, so a short food can say so on its tile.
   const days = weekDays(new Date()).map(isoOf);
@@ -60,11 +62,22 @@ export function Fridge() {
         chosen={chosen}
         onPick={toggleChosen}
         extraControl={
-          <Switch
-            on={picking}
-            onChange={(v) => (v ? setPicking(true) : stopPicking())}
-            label="Pick ingredients"
-          />
+          <>
+            {/* The whole catalogue, for renaming and deleting in one sitting */}
+            <button
+              onClick={() => setEditingItems(true)}
+              title="Rename, move or delete any food"
+              className="flex shrink-0 items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-2 text-sm font-medium text-ink-2 transition-colors hover:bg-surface-3"
+            >
+              <ListChecks size={16} />
+              <span className="hidden sm:inline">Edit items</span>
+            </button>
+            <Switch
+              on={picking}
+              onChange={(v) => (v ? setPicking(true) : stopPicking())}
+              label="Pick ingredients"
+            />
+          </>
         }
       />
 
@@ -100,6 +113,8 @@ export function Fridge() {
           </div>
         </div>
       )}
+
+      {editingItems && <EditItemsSheet onClose={() => setEditingItems(false)} />}
 
       {building && (
         <RecipeBuilderSheet

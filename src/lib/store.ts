@@ -22,6 +22,32 @@ import { normalizeName, mapCategory, unitForNewFood, convertToUnit } from "./rec
 import { classifyByName } from "./foodclass";
 import { BASE_STORE_ID, BEST_STORE_ID } from "./cost";
 
+/**
+ * Take recipes out of the app and leave nothing dangling.
+ *
+ * A recipe is referenced from two places besides the Cookbook — the days it is
+ * planned on, and any recipe that folds it in as a component — so removing one
+ * anywhere means removing it in all three, or a meal points at a dish that no
+ * longer exists.
+ */
+function dropRecipes(
+  s: { recipes: Recipe[]; plan: PlannedMeal[] },
+  ids: string[],
+): { recipes: Recipe[]; plan: PlannedMeal[] } {
+  if (ids.length === 0) return { recipes: s.recipes, plan: s.plan };
+  const gone = new Set(ids);
+  return {
+    recipes: s.recipes
+      .filter((r) => !gone.has(r.id))
+      .map((r) =>
+        r.components?.some((c) => gone.has(c.recipeId))
+          ? { ...r, components: r.components.filter((c) => !gone.has(c.recipeId)) }
+          : r,
+      ),
+    plan: s.plan.filter((p) => !gone.has(p.recipeId)),
+  };
+}
+
 interface Totals extends Macros {
   calories: number;
 }
@@ -106,14 +132,32 @@ export const useApp = create<AppState>()(
         }),
 
       removeFood: (foodId) =>
-        set((s) => ({
-          foods: s.foods.filter((f) => f.id !== foodId),
-          inventory: s.inventory.filter((i) => i.foodId !== foodId),
-          manualGroceries: s.manualGroceries.filter((m) => m.foodId !== foodId),
-          history: s.history.filter((h) => h.foodId !== foodId),
-          prices: s.prices.filter((pr) => pr.foodId !== foodId),
-          recipes: s.recipes.map((r) => ({ ...r, ingredients: r.ingredients.filter((ing) => ing.foodId !== foodId) }))
-        })),
+        set((s) => {
+          // Strip the food out of every recipe that used it first, so the
+          // question of which recipes are left standing is asked of what
+          // remains, not of what used to be there.
+          const recipes = s.recipes.map((r) =>
+            r.ingredients.some((ing) => ing.foodId === foodId)
+              ? { ...r, ingredients: r.ingredients.filter((ing) => ing.foodId !== foodId) }
+              : r,
+          );
+          // A single-food recipe is only a wrapper letting one apple be planned
+          // like a dish. With the food gone there is nothing left of it, so it
+          // goes too — a real recipe stays, even emptied, because it is yours.
+          const orphaned = recipes
+            .filter((r) => r.single && r.ingredients.length === 0)
+            .map((r) => r.id);
+
+          return {
+            foods: s.foods.filter((f) => f.id !== foodId),
+            inventory: s.inventory.filter((i) => i.foodId !== foodId),
+            manualGroceries: s.manualGroceries.filter((m) => m.foodId !== foodId),
+            history: s.history.filter((h) => h.foodId !== foodId),
+            prices: s.prices.filter((pr) => pr.foodId !== foodId),
+            priceQuotes: (s.priceQuotes ?? []).filter((q) => q.foodId !== foodId),
+            ...dropRecipes({ ...s, recipes }, orphaned),
+          };
+        }),
 
       addFood: (food, startQty = 0) =>
         set((s) => {
@@ -179,11 +223,7 @@ export const useApp = create<AppState>()(
           recipes: s.recipes.map((r) => (r.id === recipe.id ? recipe : r))
         })),
 
-      removeRecipe: (id) =>
-        set((s) => ({
-          recipes: s.recipes.filter((r) => r.id !== id),
-          plan: s.plan.filter((p) => p.recipeId !== id)
-        })),
+      removeRecipe: (id) => set((s) => dropRecipes(s, [id])),
 
       addPlannedMeal: (meal) => set((s) => ({ plan: [...s.plan, meal] })),
 

@@ -4,11 +4,10 @@ import { useState } from "react";
 import {
   X, ChevronDown, User, Target, CreditCard, ShieldCheck, Info,
   Check, LogIn, LogOut, Cloud, CloudOff, RefreshCw, Users, Trash2, Plus,
-  Palette, Sun, Moon, Monitor, Download, Upload, ListChecks
+  Palette, Sun, Moon, Monitor, Download, Upload
 } from "lucide-react";
 import { useApp, blankMember, exportData, importData } from "@/lib/store";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { EditItems } from "./EditItems";
 import { useCloud, type SyncStatus } from "@/lib/cloud";
 import { useTheme, THEME_OPTIONS, type Theme } from "@/lib/theme";
 import { HOUSEHOLD_LABEL } from "@/lib/household";
@@ -91,7 +90,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   const {
-    profile, focusAreas, goals, householdMode, members, foods,
+    profile, focusAreas, goals, householdMode, members,
     setProfile, setFocusAreas, setHouseholdMode, setGoals, addMember, updateMember, removeMember
   } = useApp();
   const cloud = useCloud();
@@ -404,11 +403,6 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               </>
             )}
             {cloud.error && <p className="mt-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-[11px] text-danger-soft">{cloud.error}</p>}
-          </Section>
-
-          {/* Every food, in one place, for the tidying the shelves aren't for */}
-          <Section icon={ListChecks} title="Edit items" subtitle={`${foods.length} foods`}>
-            <EditItems />
           </Section>
 
           {/* Backup — the way to move data between devices without an account */}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search, ArrowUp, ArrowDown, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Search, ArrowUp, ArrowDown, Trash2, X, ListChecks } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { FOOD_CATEGORIES, byShelfOrder } from "@/lib/foodcat";
 import { unitLabel } from "@/lib/units";
@@ -15,14 +15,61 @@ const LOCATIONS: { key: Location; label: string }[] = [
 ];
 
 /**
- * Every food in one editable list.
+ * Every food in one editable list, over the shelves it edits.
  *
  * The shelves are the good way to work with a few foods at a time; this is for
  * the other job — going through the whole catalogue, renaming the ones a
- * receipt named badly, moving a batch to the right shelf, and deleting what
- * you never actually buy. Same data, laid out for a sitting rather than a tap.
+ * receipt named badly, moving a batch to the right shelf, and deleting what you
+ * never actually buy. It opens from the Food Tracker because that is the tab
+ * these foods belong to; a rename or a delete here reaches the whole app.
  */
-export function EditItems() {
+export function EditItemsSheet({ onClose }: { onClose: () => void }) {
+  const foods = useApp((s) => s.foods);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-6">
+      <div className="sheet-up flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border border-line bg-page shadow-2xl md:rounded-3xl">
+        <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-wash text-accent-soft">
+              <ListChecks size={18} />
+            </span>
+            <div>
+              <h2 className="font-semibold">Edit items</h2>
+              <p className="text-xs text-muted">{foods.length} foods in your kitchen</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-surface-3 hover:text-ink"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <EditItems />
+        </div>
+
+        <div className="border-t border-line px-5 py-3">
+          <button onClick={onClose} className="btn-accent w-full rounded-xl py-2.5 text-sm">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** The list itself. */
+function EditItems() {
   const { foods, updateFood, removeFood, moveFood } = useApp();
   const [query, setQuery] = useState("");
   const [where, setWhere] = useState<Location | "all">("all");
@@ -64,8 +111,8 @@ export function EditItems() {
       </div>
 
       <p className="mb-2 text-[11px] leading-4 text-muted">
-        {foods.length} foods. Renaming, moving or deleting here changes them everywhere —
-        recipes, the plan and your prices all follow.
+        Renaming, moving or deleting here changes a food everywhere — your recipes,
+        your plan and your prices all follow.
       </p>
 
       <div className="space-y-3">
@@ -147,7 +194,7 @@ export function EditItems() {
       {confirming && (
         <ConfirmDialog
           title="Delete food?"
-          message={`“${confirming.name}” will be removed from your kitchen, recipes, prices and grocery list. This can’t be undone.`}
+          message={`“${confirming.name}” will be removed from your kitchen, your recipes, your prices and your grocery list. If it was planned on its own as a single food, those meals go too. This can’t be undone.`}
           confirmLabel="Delete food"
           onConfirm={() => { removeFood(confirming.id); setConfirming(null); }}
           onCancel={() => setConfirming(null)}
