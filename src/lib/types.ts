@@ -58,6 +58,16 @@ export interface Food {
    * arranged — so ordering a few foods doesn't scramble the rest.
    */
   order?: number;
+  /**
+   * The unit this food's price is quoted in, as a `BUY_UNITS` key.
+   *
+   * A kitchen cooks beef by the ounce; a shop sells it by the pound. Which one
+   * you want to type a price in is a fact about the food and where you buy it,
+   * not about the moment you happened to be looking at it, so it is kept.
+   * Absent means the food's own unit. It only ever changes how a price is
+   * entered and shown — everything is still costed per `unit`.
+   */
+  buyUnit?: string;
 }
 
 /** One line the receipt scanner extracted (matches the vision model's JSON schema). */

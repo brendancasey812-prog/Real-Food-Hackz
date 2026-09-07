@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { RotateCcw, Check } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { unitLabel, BUY_UNITS, pricePerOwnUnit, priceInBuyUnit } from "@/lib/units";
+import { unitLabel, BUY_UNITS, pricePerOwnUnit, priceInBuyUnit, pricePerBuyUnit } from "@/lib/units";
 import { gramsForFood } from "@/lib/usda";
 import { fmtMoney, pricesForFood, BASE_STORE_ID } from "@/lib/cost";
 import type { Food } from "@/lib/types";
@@ -19,19 +19,69 @@ import type { Food } from "@/lib/types";
  * whole point of keeping more than one.
  */
 export function FoodPrices({ food }: { food: Food }) {
-  const { stores, prices, setPrice } = useApp();
+  const { stores, prices, setPrice, updateFood } = useApp();
 
   // Shops price by the pound; kitchens cook by the ounce. Entering a price
   // the way the shelf label reads and converting is the difference between a
   // right number and one divided by 16 in someone's head.
-  const [buyKey, setBuyKey] = useState("unit");
+  //
+  // Which one you want is kept on the food, so saying "beef is priced by the
+  // pound" is said once rather than every time this panel opens.
   const grams = gramsForFood(food)?.grams ?? null;
   const usable = BUY_UNITS.filter(
-    (b) => b.key === "unit" || b.per(food.unit, grams) != null,
+    (b) =>
+      b.key === "unit" ||
+      // "ounce" under a food already sold by the ounce is the same option twice.
+      (b.short !== unitLabel(food.unit) && b.per(food.unit, grams) != null),
   );
-  const buy = usable.find((b) => b.key === buyKey) ?? usable[0];
+  const buy = usable.find((b) => b.key === food.buyUnit) ?? usable[0];
   const per = (p: number | null | undefined) =>
-    p == null ? "" : buy.key === "unit" ? p : (priceInBuyUnit(p, buy.key, food.unit, grams) ?? p);
+    p == null ? null : buy.key === "unit" ? p : (priceInBuyUnit(p, buy.key, food.unit, grams) ?? p);
+
+  /**
+   * What is in each box while it is being typed in.
+   *
+   * The stored price is per the food's own unit, so a controlled field would
+   * have to convert every keystroke back and forth — and "7." has no number to
+   * convert, so the decimal point would disappear as you typed it. The text
+   * stays exactly as typed, and the number behind it is committed on the way
+   * past.
+   */
+  /**
+   * Is this something a price could still turn into as it's typed?
+   *
+   * The box is plain text rather than a number input, because a number input
+   * hands back "" the moment the text isn't a finished number — so the decimal
+   * point in "7." vanishes under the cursor as you type $7.99. Text keeps what
+   * was typed; this keeps out what isn't a price.
+   */
+  const priceish = (t: string) => /^\d*\.?\d*$/.test(t.trim());
+
+  // Drafts are tagged with what they were typed against: a different food, or
+  // a different unit to read it in, and they describe a number nobody is
+  // typing any more, so they are simply not this render's drafts.
+  const tag = `${food.id}|${buy.key}`;
+  const [draft, setDraft] = useState<{ tag: string; text: Record<string, string> }>({ tag, text: {} });
+  const drafts = draft.tag === tag ? draft.text : {};
+  const setDraftFor = (storeId: string, text: string | null) =>
+    setDraft(() => {
+      const next = { ...drafts };
+      if (text == null) delete next[storeId];
+      else next[storeId] = text;
+      return { tag, text: next };
+    });
+
+  const shown = (storeId: string, stored: number | null | undefined) => {
+    const d = drafts[storeId];
+    if (d != null) return d;
+    const v = per(stored);
+    if (v == null) return "";
+    // Money reads with two decimals — but only where that is the same number.
+    // A price converted out of another unit can carry more than a cent of
+    // precision, and rounding it in an editable box would save the rounding.
+    const money = v.toFixed(2);
+    return Number(money) === v ? money : String(v);
+  };
 
   const rows = [
     { id: BASE_STORE_ID, name: "Base price", hint: "typical, used when a shop has none" },
@@ -53,7 +103,7 @@ export function FoodPrices({ food }: { food: Food }) {
           Price per
           <select
             value={buy.key}
-            onChange={(e) => setBuyKey(e.target.value)}
+            onChange={(e) => updateFood(food.id, { buyUnit: e.target.value })}
             aria-label="Enter prices per"
             className="field rounded-lg px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide"
           >
@@ -66,7 +116,8 @@ export function FoodPrices({ food }: { food: Food }) {
         </label>
         {cheapest && (
           <p className="text-[11px] text-accent-soft">
-            cheapest {fmtMoney(cheapest.pricePerUnit)} / {unitLabel(food.unit)}
+            cheapest {fmtMoney(pricePerBuyUnit(cheapest.pricePerUnit, food, grams).amount)} /{" "}
+            {pricePerBuyUnit(cheapest.pricePerUnit, food, grams).label}
           </p>
         )}
       </div>
@@ -91,12 +142,15 @@ export function FoodPrices({ food }: { food: Food }) {
 
               <span className="text-muted">$</span>
               <input
-                type="number" min={0} step={0.01} inputMode="decimal"
-                value={per(row.price?.pricePerUnit)}
+                type="text" inputMode="decimal"
+                value={shown(row.id, row.price?.pricePerUnit)}
                 placeholder="0.00"
                 onChange={(e) => {
-                  const v = e.target.value.trim();
-                  if (v === "") {
+                  const text = e.target.value;
+                  if (!priceish(text)) return;
+                  setDraftFor(row.id, text);
+                  const v = text.trim();
+                  if (v === "" || v === ".") {
                     setPrice(row.id, food.id, null);
                     return;
                   }
@@ -107,13 +161,17 @@ export function FoodPrices({ food }: { food: Food }) {
                       : pricePerOwnUnit(typed, buy.key, food.unit, grams);
                   if (own != null) setPrice(row.id, food.id, own);
                 }}
+                onBlur={() => setDraftFor(row.id, null)}
                 aria-label={`Price of ${food.name} at ${row.name}`}
                 className={`field w-20 rounded-lg px-2 py-1 text-right text-sm tabular-nums ${
                   isCheapest ? "ring-1 ring-accent" : ""
                 }`}
               />
               <button
-                onClick={() => setPrice(row.id, food.id, null)}
+                onClick={() => {
+                  setPrice(row.id, food.id, null);
+                  setDraftFor(row.id, null);
+                }}
                 disabled={!row.price}
                 title={row.price ? `Clear the ${row.name} price` : "No price here"}
                 className="rounded-lg p-1 text-faint enabled:hover:bg-surface-3 enabled:hover:text-ink-2 disabled:opacity-25"
@@ -127,9 +185,9 @@ export function FoodPrices({ food }: { food: Food }) {
 
       {buy.key !== "unit" && (
         <p className="mt-2 text-[11px] leading-4 text-muted">
-          Typing a price per {buy.label} stores it as{" "}
-          {fmtMoney((pricePerOwnUnit(1, buy.key, food.unit, grams) ?? 0))} per{" "}
-          {unitLabel(food.unit)} for every $1 — the unit everything else costs in.
+          Prices for {food.name.toLowerCase()} are entered per {buy.label} from now on.
+          Every $1 of that is {fmtMoney(pricePerOwnUnit(1, buy.key, food.unit, grams) ?? 0)}{" "}
+          per {unitLabel(food.unit)}, the unit everything else costs in.
         </p>
       )}
 

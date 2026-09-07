@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Search, X, ArrowLeft, ArrowRight, MoveHorizontal, ListChecks, ChefHat, Check } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { FOOD_CATEGORIES, byShelfOrder } from "@/lib/foodcat";
-import { fmtQty, pluralUnit, unitLabel } from "@/lib/units";
+import { gramsForFood } from "@/lib/usda";
+import { fmtQty, pluralUnit, unitLabel, pricePerBuyUnit } from "@/lib/units";
 import { fmtMoney, fmtMoneyShort, priceFor, BASE_STORE_ID, type ResolvedPrice } from "@/lib/cost";
 import { Appliance, Shelf, TileGrid, AppTile, TileTick, CATEGORY_TINT } from "./shelf";
 import { FoodSheet } from "./FoodSheet";
@@ -77,6 +78,15 @@ export function FoodShelves({
   const q = query.trim().toLowerCase();
   const qtyOf = (id: string) => inventory.find((i) => i.foodId === id)?.quantity ?? 0;
   const buy = (id: string) => buyOf?.(id) ?? 0;
+
+  // How much one of each food weighs, worked out once per catalogue change:
+  // a price shown per pound needs it, and looking it up per tile per render
+  // would rescan the reference table hundreds of times a keystroke.
+  const gramsOf = useMemo(() => {
+    const m: Record<string, number | null> = {};
+    for (const f of foods) m[f.id] = f.buyUnit ? (gramsForFood(f)?.grams ?? null) : null;
+    return m;
+  }, [foods]);
 
   const groups = useMemo(() => {
     const inZone = foods
@@ -210,6 +220,7 @@ export function FoodShelves({
                     have={qtyOf(f.id)}
                     buy={buy(f.id)}
                     price={priceFor(prices, selectedStoreId, f.id)}
+                    grams={gramsOf[f.id] ?? null}
                     baseStore={selectedStoreId === BASE_STORE_ID}
                     done={Boolean(checked?.[f.id])}
                     picking={picking}
@@ -316,13 +327,15 @@ function PickSwitch({ on, onChange }: { on: boolean; onChange: (v: boolean) => v
 
 /** One food, showing whichever number this tab is about. */
 function FoodTile({
-  food: f, mode, have, buy, price, baseStore, done, picking, picked, onOpen, onTick, arrange
+  food: f, mode, have, buy, price, grams, baseStore, done, picking, picked, onOpen, onTick, arrange
 }: {
   food: Food;
   mode: ShelfMode;
   have: number;
   buy: number;
   price: ResolvedPrice | null;
+  /** What one of this food weighs, when its price is quoted by weight. */
+  grams: number | null;
   baseStore: boolean;
   done: boolean;
   picking: boolean;
@@ -377,12 +390,13 @@ function FoodTile({
 
   if (mode === "price") {
     const fromBase = price?.source === "base" && !baseStore;
+    const shown = price ? pricePerBuyUnit(price.pricePerUnit, f, grams) : null;
     return (
       <AppTile
         name={f.name}
         tint={CATEGORY_TINT[f.category]}
-        value={price ? fmtMoneyShort(price.pricePerUnit) : "—"}
-        unit={price ? `/ ${unitLabel(f.unit)}` : "no price"}
+        value={shown ? fmtMoneyShort(shown.amount) : "—"}
+        unit={shown ? `/ ${shown.label}` : "no price"}
         tone={price ? (fromBase ? "muted" : "accent") : "warn"}
         dimmed={!price}
         sub={fromBase ? <span className="text-sea-soft">base price</span> : cals}

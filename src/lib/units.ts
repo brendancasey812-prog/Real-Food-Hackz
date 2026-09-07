@@ -91,6 +91,8 @@ export function sliderMax(unit: Unit, ...values: number[]): number {
 export interface BuyUnit {
   key: string;
   label: string;
+  /** How it reads on a price: "$7.99 / lb". */
+  short: string;
   /** How many of the food's own unit one of these holds, or null when the two
    *  can't be reconciled without knowing what the food weighs. */
   per: (unit: Unit, gramsPerUnit: number | null) => number | null;
@@ -121,15 +123,15 @@ const fromMl = (ml: number) => (unit: Unit) => {
 };
 
 export const BUY_UNITS: BuyUnit[] = [
-  { key: "unit", label: "its own unit", per: () => 1 },
-  { key: "lb", label: "pound", per: fromGrams(G_PER_LB) },
-  { key: "oz", label: "ounce", per: fromGrams(G_PER_OZ) },
-  { key: "kg", label: "kilogram", per: fromGrams(1000) },
-  { key: "g", label: "100 grams", per: fromGrams(100) },
-  { key: "l", label: "litre", per: fromMl(1000) },
-  { key: "floz", label: "fluid ounce", per: fromMl(29.5735) },
-  { key: "gal", label: "gallon", per: fromMl(3785.41) },
-  { key: "dozen", label: "dozen", per: (unit) => (unit === "each" ? 12 : null) },
+  { key: "unit", label: "its own unit", short: "", per: () => 1 },
+  { key: "lb", label: "pound", short: "lb", per: fromGrams(G_PER_LB) },
+  { key: "oz", label: "ounce", short: "oz", per: fromGrams(G_PER_OZ) },
+  { key: "kg", label: "kilogram", short: "kg", per: fromGrams(1000) },
+  { key: "g", label: "100 grams", short: "100 g", per: fromGrams(100) },
+  { key: "l", label: "litre", short: "L", per: fromMl(1000) },
+  { key: "floz", label: "fluid ounce", short: "fl oz", per: fromMl(29.5735) },
+  { key: "gal", label: "gallon", short: "gal", per: fromMl(3785.41) },
+  { key: "dozen", label: "dozen", short: "dozen", per: (unit) => (unit === "each" ? 12 : null) },
 ];
 
 /**
@@ -162,4 +164,24 @@ export function priceInBuyUnit(
   const held = buy.per(unit, gramsPerUnit);
   if (held == null || held <= 0) return null;
   return Math.round(pricePerUnit * held * 100) / 100;
+}
+
+/**
+ * A stored price written the way that food is bought.
+ *
+ * Everything is costed per the food's own unit, and this changes none of that
+ * — it only decides how the number reads. Beef bought by the pound shows
+ * "$7.99 / lb" rather than the $0.4994 an ounce the recipes divide by, so the
+ * figure on the shelf matches the figure on the receipt.
+ */
+export function pricePerBuyUnit(
+  pricePerUnit: number,
+  food: { unit: Unit; buyUnit?: string },
+  gramsPerUnit: number | null,
+): { amount: number; label: string } {
+  const own = { amount: pricePerUnit, label: unitLabel(food.unit) };
+  const buy = BUY_UNITS.find((b) => b.key === food.buyUnit);
+  if (!buy || buy.key === "unit") return own;
+  const amount = priceInBuyUnit(pricePerUnit, buy.key, food.unit, gramsPerUnit);
+  return amount == null ? own : { amount, label: buy.short };
 }

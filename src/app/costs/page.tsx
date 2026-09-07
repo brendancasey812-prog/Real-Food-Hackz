@@ -19,7 +19,8 @@ import {
 import { SettingsButton } from "@/components/SettingsButton";
 import { KitchenMenu } from "@/components/KitchenMenu";
 import { FoodShelves } from "@/components/FoodShelves";
-import { unitLabel } from "@/lib/units";
+import { pricePerBuyUnit } from "@/lib/units";
+import { gramsForFood } from "@/lib/usda";
 
 /** A money figure that says out loud when it is missing prices. */
 function Money({ t, className = "" }: { t: CostTotals; className?: string }) {
@@ -70,11 +71,15 @@ export default function Costs() {
     const columns = [BASE_STORE_ID, ...stores.map((s) => s.id)];
     return foods
       .map((food) => {
-        const cells = columns.map((storeId) => ({
-          storeId,
-          price: prices.find((p) => p.storeId === storeId && p.foodId === food.id)?.pricePerUnit ?? null,
-        }));
-        return { food, cells, best: bestPriceFor(prices, food.id)?.storeId };
+        // Each row reads in the unit that food is bought by, so a price here
+        // matches the one on its receipt rather than the one recipes divide by.
+        const grams = food.buyUnit ? (gramsForFood(food)?.grams ?? null) : null;
+        const cells = columns.map((storeId) => {
+          const raw = prices.find((p) => p.storeId === storeId && p.foodId === food.id)?.pricePerUnit ?? null;
+          return { storeId, price: raw == null ? null : pricePerBuyUnit(raw, food, grams).amount };
+        });
+        const label = pricePerBuyUnit(0, food, grams).label;
+        return { food, label, cells, best: bestPriceFor(prices, food.id)?.storeId };
       })
       .filter((r) => r.cells.some((c) => c.storeId !== BASE_STORE_ID && c.price != null))
       .sort((a, b) => a.food.name.localeCompare(b.food.name));
@@ -189,11 +194,11 @@ export default function Costs() {
               </tr>
             </thead>
             <tbody>
-              {comparison.map(({ food, cells, best }) => (
+              {comparison.map(({ food, label, cells, best }) => (
                 <tr key={food.id} className="border-b border-line last:border-0">
                   <td className="px-4 py-2">
                     <span className="block truncate">{food.name}</span>
-                    <span className="text-[10px] text-muted">per {unitLabel(food.unit)}</span>
+                    <span className="text-[10px] text-muted">per {label}</span>
                   </td>
                   {cells.map((c) => (
                     <td
