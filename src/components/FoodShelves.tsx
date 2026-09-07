@@ -6,7 +6,7 @@ import { Search, X, ArrowLeft, ArrowRight, MoveHorizontal, ListChecks, ChefHat, 
 import { useApp } from "@/lib/store";
 import { FOOD_CATEGORIES, byShelfOrder } from "@/lib/foodcat";
 import { fmtQty, pluralUnit, unitLabel } from "@/lib/units";
-import { fmtMoney, priceFor, BASE_STORE_ID, type ResolvedPrice } from "@/lib/cost";
+import { fmtMoney, fmtMoneyShort, priceFor, BASE_STORE_ID, type ResolvedPrice } from "@/lib/cost";
 import { Appliance, Shelf, TileGrid, AppTile, TileTick, CATEGORY_TINT } from "./shelf";
 import { FoodSheet } from "./FoodSheet";
 import { EditItemsSheet } from "./EditItems";
@@ -381,7 +381,7 @@ function FoodTile({
       <AppTile
         name={f.name}
         tint={CATEGORY_TINT[f.category]}
-        value={price ? price.pricePerUnit.toFixed(2) : "—"}
+        value={price ? fmtMoneyShort(price.pricePerUnit) : "—"}
         unit={price ? `/ ${unitLabel(f.unit)}` : "no price"}
         tone={price ? (fromBase ? "muted" : "accent") : "warn"}
         dimmed={!price}

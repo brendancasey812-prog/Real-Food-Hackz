@@ -71,7 +71,7 @@ export function groceryText(lines: GroceryLine[], weekOf: Date): string {
 
 /** The same list as a spreadsheet. */
 export function groceryCsv(lines: GroceryLine[]): string {
-  const rows = [["Item", "Quantity", "Unit", "Food type", "Stored in", "Cost", "Calories"]];
+  const rows = [["Item", "Quantity", "Unit", "Food type", "Stored in", "Cost (USD)", "Calories"]];
   for (const l of lines.sort((a, b) => a.food.name.localeCompare(b.food.name))) {
     const ask = Math.ceil(l.buy * 4) / 4;
     rows.push([
@@ -127,7 +127,7 @@ export function planText(lines: PlanLine[], days: Date[]): string {
 
 /** The week as a spreadsheet, one row per meal. */
 export function planCsv(lines: PlanLine[]): string {
-  const rows = [["Date", "Day", "Meal", "Recipe", "Servings", "Calories", "Cost"]];
+  const rows = [["Date", "Day", "Meal", "Recipe", "Servings", "Calories", "Cost (USD)"]];
   for (const l of [...lines].sort((a, b) => a.meal.date.localeCompare(b.meal.date))) {
     rows.push([
       l.meal.date,
