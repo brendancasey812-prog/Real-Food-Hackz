@@ -23,6 +23,7 @@ import { fileToThumbnail } from "@/lib/image";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AddToPlanSheet } from "./AddToPlanSheet";
 import { FoodSheet } from "./FoodSheet";
+import type { Food } from "@/lib/types";
 
 /**
  * The full-screen read view of a recipe, opened by clicking a card in either
@@ -49,7 +50,7 @@ export function RecipeDetailModal({
   const [planning, setPlanning] = useState(false);
   // An ingredient row opens the food itself — its price at every shop lives
   // there, and a recipe is exactly where you notice a price is wrong.
-  const [openFood, setOpenFood] = useState<string | null>(null);
+  const [openFood, setOpenFood] = useState<{ foodId: string; recipeId: string } | null>(null);
   // A recipe folded into this one opens as a recipe, as deep as they nest.
   const [openSub, setOpenSub] = useState<string | null>(null);
 
@@ -198,37 +199,43 @@ export function RecipeDetailModal({
                   <span className="font-normal text-muted">{recipe.ingredients.length + comps.length}</span>
                 </h3>
                 <div className="space-y-2">
-                  {comps.length > 0 && (
-                    <IngredientGroup
-                      label="Recipes"
-                      count={comps.length}
-                      calories={comps.reduce((sum, c) => sum + componentCalories(c, foods, recipes), 0)}
-                    >
-                      {comps.map((c) => {
-                        const sub = recipes.find((x) => x.id === c.recipeId);
-                        return (
-                          <button
-                            key={`c-${c.recipeId}`}
-                            onClick={() => sub && setOpenSub(sub.id)}
-                            disabled={!sub}
-                            className="flex w-full items-center justify-between gap-3 border-t border-line px-3 py-2.5 text-left text-sm transition-colors enabled:hover:bg-surface-3"
-                          >
-                            <span className="truncate font-medium text-accent-soft">{sub?.name ?? "Unknown recipe"}</span>
-                            <span className="shrink-0 text-muted">
-                              {fmtQty(c.servings)} serv ·{" "}
-                              <span className="text-cal-soft">{componentCalories(c, foods, recipes)} cal</span>
-                              {sub && (() => {
-                                const per = recipeCostPerServing(sub, recipes, prices, selectedStoreId);
-                                return per.priced > 0 ? (
-                                  <span className="text-accent-soft"> · {fmtMoney(per.cost * c.servings)}</span>
-                                ) : null;
-                              })()}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </IngredientGroup>
-                  )}
+                  {/* A recipe folded into this one is its own drop-down: open
+                      it and you are looking at its ingredients, each editable
+                      right here, rather than at a row that only says how many
+                      servings went in. */}
+                  {comps.map((c) => {
+                    const sub = recipes.find((x) => x.id === c.recipeId);
+                    if (!sub) return null;
+                    const per = recipeCostPerServing(sub, recipes, prices, selectedStoreId);
+                    return (
+                      <IngredientGroup
+                        key={`c-${c.recipeId}`}
+                        label={sub.name}
+                        accent
+                        count={sub.ingredients.length}
+                        calories={componentCalories(c, foods, recipes)}
+                        note={`${fmtQty(c.servings)} serv`}
+                        cost={per.priced > 0 ? per.cost * c.servings : null}
+                        action={{ label: "Open recipe", run: () => setOpenSub(sub.id) }}
+                      >
+                        {sub.ingredients.map((ing) => (
+                          <IngredientRow
+                            key={`${sub.id}-${ing.foodId}`}
+                            ing={ing}
+                            food={foodById(foods, ing.foodId)}
+                            calories={ingredientCalories(ing, foods)}
+                            cost={ingredientCost(ing, prices, selectedStoreId)}
+                            onOpen={() => setOpenFood({ foodId: ing.foodId, recipeId: sub.id })}
+                          />
+                        ))}
+                        {sub.ingredients.length === 0 && (
+                          <p className="border-t border-line px-3 py-3 text-center text-xs text-muted">
+                            This recipe has no ingredients of its own.
+                          </p>
+                        )}
+                      </IngredientGroup>
+                    );
+                  })}
 
                   {ingredientGroups.map((g) => (
                     <IngredientGroup
@@ -237,34 +244,16 @@ export function RecipeDetailModal({
                       count={g.items.length}
                       calories={g.items.reduce((sum, ing) => sum + ingredientCalories(ing, foods), 0)}
                     >
-                      {g.items.map((ing) => {
-                        const f = foodById(foods, ing.foodId);
-                        const c = ingredientCost(ing, prices, selectedStoreId);
-                        // Reads in the unit the food is kept in — pounds of beef
-                        // rather than the ounces the recipe counts by.
-                        const amt = f
-                          ? amountPerBuyUnit(ing.quantity, f, f.buyUnit ? (gramsForFood(f)?.grams ?? null) : null)
-                          : { amount: ing.quantity, label: "" };
-                        return (
-                          <button
-                            key={ing.foodId}
-                            onClick={() => f && setOpenFood(f.id)}
-                            disabled={!f}
-                            className="flex w-full items-center justify-between gap-3 border-t border-line px-3 py-2.5 text-left text-sm transition-colors enabled:hover:bg-surface-3"
-                          >
-                            <span className="min-w-0 truncate text-ink">{f?.name ?? ing.foodId}</span>
-                            <span className="shrink-0 text-muted">
-                              {fmtQty(amt.amount)} {amt.label} ·{" "}
-                              <span className="text-cal-soft">{ingredientCalories(ing, foods)} cal</span>
-                              {c != null ? (
-                                <span className="text-accent-soft"> · {fmtMoney(c)}</span>
-                              ) : (
-                                <span className="text-warn-soft"> · no price</span>
-                              )}
-                            </span>
-                          </button>
-                        );
-                      })}
+                      {g.items.map((ing) => (
+                        <IngredientRow
+                          key={ing.foodId}
+                          ing={ing}
+                          food={foodById(foods, ing.foodId)}
+                          calories={ingredientCalories(ing, foods)}
+                          cost={ingredientCost(ing, prices, selectedStoreId)}
+                          onOpen={() => setOpenFood({ foodId: ing.foodId, recipeId: recipe.id })}
+                        />
+                      ))}
                     </IngredientGroup>
                   ))}
 
@@ -317,25 +306,30 @@ export function RecipeDetailModal({
       {planning && <AddToPlanSheet recipe={recipe} onClose={() => setPlanning(false)} />}
 
       {openFood && (() => {
-        const f = foodById(foods, openFood);
-        const line = recipe.ingredients.find((i) => i.foodId === openFood);
+        const f = foodById(foods, openFood.foodId);
+        // The line belongs to whichever recipe the row came from — this one, or
+        // one folded into it — so an edit lands in the right place.
+        const owner = recipes.find((r) => r.id === openFood.recipeId);
+        const line = owner?.ingredients.find((i) => i.foodId === openFood.foodId);
         return f ? (
           <FoodSheet
             food={f}
             quantity={inventory.find((i) => i.foodId === f.id)?.quantity ?? 0}
             onQuantity={(v) => setInventory(f.id, v)}
             recipeLine={
-              line && {
-                quantity: line.quantity,
-                recipeName: recipe.name,
-                onQuantity: (q) =>
-                  updateRecipe({
-                    ...recipe,
-                    ingredients: recipe.ingredients.map((i) =>
-                      i.foodId === openFood ? { ...i, quantity: q } : i,
-                    ),
-                  }),
-              }
+              owner && line
+                ? {
+                    quantity: line.quantity,
+                    recipeName: owner.name,
+                    onQuantity: (q) =>
+                      updateRecipe({
+                        ...owner,
+                        ingredients: owner.ingredients.map((i) =>
+                          i.foodId === openFood.foodId ? { ...i, quantity: q } : i,
+                        ),
+                      }),
+                  }
+                : undefined
             }
             onClose={() => setOpenFood(null)}
           />
@@ -370,28 +364,83 @@ export function RecipeDetailModal({
  * the recipe is the point, but foldable once you've bought that part.
  */
 function IngredientGroup({
-  label, count, calories, children
+  label, count, calories, children, accent = false, note, cost, action
 }: {
   label: string;
   count: number;
   calories: number;
   children: React.ReactNode;
+  /** A folded-in recipe, marked out from the plain food shelves. */
+  accent?: boolean;
+  /** Extra detail in the header, e.g. how many servings went in. */
+  note?: string;
+  cost?: number | null;
+  /** A second thing the header can do, beside opening the drawer. */
+  action?: { label: string; run: () => void };
 }) {
   const [open, setOpen] = useState(true);
   return (
-    <div className="overflow-hidden rounded-xl border border-line">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex w-full items-center gap-2 bg-surface px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-2 transition-colors hover:bg-surface-3"
-      >
-        <span className="min-w-0 flex-1 truncate">{label}</span>
-        <span className="shrink-0 font-normal normal-case text-muted">
-          {count} · <span className="text-cal-soft">{Math.round(calories).toLocaleString()} cal</span>
-        </span>
-        <ChevronDown size={14} className={`shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+    <div className={`overflow-hidden rounded-xl border ${accent ? "border-accent" : "border-line"}`}>
+      <div className={`flex items-center gap-2 ${accent ? "bg-accent-wash" : "bg-surface"}`}>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-ink-2 transition-colors hover:bg-surface-3"
+        >
+          <span className={`min-w-0 flex-1 truncate ${accent ? "text-accent-soft" : ""}`}>{label}</span>
+          <span className="shrink-0 font-normal normal-case text-muted">
+            {note ? `${note} · ` : ""}
+            {count} {count === 1 ? "item" : "items"} ·{" "}
+            <span className="text-cal-soft">{Math.round(calories).toLocaleString()} cal</span>
+            {cost != null && <span className="text-accent-soft"> · {fmtMoney(cost)}</span>}
+          </span>
+          <ChevronDown size={14} className={`shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+        {action && (
+          <button
+            onClick={action.run}
+            className="mr-2 shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-accent-soft hover:bg-surface-3"
+          >
+            {action.label}
+          </button>
+        )}
+      </div>
       {open && children}
     </div>
+  );
+}
+
+/** One ingredient line, wherever it is listed — this recipe's or a sub's. */
+function IngredientRow({
+  ing, food, calories, cost, onOpen
+}: {
+  ing: { foodId: string; quantity: number };
+  food: Food | undefined;
+  calories: number;
+  cost: number | null;
+  onOpen: () => void;
+}) {
+  // Reads in the unit the food is kept in — pounds of beef rather than the
+  // ounces the recipe counts by.
+  const amt = food
+    ? amountPerBuyUnit(ing.quantity, food, food.buyUnit ? (gramsForFood(food)?.grams ?? null) : null)
+    : { amount: ing.quantity, label: "" };
+  return (
+    <button
+      onClick={onOpen}
+      disabled={!food}
+      className="flex w-full items-center justify-between gap-3 border-t border-line px-3 py-2.5 text-left text-sm transition-colors enabled:hover:bg-surface-3"
+    >
+      <span className="min-w-0 truncate text-ink">{food?.name ?? ing.foodId}</span>
+      <span className="shrink-0 text-muted">
+        {fmtQty(amt.amount)} {amt.label} ·{" "}
+        <span className="text-cal-soft">{calories} cal</span>
+        {cost != null ? (
+          <span className="text-accent-soft"> · {fmtMoney(cost)}</span>
+        ) : (
+          <span className="text-warn-soft"> · no price</span>
+        )}
+      </span>
+    </button>
   );
 }
