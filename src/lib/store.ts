@@ -17,6 +17,7 @@ import type {
   HomeLocation
 } from "./types";
 import { seedData } from "./seed";
+import { byShelfOrder } from "./foodcat";
 import { normalizeName, mapCategory, unitForNewFood, convertToUnit } from "./receipt";
 import { classifyByName } from "./foodclass";
 import { BASE_STORE_ID, BEST_STORE_ID } from "./cost";
@@ -30,6 +31,8 @@ interface AppState extends AppData {
   addFood: (food: Food, startQty?: number) => void;
   updateFood: (foodId: string, patch: Partial<Food>) => void;
   removeFood: (foodId: string) => void;
+  /** Move a food up or down the shelf it sits on. */
+  moveFood: (foodId: string, delta: -1 | 1) => void;
   addRecipe: (recipe: Recipe, newFoods?: Food[]) => void;
   updateRecipe: (recipe: Recipe) => void;
   removeRecipe: (id: string) => void;
@@ -118,6 +121,36 @@ export const useApp = create<AppState>()(
           return {
             foods: [...s.foods, food],
             inventory: [...s.inventory, { foodId: food.id, quantity: Math.max(0, startQty) }]
+          };
+        }),
+
+      /**
+       * Swap a food with its neighbour on the same shelf.
+       *
+       * Positions are only written for the shelf being rearranged, and only
+       * when it is first touched — until then every food is unordered and
+       * sorts by name, which is the right default for a hundred of them.
+       */
+      moveFood: (foodId, delta) =>
+        set((s) => {
+          const food = s.foods.find((f) => f.id === foodId);
+          if (!food) return s;
+
+          const shelf = s.foods
+            .filter((f) => f.location === food.location && f.category === food.category)
+            .sort(byShelfOrder);
+          const from = shelf.findIndex((f) => f.id === foodId);
+          const to = from + delta;
+          if (from < 0 || to < 0 || to >= shelf.length) return s;
+
+          const reordered = [...shelf];
+          [reordered[from], reordered[to]] = [reordered[to], reordered[from]];
+          const position = new Map(reordered.map((f, i) => [f.id, i]));
+
+          return {
+            foods: s.foods.map((f) =>
+              position.has(f.id) ? { ...f, order: position.get(f.id) } : f,
+            ),
           };
         }),
 

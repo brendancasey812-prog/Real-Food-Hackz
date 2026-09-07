@@ -52,6 +52,12 @@ export interface Food {
   fdcId?: number;
   /** Free-text detail appended from scans (e.g. "80/20", "organic"). */
   notes?: string;
+  /**
+   * Where the user has dragged this food within its shelf. Absent means "no
+   * opinion", and those sort alphabetically after the ones that have been
+   * arranged — so ordering a few foods doesn't scramble the rest.
+   */
+  order?: number;
 }
 
 /** One line the receipt scanner extracted (matches the vision model's JSON schema). */

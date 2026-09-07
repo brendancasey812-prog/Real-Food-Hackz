@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X, ArrowLeft, ArrowRight, MoveHorizontal } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { FOOD_CATEGORIES } from "@/lib/foodcat";
+import { FOOD_CATEGORIES, byShelfOrder } from "@/lib/foodcat";
 import { fmtQty, pluralUnit, unitLabel } from "@/lib/units";
 import { fmtMoney, priceFor, BASE_STORE_ID, type ResolvedPrice } from "@/lib/cost";
 import { Appliance, Shelf, TileGrid, AppTile, TileTick, CATEGORY_TINT } from "./shelf";
@@ -47,7 +47,8 @@ export function FoodShelves({
   /** A control to sit beside the search box (the recipe-picking switch). */
   extraControl?: React.ReactNode;
 }) {
-  const { inventory, setInventory, prices, selectedStoreId } = useApp();
+  const { inventory, setInventory, prices, selectedStoreId, moveFood } = useApp();
+  const [arranging, setArranging] = useState(false);
   const [zone, setZone] = useState<Location | "all">("all");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<FoodCategory | "closed" | null>(null);
@@ -63,9 +64,7 @@ export function FoodShelves({
       .filter((f) => (q ? f.name.toLowerCase().includes(q) : true));
     return FOOD_CATEGORIES.map((c) => ({
       ...c,
-      foods: inZone
-        .filter((f) => f.category === c.key)
-        .sort((a, b) => a.name.localeCompare(b.name))
+      foods: inZone.filter((f) => f.category === c.key).sort(byShelfOrder)
     })).filter((g) => g.foods.length > 0);
   }, [foods, zone, q]);
 
@@ -128,9 +127,29 @@ export function FoodShelves({
               </button>
             )}
           </div>
+          <button
+            onClick={() => setArranging((v) => !v)}
+            aria-pressed={arranging}
+            title="Arrange the order of foods on each shelf"
+            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+              arranging
+                ? "bg-accent text-on-accent"
+                : "border border-line bg-surface text-ink-2 hover:bg-surface-3"
+            }`}
+          >
+            <MoveHorizontal size={16} />
+            <span className="hidden sm:inline">Arrange</span>
+          </button>
           {extraControl}
         </div>
       </div>
+
+      {arranging && (
+        <p className="mb-3 rounded-xl border border-accent bg-accent-wash px-4 py-2.5 text-sm text-accent-soft">
+          Use the arrows on each food to put your shelves in the order you like.
+          Anything you haven&apos;t moved stays in alphabetical order.
+        </p>
+      )}
 
       <Appliance>
         {groups.length === 0 ? (
@@ -147,7 +166,7 @@ export function FoodShelves({
               onToggle={() => setOpen(isOpen(g.key) ? "closed" : g.key)}
             >
               <TileGrid>
-                {g.foods.map((f) => (
+                {g.foods.map((f, idx) => (
                   <FoodTile
                     key={f.id}
                     food={f}
@@ -161,6 +180,11 @@ export function FoodShelves({
                     picked={chosen.includes(f.id)}
                     onOpen={() => (picking ? onPick?.(f.id) : setDetail(f))}
                     onTick={onTick ? () => onTick(f) : undefined}
+                    arrange={
+                      arranging
+                        ? { first: idx === 0, last: idx === g.foods.length - 1, onMove: (d) => moveFood(f.id, d) }
+                        : undefined
+                    }
                   />
                 ))}
               </TileGrid>
@@ -184,7 +208,7 @@ export function FoodShelves({
 
 /** One food, showing whichever number this tab is about. */
 function FoodTile({
-  food: f, mode, have, buy, price, baseStore, done, picking, picked, onOpen, onTick
+  food: f, mode, have, buy, price, baseStore, done, picking, picked, onOpen, onTick, arrange
 }: {
   food: Food;
   mode: ShelfMode;
@@ -197,9 +221,33 @@ function FoodTile({
   picked: boolean;
   onOpen: () => void;
   onTick?: () => void;
+  /** Present while the shelf is being rearranged. */
+  arrange?: { first: boolean; last: boolean; onMove: (delta: -1 | 1) => void };
 }) {
   const cals = `${Math.round(f.caloriesPerUnit).toLocaleString()} cal / ${unitLabel(f.unit)}`;
   const money = price ? fmtMoney(price.pricePerUnit) : null;
+
+  /** Shown in place of the tile's usual corner while a shelf is arranged. */
+  const arrows = arrange ? (
+    <span className="flex gap-0.5">
+      <button
+        onClick={() => arrange.onMove(-1)}
+        disabled={arrange.first}
+        aria-label={`Move ${f.name} earlier`}
+        className="flex h-6 w-6 items-center justify-center rounded-full border border-line bg-page text-muted shadow-sm hover:text-ink disabled:opacity-25"
+      >
+        <ArrowLeft size={12} />
+      </button>
+      <button
+        onClick={() => arrange.onMove(1)}
+        disabled={arrange.last}
+        aria-label={`Move ${f.name} later`}
+        className="flex h-6 w-6 items-center justify-center rounded-full border border-line bg-page text-muted shadow-sm hover:text-ink disabled:opacity-25"
+      >
+        <ArrowRight size={12} />
+      </button>
+    </span>
+  ) : undefined;
 
   if (mode === "price") {
     const fromBase = price?.source === "base" && !baseStore;
@@ -214,6 +262,7 @@ function FoodTile({
         sub={fromBase ? <span className="text-sea-soft">base price</span> : cals}
         onClick={onOpen}
         ariaLabel={`Set the price of ${f.name}`}
+        corner={arrows}
       />
     );
   }
@@ -233,7 +282,7 @@ function FoodTile({
         sub={money ? <span className="text-accent-soft">{fmtMoney((price?.pricePerUnit ?? 0) * buy)}</span> : <span className="text-warn-soft">no price</span>}
         onClick={onOpen}
         ariaLabel={`Open ${f.name}`}
-        corner={onTick && <TileTick on={done} label={`${done ? "Undo buying" : "Buy"} ${f.name}`} onClick={onTick} />}
+        corner={arrows ?? (onTick && <TileTick on={done} label={`${done ? "Undo buying" : "Buy"} ${f.name}`} onClick={onTick} />)}
       />
     );
   }
@@ -253,6 +302,7 @@ function FoodTile({
       sub={short ? <span className="text-warn-soft">need {fmtQty(Math.ceil(buy * 4) / 4)}</span> : cals}
       onClick={onOpen}
       ariaLabel={picking ? `Cook with ${f.name}` : `Open ${f.name}`}
+      corner={arrows}
     />
   );
 }
