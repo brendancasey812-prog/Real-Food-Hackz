@@ -1,13 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search, X, ArrowLeft, ArrowRight, MoveHorizontal } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Search, X, ArrowLeft, ArrowRight, MoveHorizontal, ListChecks, ChefHat, Check } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { FOOD_CATEGORIES, byShelfOrder } from "@/lib/foodcat";
 import { fmtQty, pluralUnit, unitLabel } from "@/lib/units";
 import { fmtMoney, priceFor, BASE_STORE_ID, type ResolvedPrice } from "@/lib/cost";
 import { Appliance, Shelf, TileGrid, AppTile, TileTick, CATEGORY_TINT } from "./shelf";
 import { FoodSheet } from "./FoodSheet";
+import { EditItemsSheet } from "./EditItems";
+import { RecipeBuilderSheet } from "./RecipeBuilderSheet";
 import type { Food, FoodCategory, Location } from "@/lib/types";
 
 /**
@@ -19,6 +22,11 @@ import type { Food, FoodCategory, Location } from "@/lib/types";
  * Only the number on the tile changes — what you have, what to buy, what it
  * costs — and tapping any tile anywhere opens the same sheet, where all of it
  * can be edited. That is why an edit made in one tab shows up in the others.
+ *
+ * The controls are the same everywhere for the same reason. Arranging shelves,
+ * editing the catalogue and cooking a recipe out of what you tap are things
+ * you do to your foods, not to a tab, so they live here rather than in any one
+ * page — whichever tab you happen to be on is the one that can do them.
  */
 export type ShelfMode = "stock" | "shop" | "price";
 
@@ -30,7 +38,7 @@ const ZONES: { key: Location | "all"; label: string }[] = [
 ];
 
 export function FoodShelves({
-  mode, foods, buyOf, checked, onTick, picking = false, chosen = [], onPick, extraControl
+  mode, foods, buyOf, checked, onTick
 }: {
   mode: ShelfMode;
   /** The foods this tab is about. */
@@ -40,19 +48,31 @@ export function FoodShelves({
   /** Shopping only: which lines are ticked off. */
   checked?: Record<string, boolean>;
   onTick?: (food: Food) => void;
-  /** Food Tracker only: picking ingredients to build a recipe from. */
-  picking?: boolean;
-  chosen?: string[];
-  onPick?: (id: string) => void;
-  /** A control to sit beside the search box (the recipe-picking switch). */
-  extraControl?: React.ReactNode;
 }) {
   const { inventory, setInventory, prices, selectedStoreId, moveFood } = useApp();
   const [arranging, setArranging] = useState(false);
+  const [editingItems, setEditingItems] = useState(false);
   const [zone, setZone] = useState<Location | "all">("all");
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState<FoodCategory | "closed" | null>(null);
+  const [open, setOpen] = useState<FoodCategory | null>(null);
   const [detail, setDetail] = useState<Food | null>(null);
+  // Cooking out of the shelves: tap foods, then turn them into a recipe.
+  const [picking, setPicking] = useState(false);
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [building, setBuilding] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
+
+  const onPick = (id: string) =>
+    setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
+
+  const stopPicking = () => { setPicking(false); setChosen([]); };
+
+  // The "added to the Cookbook" note clears itself.
+  useEffect(() => {
+    if (!saved) return;
+    const t = setTimeout(() => setSaved(null), 5000);
+    return () => clearTimeout(t);
+  }, [saved]);
 
   const q = query.trim().toLowerCase();
   const qtyOf = (id: string) => inventory.find((i) => i.foodId === id)?.quantity ?? 0;
@@ -68,10 +88,9 @@ export function FoodShelves({
     })).filter((g) => g.foods.length > 0);
   }, [foods, zone, q]);
 
-  // The first shelf opens by default so the tab isn't a wall of closed doors;
-  // a search opens everything, so no match can hide behind a shut one.
-  const isOpen = (key: FoodCategory) =>
-    q ? true : open === null ? key === groups[0]?.key : open === key;
+  // Shelves start shut, the way a kitchen does — you open the one you want.
+  // A search opens everything, so no match can hide behind a closed door.
+  const isOpen = (key: FoodCategory) => (q ? true : open === key);
 
   /** What the shelf header says it holds, in this tab's terms. */
   const summarise = (list: Food[]) => {
@@ -140,7 +159,18 @@ export function FoodShelves({
             <MoveHorizontal size={16} />
             <span className="hidden sm:inline">Arrange</span>
           </button>
-          {extraControl}
+          <button
+            onClick={() => setEditingItems(true)}
+            title="Rename, move or delete any food"
+            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-2 text-sm font-medium text-ink-2 transition-colors hover:bg-surface-3"
+          >
+            <ListChecks size={16} />
+            <span className="hidden sm:inline">Edit items</span>
+          </button>
+          <PickSwitch
+            on={picking}
+            onChange={(v) => (v ? setPicking(true) : stopPicking())}
+          />
         </div>
       </div>
 
@@ -148,6 +178,12 @@ export function FoodShelves({
         <p className="mb-3 rounded-xl border border-accent bg-accent-wash px-4 py-2.5 text-sm text-accent-soft">
           Use the arrows on each food to put your shelves in the order you like.
           Anything you haven&apos;t moved stays in alphabetical order.
+        </p>
+      )}
+
+      {picking && (
+        <p className="mb-3 rounded-xl border border-accent bg-accent-wash px-4 py-2.5 text-sm text-accent-soft">
+          Tap the foods you want to cook with, then build a recipe from them.
         </p>
       )}
 
@@ -163,7 +199,7 @@ export function FoodShelves({
               title={g.label}
               subtitle={summarise(g.foods)}
               open={isOpen(g.key)}
-              onToggle={() => setOpen(isOpen(g.key) ? "closed" : g.key)}
+              onToggle={() => setOpen(isOpen(g.key) ? null : g.key)}
             >
               <TileGrid>
                 {g.foods.map((f, idx) => (
@@ -178,7 +214,7 @@ export function FoodShelves({
                     done={Boolean(checked?.[f.id])}
                     picking={picking}
                     picked={chosen.includes(f.id)}
-                    onOpen={() => (picking ? onPick?.(f.id) : setDetail(f))}
+                    onOpen={() => (picking ? onPick(f.id) : setDetail(f))}
                     onTick={onTick ? () => onTick(f) : undefined}
                     arrange={
                       arranging
@@ -193,6 +229,39 @@ export function FoodShelves({
         )}
       </Appliance>
 
+      {/* Selection bar — the one action while picking */}
+      {picking && chosen.length > 0 && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-24 z-30 flex justify-center px-4 md:bottom-8">
+          <div className="sheet-up pointer-events-auto flex items-center gap-3 rounded-2xl border border-line bg-page px-3 py-2.5 shadow-2xl">
+            <span className="pl-1 text-sm text-muted">
+              <span className="font-semibold text-ink">{chosen.length}</span>{" "}
+              {chosen.length === 1 ? "ingredient" : "ingredients"}
+            </span>
+            <button onClick={() => setChosen([])} className="rounded-lg px-2 py-1.5 text-xs font-medium text-muted hover:text-ink">
+              Clear
+            </button>
+            <button onClick={() => setBuilding(true)} className="btn-accent rounded-xl px-4 py-2 text-sm">
+              Build recipe
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation, with a way straight to the thing you just made */}
+      {saved && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-24 z-30 flex justify-center px-4 md:bottom-8">
+          <div className="sheet-up pointer-events-auto flex items-center gap-3 rounded-2xl border border-accent bg-page px-4 py-3 shadow-2xl">
+            <Check size={16} className="shrink-0 text-accent-soft" />
+            <span className="text-sm text-ink">
+              Added <span className="font-semibold">{saved}</span> to your Cookbook
+            </span>
+            <Link href="/recipes" className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-accent-soft hover:bg-accent-wash">
+              View
+            </Link>
+          </div>
+        </div>
+      )}
+
       {detail && (
         <FoodSheet
           food={detail}
@@ -202,7 +271,46 @@ export function FoodShelves({
           onClose={() => setDetail(null)}
         />
       )}
+
+      {editingItems && <EditItemsSheet onClose={() => setEditingItems(false)} />}
+
+      {building && (
+        <RecipeBuilderSheet
+          foodIds={chosen}
+          onClose={() => setBuilding(false)}
+          onSaved={(recipeName) => {
+            setBuilding(false);
+            stopPicking();
+            setSaved(recipeName);
+          }}
+        />
+      )}
     </>
+  );
+}
+
+/** The toggle that turns the shelves into an ingredient picker. */
+function PickSwitch({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  const label = "Pick ingredients";
+  return (
+    <button
+      onClick={() => onChange(!on)}
+      role="switch"
+      aria-checked={on}
+      title="Tap foods off the shelf and build a recipe from them"
+      aria-label={label}
+      className="flex shrink-0 items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-sm font-medium text-ink-2"
+    >
+      <ChefHat size={16} className={on ? "text-accent-soft" : "text-muted"} />
+      <span className="hidden sm:inline">{label}</span>
+      <span className={`relative h-6 w-10 rounded-full transition-colors ${on ? "bg-accent" : "bg-track"}`}>
+        <span
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-on-accent shadow transition-transform ${
+            on ? "translate-x-[18px]" : "translate-x-0.5"
+          }`}
+        />
+      </span>
+    </button>
   );
 }
 
@@ -226,6 +334,24 @@ function FoodTile({
 }) {
   const cals = `${Math.round(f.caloriesPerUnit).toLocaleString()} cal / ${unitLabel(f.unit)}`;
   const money = price ? fmtMoney(price.pricePerUnit) : null;
+
+  /**
+   * While picking, a tile is a tile: the same label and the same selected look
+   * on all three tabs, and nothing greyed out or struck through, because what
+   * you can cook with doesn't depend on which tab you started from — or on
+   * whether you happen to have it in right now.
+   */
+  const asPicker = picking
+    ? {
+        tone: picked ? ("accent" as const) : ("muted" as const),
+        selected: picked,
+        dimmed: false,
+        strike: false,
+        disabled: false,
+        ariaLabel: `Cook with ${f.name}`,
+        corner: undefined,
+      }
+    : {};
 
   /** Shown in place of the tile's usual corner while a shelf is arranged. */
   const arrows = arrange ? (
@@ -263,6 +389,7 @@ function FoodTile({
         onClick={onOpen}
         ariaLabel={`Set the price of ${f.name}`}
         corner={arrows}
+        {...asPicker}
       />
     );
   }
@@ -283,6 +410,7 @@ function FoodTile({
         onClick={onOpen}
         ariaLabel={`Open ${f.name}`}
         corner={arrows ?? (onTick && <TileTick on={done} label={`${done ? "Undo buying" : "Buy"} ${f.name}`} onClick={onTick} />)}
+        {...asPicker}
       />
     );
   }
@@ -295,14 +423,13 @@ function FoodTile({
       tint={CATEGORY_TINT[f.category]}
       value={fmtQty(have)}
       unit={pluralUnit(have, f.unit)}
-      tone={picking ? (picked ? "accent" : "muted") : empty ? "muted" : short ? "warn" : "accent"}
-      dimmed={empty && !picking}
-      disabled={picking && empty}
-      selected={picking && picked}
+      tone={empty ? "muted" : short ? "warn" : "accent"}
+      dimmed={empty}
       sub={short ? <span className="text-warn-soft">need {fmtQty(Math.ceil(buy * 4) / 4)}</span> : cals}
       onClick={onOpen}
-      ariaLabel={picking ? `Cook with ${f.name}` : `Open ${f.name}`}
+      ariaLabel={`Open ${f.name}`}
       corner={arrows}
+      {...asPicker}
     />
   );
 }

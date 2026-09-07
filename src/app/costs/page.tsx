@@ -17,6 +17,7 @@ import {
   type CostTotals
 } from "@/lib/cost";
 import { SettingsButton } from "@/components/SettingsButton";
+import { KitchenMenu } from "@/components/KitchenMenu";
 import { FoodShelves } from "@/components/FoodShelves";
 import { unitLabel } from "@/lib/units";
 
@@ -106,22 +107,26 @@ export default function Costs() {
             Every ingredient priced per its own unit — recipes, the plan and your grocery list cost themselves from here.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <StoreIcon size={16} className="text-muted" />
-          <select
-            value={selectedStoreId}
-            onChange={(e) => selectStore(e.target.value)}
-            className="field rounded-xl px-3 py-2 text-sm"
-          >
-            <option value={BEST_STORE_ID}>Best price — cheapest of your stores</option>
-            <option value={BASE_STORE_ID}>Base prices (any store)</option>
-            {stores.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-                {s.city ? ` — ${s.city}` : ""}
-              </option>
-            ))}
-          </select>
+        <div className="flex shrink-0 items-start gap-2">
+          <label className="flex h-10 items-center gap-2 rounded-xl border border-line bg-surface px-3 text-sm md:h-11">
+            <StoreIcon size={16} className="text-muted" />
+            <select
+              value={selectedStoreId}
+              onChange={(e) => selectStore(e.target.value)}
+              aria-label="Which store's prices to cost against"
+              className="bg-transparent text-sm text-ink-2 outline-none"
+            >
+              <option value={BEST_STORE_ID}>Best price — cheapest of your stores</option>
+              <option value={BASE_STORE_ID}>Base prices (any store)</option>
+              {stores.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                  {s.city ? ` — ${s.city}` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <KitchenMenu context="kitchen" />
           <SettingsButton className="hidden md:flex" />
         </div>
       </header>

@@ -3,13 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { addWeeks, format } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus, Share } from "lucide-react";
+import { ChevronLeft, ChevronRight, Share } from "lucide-react";
 import { useApp, neededQuantities, foodById } from "@/lib/store";
 import { weekDays, isoOf } from "@/lib/week";
-import { AddFoodModal } from "@/components/AddFoodModal";
 import type { Food } from "@/lib/types";
 import { BASE_STORE_ID, quantityCost } from "@/lib/cost";
 import { SettingsButton } from "@/components/SettingsButton";
+import { KitchenMenu } from "@/components/KitchenMenu";
 import { FoodShelves } from "@/components/FoodShelves";
 import { ExportSheet } from "@/components/ExportSheet";
 import { groceryText, groceryCsv, exportName } from "@/lib/exportfile";
@@ -23,7 +23,6 @@ export default function Groceries() {
   // Keep a snapshot of what was ticked off so it stays on the shelf, greyed
   // out and undoable, until the week is changed.
   const [bought, setBought] = useState<Record<string, { food: Food; buy: number; have: number }>>({});
-  const [adding, setAdding] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const changeWeek = (dir: number) => {
@@ -106,27 +105,22 @@ export default function Groceries() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <header className="mb-5 flex items-start justify-between">
+      <header className="mb-5 flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Grocery list</h1>
           <p className="mt-1 text-sm text-muted">
             Auto-built from your plan minus what&apos;s in the kitchen
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-start gap-2">
           <button
             onClick={() => setExporting(true)}
             disabled={shelfItems.length === 0}
-            className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-3 disabled:opacity-40"
+            className="flex h-10 items-center gap-2 rounded-xl border border-line bg-surface px-3.5 text-sm font-medium text-ink-2 hover:bg-surface-3 disabled:opacity-40 md:h-11"
           >
             <Share size={16} /> Export
           </button>
-          <button
-            onClick={() => setAdding(true)}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-b from-accent to-accent-deep shadow-lg px-4 py-2.5 text-sm font-medium text-on-accent hover:brightness-110"
-          >
-            <Plus size={16} /> Add item
-          </button>
+          <KitchenMenu context="grocery" />
           <SettingsButton className="hidden md:flex" />
         </div>
       </header>
@@ -148,22 +142,23 @@ export default function Groceries() {
         </div>
       </div>
 
-      {shelfItems.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-line-2 py-16 text-center text-sm text-muted">
+      {shelfItems.length === 0 && (
+        <div className="mb-4 rounded-2xl border border-dashed border-line-2 py-10 text-center text-sm text-muted">
           Your kitchen already has everything for this week&apos;s plan.
         </div>
-      ) : (
-        <FoodShelves
-          mode="shop"
-          foods={shelfItems.map((i) => i.food)}
-          buyOf={(id) => shelfItems.find((i) => i.food.id === id)?.buy ?? 0}
-          checked={checked}
-          onTick={(f) => {
-            const item = shelfItems.find((i) => i.food.id === f.id);
-            if (item) toggleBought(item);
-          }}
-        />
       )}
+
+      {/* The same shelves as the other tabs, so the controls are here too */}
+      <FoodShelves
+        mode="shop"
+        foods={shelfItems.map((i) => i.food)}
+        buyOf={(id) => shelfItems.find((i) => i.food.id === id)?.buy ?? 0}
+        checked={checked}
+        onTick={(f) => {
+          const item = shelfItems.find((i) => i.food.id === f.id);
+          if (item) toggleBought(item);
+        }}
+      />
 
       {items.length > 0 && (
         <p className="mt-4 text-center text-xs text-muted">
@@ -173,8 +168,6 @@ export default function Groceries() {
           <Link href="/costs" className="text-accent-soft hover:underline">edit prices</Link>.
         </p>
       )}
-
-      {adding && <AddFoodModal context="grocery" onClose={() => setAdding(false)} />}
 
       {exporting && (
         <ExportSheet

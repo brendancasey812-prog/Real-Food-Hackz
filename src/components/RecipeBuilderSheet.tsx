@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Minus, Plus, X, Check } from "lucide-react";
 import { useApp, newId, ingredientCalories } from "@/lib/store";
-import { fmtQty, pluralUnit, stepFor } from "@/lib/units";
+import { fmtQty, pluralUnit, sliderMax, stepFor } from "@/lib/units";
 import type { MealType, Recipe, Unit } from "@/lib/types";
 
 const MEALS: { value: MealType; label: string }[] = [
@@ -18,9 +18,15 @@ const MEALS: { value: MealType; label: string }[] = [
 const START_QTY: Record<Unit, number> = { each: 1, cup: 1, tbsp: 1, tsp: 1, oz: 4 };
 
 /**
- * The second half of "cook from what I have": the foods picked in the fridge
- * arrive here, each capped at what's actually in stock, and leave as a recipe
- * in the Cookbook.
+ * The second half of picking foods off the shelf: the ones you tapped arrive
+ * here to be given amounts, and leave as a recipe in the Cookbook.
+ *
+ * Amounts are not capped at what's in the kitchen. They were, back when this
+ * only opened from the Food Tracker — but the same picker now runs on the
+ * grocery list and the cost repository, where having none of something is the
+ * normal case, and a recipe you can't write because the fridge is empty is no
+ * use. What you have is shown on each row instead, and the shortfall lands on
+ * your grocery list the way any other recipe's would.
  */
 export function RecipeBuilderSheet({
   foodIds, onClose, onSaved
@@ -42,9 +48,7 @@ export function RecipeBuilderSheet({
   const [meal, setMeal] = useState<MealType>("dinner");
   const [servings, setServings] = useState(1);
   const [qty, setQty] = useState<Record<string, number>>(() =>
-    Object.fromEntries(
-      picked.map((f) => [f.id, Math.min(onHand(f.id), START_QTY[f.unit])]),
-    ),
+    Object.fromEntries(picked.map((f) => [f.id, START_QTY[f.unit]])),
   );
 
   const ingredients = picked
@@ -84,7 +88,7 @@ export function RecipeBuilderSheet({
             <div>
               <h2 className="text-lg font-semibold text-ink">New recipe</h2>
               <p className="text-xs text-muted">
-                From {picked.length} {picked.length === 1 ? "ingredient" : "ingredients"} in your fridge
+                From {picked.length} {picked.length === 1 ? "ingredient" : "ingredients"} you picked
               </p>
             </div>
             <button onClick={onClose} aria-label="Close" className="text-muted hover:text-ink">
@@ -145,7 +149,7 @@ export function RecipeBuilderSheet({
             </div>
           </div>
 
-          {/* Ingredient amounts, capped at what's in the fridge */}
+          {/* Ingredient amounts — what you have is a note, not a ceiling */}
           <p className="mb-2 mt-5 text-[11px] font-semibold uppercase tracking-wide text-muted">
             How much of each
           </p>
@@ -154,6 +158,8 @@ export function RecipeBuilderSheet({
               const have = onHand(f.id);
               const step = stepFor(f.unit);
               const v = qty[f.id] ?? 0;
+              const ceiling = sliderMax(f.unit, have, v, START_QTY[f.unit]);
+              const over = v > have;
               const cal = ingredientCalories({ foodId: f.id, quantity: v }, foods);
               return (
                 <div key={f.id} className="flex items-center gap-3 rounded-xl border border-line bg-surface px-3 py-2.5">
@@ -161,11 +167,12 @@ export function RecipeBuilderSheet({
                     <span className="block truncate text-sm font-medium text-ink">{f.name}</span>
                     <span className="block text-[11px] text-muted tabular-nums">
                       {fmtQty(have)} {pluralUnit(have, f.unit)} on hand · {cal} cal
+                      {over && <span className="text-warn-soft"> · need {fmtQty(v - have)} more</span>}
                     </span>
                   </span>
                   <div className="flex shrink-0 items-center gap-1.5">
                     <button
-                      onClick={() => set(f.id, v - step, have)}
+                      onClick={() => set(f.id, v - step, ceiling)}
                       aria-label={`Less ${f.name}`}
                       className="flex h-8 w-8 items-center justify-center rounded-lg border border-line text-muted hover:bg-surface-3 hover:text-ink active:scale-95"
                     >
@@ -178,8 +185,8 @@ export function RecipeBuilderSheet({
                       </span>
                     </span>
                     <button
-                      onClick={() => set(f.id, v + step, have)}
-                      disabled={v >= have}
+                      onClick={() => set(f.id, v + step, ceiling)}
+                      disabled={v >= ceiling}
                       aria-label={`More ${f.name}`}
                       className="flex h-8 w-8 items-center justify-center rounded-lg border border-line text-muted transition-colors hover:bg-surface-3 hover:text-ink active:scale-95 disabled:opacity-35 disabled:hover:bg-transparent"
                     >
@@ -191,7 +198,8 @@ export function RecipeBuilderSheet({
             })}
           </div>
           <p className="mt-2 text-[11px] text-muted">
-            Amounts stop at what you have in the fridge.
+            Use as much as the recipe needs — anything beyond what you have joins
+            your grocery list.
           </p>
         </div>
 
