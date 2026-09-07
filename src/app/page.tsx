@@ -24,19 +24,49 @@ export default function Dashboard() {
   // Tapping a meal on the focused day opens it, prices and all.
   const [openMealId, setOpenMealId] = useState<string | null>(null);
 
-  const eaters = household({ goals, profile, members });
-  const multi = householdMode !== "individual" && eaters.length > 1;
+  // Who this dashboard is about. On "individual" the members are somebody
+  // else's problem — the plan is for one person and so is every figure here.
+  const eaters = householdMode === "individual"
+    ? household({ goals, profile, members }).slice(0, 1)
+    : household({ goals, profile, members });
+  const multi = eaters.length > 1;
   const shown = !multi || scope === "all" ? eaters : eaters.filter((e) => e.id === scope);
-  const activeGoals = multi ? combinedGoals(shown) : goals;
+  const activeGoals = combinedGoals(shown);
+
+  /**
+   * How much of the food on the calendar belongs to whoever is selected.
+   *
+   * A planned meal records servings, not who ate them, so one person's share
+   * has to be worked out — and splitting it evenly would tell a 2,500-calorie
+   * eater they are eating the same as a 1,900-calorie one. Their share is
+   * their target out of the household's, so the numbers here are built out of
+   * the calories actually set for each person in Settings. Everyone selected
+   * is a share of 1, and the totals are the household's own.
+   */
+  const householdTarget = combinedGoals(eaters).dailyCalorieTarget;
+  const share =
+    !multi || scope === "all" || householdTarget <= 0
+      ? 1
+      : activeGoals.dailyCalorieTarget / householdTarget;
 
   const days = weekDays(addWeeks(new Date(), weekOffset));
   const target = activeGoals.dailyCalorieTarget;
 
-  // Per-day calorie + macro totals for this week (derived live from the calendar).
+  // Per-day calorie + macro totals for this week, cut to the selected eater's
+  // share so the bars and the goal line are measuring the same person.
   const perDay = days.map((d) => {
     const iso = isoOf(d);
     const meals = plan.filter((m) => m.date === iso);
-    return { date: d, iso, meals: meals.length, ...plannedTotals(meals, recipes, foods) };
+    const t = plannedTotals(meals, recipes, foods);
+    return {
+      date: d,
+      iso,
+      meals: meals.length,
+      calories: Math.round(t.calories * share),
+      protein: Math.round(t.protein * share),
+      carbs: Math.round(t.carbs * share),
+      fat: Math.round(t.fat * share),
+    };
   });
 
   const focusCol =
@@ -51,7 +81,6 @@ export default function Dashboard() {
     setFocusIso(null);
   };
 
-  // Money twin of the calorie roll-up above, costed at the selected store.
   const weekTotal = perDay.reduce((s, d) => s + d.calories, 0);
   const maxBar = Math.max(target, ...perDay.map((d) => d.calories)) * 1.12;
   const targetPct = (target / maxBar) * 100;
@@ -62,9 +91,9 @@ export default function Dashboard() {
     { key: "fat", label: "Fat", value: focusCol.fat, target: activeGoals.fatTarget, icon: Droplet, bar: "bg-gradient-to-r from-fat-deep to-fat", text: "text-fat-soft" },
   ];
 
-  // What is actually on the focused day, in the order it gets eaten. Each row
-  // carries its own calories and what the dish costs to cook — the same figures
-  // the meal itself shows, never summed into a spend for the day.
+  // What is actually on the focused day, in the order it gets eaten. Calories
+  // follow the selected eater's share; the price of a serving is the price of a
+  // serving, so that one doesn't move.
   const focusMeals = plan
     .filter((m) => m.date === focusCol.iso)
     .map((m) => {
@@ -72,10 +101,32 @@ export default function Dashboard() {
       if (!recipe) return null;
       const per = recipeTotalsPerServing(recipe, foods, recipes);
       const cost = recipeCostPerServing(recipe, recipes, prices, selectedStoreId);
-      return { meal: m, recipe, calories: per.calories * m.servings, cost };
+      return {
+        meal: m,
+        recipe,
+        calories: Math.round(per.calories * m.servings * share),
+        cost,
+      };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null)
     .sort((a, b) => mealStart(a.meal) - mealStart(b.meal));
+
+  /**
+   * What the day comes to: its calories, and what the food on it cost.
+   *
+   * This is a total of the day in front of you, not a forecast — the same
+   * prices already on each row, added up, and it says so when a meal has an
+   * ingredient with no price rather than quietly reporting less.
+   */
+  const dayTotal = focusMeals.reduce(
+    (acc, m) => ({
+      calories: acc.calories + m.calories,
+      cost: acc.cost + m.cost.cost * m.meal.servings * share,
+      priced: acc.priced + (m.cost.priced > 0 ? 1 : 0),
+      short: acc.short + (m.cost.lines > m.cost.priced ? 1 : 0),
+    }),
+    { calories: 0, cost: 0, priced: 0, short: 0 },
+  );
 
   const ft = Math.floor(profile.heightIn / 12);
   const inch = profile.heightIn % 12;
@@ -190,6 +241,30 @@ export default function Dashboard() {
             );
           })}
         </div>
+        {/* What the whole day comes to */}
+        {focusMeals.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-xl border border-line bg-surface px-4 py-2.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+              {focusMeals.length} {focusMeals.length === 1 ? "meal" : "meals"} · day total
+            </span>
+            <span className="flex items-baseline gap-3 text-sm">
+              <span className="font-semibold text-cal-soft tabular-nums">
+                {dayTotal.calories.toLocaleString()} cal
+              </span>
+              {dayTotal.priced > 0 && (
+                <span className="font-semibold text-accent-soft tabular-nums">
+                  {fmtMoney(dayTotal.cost)}
+                  {dayTotal.short > 0 && (
+                    <span className="ml-1 text-[11px] font-normal text-warn-soft">
+                      {dayTotal.short} {dayTotal.short === 1 ? "meal is" : "meals are"} missing a price
+                    </span>
+                  )}
+                </span>
+              )}
+            </span>
+          </div>
+        )}
+
         {/* The day's meals — tap one for its ingredients and their prices */}
         <div className="mt-5 border-t border-line pt-4">
           {focusMeals.length === 0 ? (
@@ -237,6 +312,11 @@ export default function Dashboard() {
             <h2 className="font-semibold">Weekly calories</h2>
             <p className="text-xs text-muted">
               {weekTotal.toLocaleString()} planned · {Math.round(weekTotal / 7).toLocaleString()} avg/day
+              {multi && (
+                <span className="text-faint">
+                  {" "}· {scope === "all" ? `all ${eaters.length}` : (shown[0]?.name || "one eater")}
+                </span>
+              )}
             </p>
           </div>
           {multi && scope === "all" ? (
