@@ -7,7 +7,8 @@ import {
 } from "@/lib/store";
 import { householdSize, householdName, portionsFor, portionNote, scaleRecipe } from "@/lib/household";
 import { ServingsStepper } from "./ServingsStepper";
-import { pluralUnit, fmtQty } from "@/lib/units";
+import { pluralUnit, fmtQty, amountPerBuyUnit } from "@/lib/units";
+import { gramsForFood } from "@/lib/usda";
 import { ingredientCost, recipeCostPerServing, fmtMoney } from "@/lib/cost";
 import { FoodSheet } from "./FoodSheet";
 import { mealStart, clockLabel } from "@/lib/mealtime";
@@ -257,7 +258,12 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
                     </>
                   ) : (
                     <span className="shrink-0 text-right text-muted">
-                      {fmtQty(ing.quantity)} {f ? pluralUnit(ing.quantity, f.unit) : ""}
+                      {(() => {
+                        const a = f
+                          ? amountPerBuyUnit(ing.quantity, f, f.buyUnit ? (gramsForFood(f)?.grams ?? null) : null)
+                          : { amount: ing.quantity, label: "" };
+                        return `${fmtQty(a.amount)} ${a.label}`;
+                      })()}
                       {" · "}<span className="text-cal-soft">{cal} cal</span>
                       {(() => {
                         const c = ingredientCost(ing, prices, selectedStoreId);
@@ -337,11 +343,25 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
 
       {openFood && (() => {
         const f = foodById(foods, openFood);
+        const line = recipe.ingredients.find((i) => i.foodId === openFood);
         return f ? (
           <FoodSheet
             food={f}
             quantity={inventory.find((i) => i.foodId === f.id)?.quantity ?? 0}
             onQuantity={(v) => setInventory(f.id, v)}
+            recipeLine={
+              line && {
+                quantity: line.quantity,
+                recipeName: recipe.name,
+                onQuantity: (q) =>
+                  updateRecipe({
+                    ...recipe,
+                    ingredients: recipe.ingredients.map((i) =>
+                      i.foodId === openFood ? { ...i, quantity: q } : i,
+                    ),
+                  }),
+              }
+            }
             onClose={() => setOpenFood(null)}
           />
         ) : null;

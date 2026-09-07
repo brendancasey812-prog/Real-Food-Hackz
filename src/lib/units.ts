@@ -185,3 +185,23 @@ export function pricePerBuyUnit(
   const amount = priceInBuyUnit(pricePerUnit, buy.key, food.unit, gramsPerUnit);
   return amount == null ? own : { amount, label: buy.short };
 }
+
+/**
+ * A quantity written the way that food is measured.
+ *
+ * The twin of `pricePerBuyUnit`, and for the same reason: a recipe counts beef
+ * in ounces because that is how it cooks, but "2.25 lb" is what you carry home,
+ * so a line reads in whichever of the two the food is kept in.
+ */
+export function amountPerBuyUnit(
+  quantity: number,
+  food: { unit: Unit; buyUnit?: string },
+  gramsPerUnit: number | null,
+): { amount: number; label: string } {
+  const own = { amount: quantity, label: pluralUnit(quantity, food.unit) };
+  const buy = BUY_UNITS.find((b) => b.key === food.buyUnit);
+  if (!buy || buy.key === "unit") return own;
+  const held = buy.per(food.unit, gramsPerUnit);
+  if (held == null || held <= 0) return own;
+  return { amount: Math.round((quantity / held) * 100) / 100, label: buy.short };
+}

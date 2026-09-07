@@ -12,7 +12,8 @@ import {
 import {
   recipeTotalCost, recipeCostPerServing, ingredientCost, fmtMoney
 } from "@/lib/cost";
-import { pluralUnit, fmtQty } from "@/lib/units";
+import { fmtQty, amountPerBuyUnit } from "@/lib/units";
+import { gramsForFood } from "@/lib/usda";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
 import { householdSize, householdName, portionsFor, portionNote, scaleRecipe } from "@/lib/household";
 import { ServingsStepper } from "./ServingsStepper";
@@ -239,6 +240,11 @@ export function RecipeDetailModal({
                       {g.items.map((ing) => {
                         const f = foodById(foods, ing.foodId);
                         const c = ingredientCost(ing, prices, selectedStoreId);
+                        // Reads in the unit the food is kept in — pounds of beef
+                        // rather than the ounces the recipe counts by.
+                        const amt = f
+                          ? amountPerBuyUnit(ing.quantity, f, f.buyUnit ? (gramsForFood(f)?.grams ?? null) : null)
+                          : { amount: ing.quantity, label: "" };
                         return (
                           <button
                             key={ing.foodId}
@@ -248,7 +254,7 @@ export function RecipeDetailModal({
                           >
                             <span className="min-w-0 truncate text-ink">{f?.name ?? ing.foodId}</span>
                             <span className="shrink-0 text-muted">
-                              {fmtQty(ing.quantity)} {f ? pluralUnit(ing.quantity, f.unit) : ""} ·{" "}
+                              {fmtQty(amt.amount)} {amt.label} ·{" "}
                               <span className="text-cal-soft">{ingredientCalories(ing, foods)} cal</span>
                               {c != null ? (
                                 <span className="text-accent-soft"> · {fmtMoney(c)}</span>
@@ -312,11 +318,25 @@ export function RecipeDetailModal({
 
       {openFood && (() => {
         const f = foodById(foods, openFood);
+        const line = recipe.ingredients.find((i) => i.foodId === openFood);
         return f ? (
           <FoodSheet
             food={f}
             quantity={inventory.find((i) => i.foodId === f.id)?.quantity ?? 0}
             onQuantity={(v) => setInventory(f.id, v)}
+            recipeLine={
+              line && {
+                quantity: line.quantity,
+                recipeName: recipe.name,
+                onQuantity: (q) =>
+                  updateRecipe({
+                    ...recipe,
+                    ingredients: recipe.ingredients.map((i) =>
+                      i.foodId === openFood ? { ...i, quantity: q } : i,
+                    ),
+                  }),
+              }
+            }
             onClose={() => setOpenFood(null)}
           />
         ) : null;

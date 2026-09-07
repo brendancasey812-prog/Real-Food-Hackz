@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import { Minus, Plus, X, BookMarked, PenLine, Trash2, Check } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { usdaFor, canApplyUsda, SOURCE_LABEL } from "@/lib/usda";
-import { fmtQty, pluralUnit, stepFor, unitLabel, sliderMax } from "@/lib/units";
+import {
+  fmtQty, pluralUnit, stepFor, unitLabel, sliderMax, BUY_UNITS,
+} from "@/lib/units";
+import { gramsForFood } from "@/lib/usda";
 import { FOOD_CATEGORIES, FOOD_CATEGORY_LABEL } from "@/lib/foodcat";
 
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -34,14 +37,25 @@ const LOCATION_LABEL: Record<Location, string> = {
  * to the store, so a price typed here shows up on the grocery list and a
  * quantity set here clears a shopping line — no matter which tab you're in.
  */
+/** The line this food has in the recipe you opened it from. */
+export interface RecipeLine {
+  /** How much of the food the recipe uses, in the food's own unit. */
+  quantity: number;
+  onQuantity: (q: number) => void;
+  /** The recipe's name, so the section says which one it means. */
+  recipeName: string;
+}
+
 export function FoodSheet({
-  food, quantity, onQuantity, buy = 0, onClose
+  food, quantity, onQuantity, buy = 0, recipeLine, onClose
 }: {
   food: Food;
   quantity: number;
   onQuantity: (q: number) => void;
   /** How much of it this week's plan still needs you to buy. */
   buy?: number;
+  /** Present when opened from a recipe, to edit that recipe's amount here. */
+  recipeLine?: RecipeLine;
   onClose: () => void;
 }) {
   // Read the food back out of the store rather than trusting the snapshot the
@@ -108,6 +122,9 @@ export function FoodSheet({
             <X size={20} />
           </button>
         </div>
+
+        {/* How much this recipe uses — first, because it's why you tapped in */}
+        {recipeLine && <RecipeAmount food={f} line={recipeLine} />}
 
         {/* How much you have */}
         <div className="mt-5 rounded-2xl border border-line bg-surface p-4">
@@ -364,6 +381,98 @@ export function FoodSheet({
           />
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * How much of this food one recipe calls for, edited where you found it.
+ *
+ * Changing an ingredient's amount used to mean putting the whole recipe into
+ * edit mode, which is a lot of ceremony for "make it two pounds". And two
+ * pounds is the other half: a recipe stores beef in ounces because that is how
+ * it's cooked, but nobody buys it that way, so the amount can be typed in
+ * whatever the food is measured in at the shop and converted on the way in.
+ */
+function RecipeAmount({ food, line }: { food: Food; line: RecipeLine }) {
+  const updateFood = useApp((s) => s.updateFood);
+  const grams = gramsForFood(food)?.grams ?? null;
+
+  // The same units the price panel offers, for the same reason.
+  const usable = BUY_UNITS.filter(
+    (b) =>
+      b.key === "unit" ||
+      (b.short !== unitLabel(food.unit) && b.per(food.unit, grams) != null),
+  );
+  const buy = usable.find((b) => b.key === food.buyUnit) ?? usable[0];
+  /** How many of the food's own unit one of the chosen measure holds. */
+  const held = buy.key === "unit" ? 1 : (buy.per(food.unit, grams) ?? 1);
+
+  const shownStep = buy.key === "unit" ? stepFor(food.unit) : 0.25;
+  const inBuy = Math.round((line.quantity / held) * 100) / 100;
+  const setInBuy = (v: number) =>
+    line.onQuantity(Math.max(0, Number((Math.max(0, v) * held).toFixed(3))));
+
+  const label = buy.key === "unit" ? pluralUnit(inBuy, food.unit) : buy.short;
+
+  return (
+    <div className="mt-5 rounded-2xl border border-accent bg-accent-wash p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-accent-soft">
+          In {line.recipeName}
+        </p>
+        <label className="flex items-center gap-1.5 text-[11px] text-muted">
+          measured in
+          <select
+            value={buy.key}
+            onChange={(e) => updateFood(food.id, { buyUnit: e.target.value })}
+            aria-label={`Measure ${food.name} in`}
+            className="field rounded-lg px-1.5 py-0.5 text-[11px] font-semibold"
+          >
+            {usable.map((b) => (
+              <option key={b.key} value={b.key}>
+                {b.key === "unit" ? unitLabel(food.unit) : b.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <button
+          onClick={() => setInBuy(inBuy - shownStep)}
+          aria-label={`Less ${food.name} in this recipe`}
+          className="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-page text-ink-2 transition-colors hover:bg-surface-3 active:scale-95"
+        >
+          <Minus size={18} />
+        </button>
+        <div className="text-center">
+          <input
+            type="number"
+            min={0}
+            step={shownStep}
+            value={inBuy}
+            onChange={(e) => setInBuy(Number(e.target.value) || 0)}
+            aria-label={`${food.name} in this recipe`}
+            className="w-24 rounded-xl field px-2 py-1.5 text-center text-2xl font-semibold tabular-nums"
+          />
+          <p className="mt-1 text-xs text-muted">{label}</p>
+        </div>
+        <button
+          onClick={() => setInBuy(inBuy + shownStep)}
+          aria-label={`More ${food.name} in this recipe`}
+          className="flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-page text-ink-2 transition-colors hover:bg-surface-3 active:scale-95"
+        >
+          <Plus size={18} />
+        </button>
+      </div>
+
+      {buy.key !== "unit" && (
+        <p className="mt-2 text-center text-[11px] text-muted">
+          = {fmtQty(line.quantity)} {pluralUnit(line.quantity, food.unit)}, the unit the
+          recipe counts in
+        </p>
+      )}
     </div>
   );
 }
