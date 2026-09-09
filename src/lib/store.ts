@@ -59,6 +59,8 @@ interface AppState extends AppData {
   removeFood: (foodId: string) => void;
   /** Move a food up or down the shelf it sits on. */
   moveFood: (foodId: string, delta: -1 | 1) => void;
+  /** How many foods per shelf row; null lets the screen decide. */
+  setTilesPerRow: (n: number | null) => void;
   addRecipe: (recipe: Recipe, newFoods?: Food[]) => void;
   updateRecipe: (recipe: Recipe) => void;
   removeRecipe: (id: string) => void;
@@ -158,6 +160,9 @@ export const useApp = create<AppState>()(
             ...dropRecipes({ ...s, recipes }, orphaned),
           };
         }),
+
+      setTilesPerRow: (n) =>
+        set({ tilesPerRow: n == null ? null : Math.max(1, Math.min(12, Math.round(n))) }),
 
       addFood: (food, startQty = 0) =>
         set((s) => {

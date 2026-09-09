@@ -50,7 +50,8 @@ export function FoodShelves({
   checked?: Record<string, boolean>;
   onTick?: (food: Food) => void;
 }) {
-  const { inventory, setInventory, prices, selectedStoreId, moveFood } = useApp();
+  const { inventory, setInventory, prices, selectedStoreId, moveFood,
+    tilesPerRow, setTilesPerRow } = useApp();
   const [arranging, setArranging] = useState(false);
   const [editingItems, setEditingItems] = useState(false);
   const [zone, setZone] = useState<Location | "all">("all");
@@ -120,6 +121,7 @@ export function FoodShelves({
   return (
     <>
       <div className="mb-4 space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex rounded-xl border border-line bg-surface p-0.5 text-sm sm:w-fit">
           {ZONES.map((z) => (
             <button
@@ -136,6 +138,9 @@ export function FoodShelves({
             </button>
           ))}
         </div>
+
+        <PerRow value={tilesPerRow ?? null} onChange={setTilesPerRow} />
+      </div>
 
         <div className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">
@@ -211,7 +216,7 @@ export function FoodShelves({
               open={isOpen(g.key)}
               onToggle={() => setOpen(isOpen(g.key) ? null : g.key)}
             >
-              <TileGrid>
+              <TileGrid columns={tilesPerRow ?? null}>
                 {g.foods.map((f, idx) => (
                   <FoodTile
                     key={f.id}
@@ -445,5 +450,57 @@ function FoodTile({
       corner={arrows}
       {...asPicker}
     />
+  );
+}
+
+/**
+ * How many foods go on a shelf row.
+ *
+ * Three is a big readable tile you can hit with a wet thumb; six fits a whole
+ * shelf on screen at once. Neither is right for everyone or every screen, so
+ * both are one tap away and the box beside them takes any number — and "Auto"
+ * hands the decision back to the screen, which is where it starts.
+ */
+function PerRow({
+  value, onChange
+}: {
+  value: number | null;
+  onChange: (n: number | null) => void;
+}) {
+  const preset = (n: number | null, label: string) => (
+    <button
+      key={label}
+      onClick={() => onChange(n)}
+      aria-pressed={value === n}
+      className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+        value === n ? "bg-accent text-on-accent" : "text-muted hover:text-ink"
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <label className="flex shrink-0 items-center gap-1 rounded-xl border border-line bg-surface p-0.5 pl-2.5 text-sm">
+      <span className="pr-1 text-xs font-medium text-muted">Per row</span>
+      {preset(null, "Auto")}
+      {preset(3, "3")}
+      {preset(6, "6")}
+      <input
+        type="number"
+        min={1}
+        max={12}
+        value={value ?? ""}
+        placeholder="…"
+        onChange={(e) => {
+          const v = e.target.value.trim();
+          onChange(v === "" ? null : Number(v));
+        }}
+        aria-label="Foods per row"
+        className={`field w-12 rounded-lg px-1.5 py-1 text-center text-xs tabular-nums ${
+          value != null && value !== 3 && value !== 6 ? "ring-1 ring-accent" : ""
+        }`}
+      />
+    </label>
   );
 }

@@ -328,4 +328,12 @@ export interface AppData {
   selectedStoreId: string;
   /** Where 'nearby' is measured from. */
   home: HomeLocation;
+  /**
+   * How many foods sit on a shelf row, on every tab that shows them.
+   *
+   * Absent means the shelves size themselves to the screen, three across on a
+   * phone and six on a desktop. A number pins them there instead — bigger tiles
+   * to read across the kitchen, or more of them at once.
+   */
+  tilesPerRow?: number | null;
 }

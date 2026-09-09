@@ -81,10 +81,27 @@ export function Shelf({
   );
 }
 
-/** The grid tiles are laid out on. */
-export function TileGrid({ children }: { children: React.ReactNode }) {
+/**
+ * A shelf's worth of tiles.
+ *
+ * With no `columns` the grid sizes itself to the screen — three across on a
+ * phone, six on a desktop. A number pins it, which is why it goes in as a
+ * style: the count is the user's, and Tailwind can only name classes it was
+ * compiled with.
+ */
+export function TileGrid({
+  columns, children
+}: {
+  columns?: number | null;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="grid grid-cols-3 gap-x-2 gap-y-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+    <div
+      className={`grid gap-x-2 gap-y-4 ${
+        columns ? "" : "grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6"
+      }`}
+      style={columns ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined}
+    >
       {children}
     </div>
   );
