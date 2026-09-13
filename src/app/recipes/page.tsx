@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Trash2, X, Flame, Menu, ChevronDown, Camera, PenLine, ClipboardList, CalendarPlus } from "lucide-react";
+import { Plus, Trash2, X, Flame, Menu, ChevronDown, Camera, PenLine, ClipboardList, CalendarPlus, Wand2 } from "lucide-react";
 import {
   useApp,
   recipeCaloriesPerServing,
@@ -33,6 +33,7 @@ export default function Cookbook() {
   const [editRecipe, setEditRecipe] = useState<Recipe | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
   const [textOpen, setTextOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [addMenu, setAddMenu] = useState(false);
   const [filterMenu, setFilterMenu] = useState(false);
   const [visible, setVisible] = useState<Set<MealType>>(new Set(MEAL_ORDER));
@@ -110,6 +111,9 @@ export default function Cookbook() {
             <>
               <div className="fixed inset-0 z-30" onClick={() => setAddMenu(false)} />
               <div className="absolute right-0 z-40 mt-2 w-52 rounded-xl border border-line bg-page p-1 shadow-xl">
+                <button onClick={() => { setAddMenu(false); setAiOpen(true); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm text-ink hover:bg-accent-wash">
+                  <Wand2 size={16} className="text-accent-soft" /> Build with AI
+                </button>
                 <button onClick={() => { setAddMenu(false); setScanOpen(true); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm text-ink hover:bg-accent-wash">
                   <Camera size={16} className="text-accent-soft" /> Scan recipe (camera)
                 </button>
@@ -202,6 +206,7 @@ export default function Cookbook() {
       {editRecipe && <AddRecipeModal recipe={editRecipe} onClose={() => setEditRecipe(null)} />}
       {scanOpen && <RecipeScanModal mode="photo" onClose={() => setScanOpen(false)} />}
       {textOpen && <RecipeScanModal mode="text" onClose={() => setTextOpen(false)} />}
+      {aiOpen && <RecipeScanModal mode="ai" onClose={() => setAiOpen(false)} />}
     </div>
   );
 }

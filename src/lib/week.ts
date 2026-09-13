@@ -56,3 +56,17 @@ export const MEAL_LABEL: Record<string, string> = {
   dinner: "Dinner",
   extra: "Extra"
 };
+
+/**
+ * Rough share of a day's calories each meal accounts for, used to size a
+ * meal when nothing more specific is known — an auto-generated plan slot, or
+ * a recipe built by AI for a given meal. "extra" carries none of the day's
+ * budget; the rest sums to 0.9, leaving slack for snacking.
+ */
+export const MEAL_CALORIE_SHARE: Record<string, number> = {
+  breakfast: 0.25,
+  lunch: 0.3,
+  snack: 0.1,
+  dinner: 0.35,
+  extra: 0
+};

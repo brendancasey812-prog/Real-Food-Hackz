@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ReceiptError } from "./receipt";
 import { parseFoodTable, parseQuantity, parseUnitCell, type FoodTable } from "./foodtable";
+import { MEAL_LABEL } from "./week";
 import type { MealType, Unit } from "./types";
 
 const MODEL = "claude-opus-5";
@@ -241,6 +242,72 @@ export async function buildRecipeFromText(apiKey: string, text: string): Promise
   if (resp.stop_reason === "refusal") throw new ReceiptError("That text couldn't be processed into a recipe.");
   const textBlock = resp.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") throw new ReceiptError("Couldn't read a recipe from that text.");
+  return parseRecipe(textBlock.text);
+}
+
+// ---- Build a new recipe from a food request (no source to read) ----
+
+const GENERATE_RULES = `UNITS: every ingredient quantity uses exactly one US unit from this set: each, cup, tbsp, tsp, oz.
+
+NAMES: use plain grocery-shelf names in "food" (e.g. "Chicken breast", "Brown rice", "Broccoli") — no brand names, since nothing has been bought yet.
+
+CALORIES: every ingredient must carry caloriesPerUnit and protein/carbs/fat per unit — these are being invented for a new recipe rather than read off a label, so give your best real-world estimate for that food and unit instead of omitting them.
+
+CATEGORY: classify each ingredient as Protein, Fruit, Veggie, or Pantry (dairy, grains, starches, sauces, oils, spices = Pantry).
+
+BALANCE: unless the request itself names a single-food dish (a smoothie, a salad, a soup), build a real plate — a protein, a carb or starch, and at least one vegetable or fruit — not just the named ingredient on its own.`;
+
+const GENERATE_SYSTEM_PROMPT = `You are a recipe-creation assistant for a meal-planning app. A user names a protein or type of food, a meal, and a per-serving calorie/macro target; invent one complete, realistic recipe that fits.
+
+${GENERATE_RULES}
+
+TARGET: aim the recipe's total calories and macros for one serving within about 10% of the target given. Set "servings" to what was asked for.
+
+Return only this JSON — no other text:
+
+${SCHEMA}`;
+
+export interface RecipeAsk {
+  /** What the user typed — a protein, dish, or type of food. */
+  request: string;
+  meal: MealType;
+  servings: number;
+  targetCalories: number;
+  targetProtein: number;
+  targetCarbs: number;
+  targetFat: number;
+}
+
+/** Invent a recipe from scratch — no photo or text to read, just a request and targets. */
+export async function generateRecipe(apiKey: string, ask: RecipeAsk): Promise<ScannedRecipe> {
+  const prompt = `Build a ${MEAL_LABEL[ask.meal] ?? ask.meal} recipe built around: ${ask.request.trim()}.
+Servings: ${Math.max(1, Math.round(ask.servings))}.
+Target per serving: about ${Math.round(ask.targetCalories)} calories, ${Math.round(ask.targetProtein)}g protein, ${Math.round(ask.targetCarbs)}g carbs, ${Math.round(ask.targetFat)}g fat.
+
+Return the recipe as JSON.`;
+
+  const served = await viaServer(GENERATE_SYSTEM_PROMPT, prompt);
+  if (served) return parseRecipe(served);
+
+  if (!apiKey) throw new ReceiptError("Add your Anthropic API key in Settings to build a recipe with AI.");
+  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+  let resp;
+  try {
+    resp = await client.messages.create({
+      model: MODEL,
+      max_tokens: 4096,
+      system: GENERATE_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: prompt }]
+    });
+  } catch (e) {
+    const err = e as { status?: number; message?: string };
+    if (err.status === 401) throw new ReceiptError("Your Anthropic API key was rejected. Check it in Settings.");
+    if (err.status === 429) throw new ReceiptError("Rate limited by the API. Wait a moment and try again.");
+    throw new ReceiptError(err.message || "Couldn't reach the API. Check your connection and key.");
+  }
+  if (resp.stop_reason === "refusal") throw new ReceiptError("That request couldn't be turned into a recipe. Try describing the food differently.");
+  const textBlock = resp.content.find((b) => b.type === "text");
+  if (!textBlock || textBlock.type !== "text") throw new ReceiptError("Couldn't build a recipe from that. Try again.");
   return parseRecipe(textBlock.text);
 }
 

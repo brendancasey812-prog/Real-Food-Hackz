@@ -1,34 +1,65 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { X, Camera, Upload, Trash2, Sparkles, Check } from "lucide-react";
+import { X, Camera, Upload, Trash2, Sparkles, Check, Wand2 } from "lucide-react";
 import { useApp, newId } from "@/lib/store";
-import { scanRecipe, demoScanRecipe, buildRecipeFromText, parseTextLocally, SERVER_AI, type ScannedRecipe } from "@/lib/recipescan";
+import { scanRecipe, demoScanRecipe, buildRecipeFromText, generateRecipe, parseTextLocally, SERVER_AI, type ScannedRecipe } from "@/lib/recipescan";
 import { normalizeName, mapCategory, ReceiptError } from "@/lib/receipt";
 import { convertUnits } from "@/lib/foodtable";
 import { UNITS, fmtQty } from "@/lib/units";
-import { MEAL_ORDER, MEAL_LABEL } from "@/lib/week";
+import { MEAL_ORDER, MEAL_LABEL, MEAL_CALORIE_SHARE } from "@/lib/week";
+import { householdSize } from "@/lib/household";
 import { useApiKey, readImageFile } from "@/lib/apikey";
 import { ApiKeyBox, ScanLoading, ScanError } from "./ScanSteps";
 import type { Food, MealType, Unit } from "@/lib/types";
 
 type Step = "upload" | "loading" | "review" | "done" | "error";
+type Mode = "photo" | "text" | "ai";
 const CATS = ["Protein", "Fruit", "Veggie", "Pantry"] as const;
+const AI_MEALS: MealType[] = ["breakfast", "lunch", "snack", "dinner"];
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => void; mode?: "photo" | "text" }) {
-  const { foods, addRecipe, updateFood } = useApp();
+export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => void; mode?: Mode }) {
+  const { foods, addRecipe, updateFood, goals, householdMode, members } = useApp();
   const [step, setStep] = useState<Step>("upload");
   const [error, setError] = useState("");
   const [recipe, setRecipe] = useState<ScannedRecipe | null>(null);
   const [apiKey, setApiKey] = useApiKey();
   const [text, setText] = useState("");
   const [notice, setNotice] = useState("");
+  const [aiRequest, setAiRequest] = useState("");
+  const [aiMeal, setAiMeal] = useState<MealType>("dinner");
+  const [aiServings, setAiServings] = useState(() => householdSize({ householdMode, members }));
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   // The server proxy handles AI when this build has one; otherwise we need the
-  // user's own key, and failing that we fall back to the local parser.
+  // user's own key, and failing that we fall back to the local parser (text
+  // mode only — there's nothing to fall back to when generating from scratch).
   const aiAvailable = SERVER_AI || apiKey.trim() !== "";
+
+  // What one serving should come to, from the user's own daily goal and this
+  // meal's rough share of the day — the same split the meal-plan generator uses.
+  const aiTarget = {
+    calories: goals.dailyCalorieTarget * (MEAL_CALORIE_SHARE[aiMeal] ?? 0.3),
+    protein: goals.proteinTarget * (MEAL_CALORIE_SHARE[aiMeal] ?? 0.3),
+    carbs: goals.carbsTarget * (MEAL_CALORIE_SHARE[aiMeal] ?? 0.3),
+    fat: goals.fatTarget * (MEAL_CALORIE_SHARE[aiMeal] ?? 0.3),
+  };
+
+  const generate = () => {
+    if (!aiRequest.trim()) return;
+    run(
+      generateRecipe(apiKey.trim(), {
+        request: aiRequest,
+        meal: aiMeal,
+        servings: aiServings,
+        targetCalories: aiTarget.calories,
+        targetProtein: aiTarget.protein,
+        targetCarbs: aiTarget.carbs,
+        targetFat: aiTarget.fat,
+      }),
+    );
+  };
 
   const buildFromText = () => {
     if (!text.trim()) { setError("Paste a recipe, ingredient list, or food table first."); setStep("error"); return; }
@@ -119,7 +150,10 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-4">
       <div className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-line bg-page md:rounded-2xl">
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
-          <h2 className="flex items-center gap-2 font-semibold"><Sparkles size={18} className="text-accent-soft" /> {mode === "text" ? "Paste a recipe" : "Scan recipe"}</h2>
+          <h2 className="flex items-center gap-2 font-semibold">
+            <Sparkles size={18} className="text-accent-soft" />
+            {mode === "text" ? "Paste a recipe" : mode === "ai" ? "Build a recipe with AI" : "Scan recipe"}
+          </h2>
           <button onClick={onClose} className="text-muted hover:text-ink"><X size={20} /></button>
         </div>
 
@@ -139,6 +173,42 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
                   <button onClick={buildFromText} className="w-full rounded-xl bg-gradient-to-b from-accent to-accent-deep py-2.5 text-sm font-medium text-on-accent shadow-lg hover:brightness-110">
                     Build recipe {aiAvailable ? "with Claude" : "(basic, no key)"}
                   </button>
+                </>
+              ) : mode === "ai" ? (
+                <>
+                  <p className="text-sm text-muted">Name a protein or type of food and Claude builds a complete recipe around it — a real plate, sized to your own calorie goal for the meal you pick.</p>
+                  <input
+                    autoFocus
+                    value={aiRequest}
+                    onChange={(e) => setAiRequest(e.target.value)}
+                    placeholder="chicken, salmon tacos, tofu stir fry…"
+                    className="w-full rounded-xl field px-3 py-2.5 text-sm"
+                  />
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    <label className="flex items-center gap-2"><span className="text-muted">Meal</span>
+                      <select value={aiMeal} onChange={(e) => setAiMeal(e.target.value as MealType)} className="rounded-lg field px-2 py-1.5">
+                        {AI_MEALS.map((m) => <option key={m} value={m}>{MEAL_LABEL[m]}</option>)}
+                      </select>
+                    </label>
+                    <label className="flex items-center gap-2"><span className="text-muted">Servings</span>
+                      <input type="number" min={1} value={aiServings} onChange={(e) => setAiServings(Math.max(1, Number(e.target.value) || 1))} className="w-16 rounded-lg field px-2 py-1.5" />
+                    </label>
+                  </div>
+                  <p className="text-xs text-muted">
+                    Target for one serving: ~{Math.round(aiTarget.calories)} cal · {Math.round(aiTarget.protein)}g protein ·{" "}
+                    {Math.round(aiTarget.carbs)}g carbs · {Math.round(aiTarget.fat)}g fat — {MEAL_LABEL[aiMeal].toLowerCase()}&apos;s share of your daily goal.
+                  </p>
+                  <button
+                    onClick={generate}
+                    disabled={!aiRequest.trim() || !aiAvailable}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-accent to-accent-deep py-2.5 text-sm font-medium text-on-accent shadow-lg hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Wand2 size={16} /> Build recipe with Claude
+                  </button>
+                  {!aiAvailable && (
+                    <p className="text-xs text-muted">Add your Anthropic API key below to generate a real recipe — or try a sample.</p>
+                  )}
+                  <button onClick={() => run(demoScanRecipe())} className="w-full rounded-xl border border-dashed border-line-2 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-3">Try a sample recipe (no key needed)</button>
                 </>
               ) : (
                 <>
@@ -163,7 +233,7 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
             </div>
           )}
 
-          {step === "loading" && <ScanLoading text="Reading your recipe…" />}
+          {step === "loading" && <ScanLoading text={mode === "ai" ? "Building your recipe…" : "Reading your recipe…"} />}
 
           {step === "error" && <ScanError message={error} onRetry={() => setStep("upload")} />}
 
