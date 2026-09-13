@@ -56,7 +56,7 @@ export function FoodShelves({
   const [editingItems, setEditingItems] = useState(false);
   const [zone, setZone] = useState<Location | "all">("all");
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState<FoodCategory | null>(null);
+  const [open, setOpen] = useState<Set<FoodCategory>>(new Set());
   const [detail, setDetail] = useState<Food | null>(null);
   // Cooking out of the shelves: tap foods, then turn them into a recipe.
   const [picking, setPicking] = useState(false);
@@ -99,9 +99,17 @@ export function FoodShelves({
     })).filter((g) => g.foods.length > 0);
   }, [foods, zone, q]);
 
-  // Shelves start shut, the way a kitchen does — you open the one you want.
-  // A search opens everything, so no match can hide behind a closed door.
-  const isOpen = (key: FoodCategory) => (q ? true : open === key);
+  // Shelves start shut, the way a kitchen does — you open the ones you want,
+  // and more than one at a time, since comparing two shelves means having
+  // both open together. A search opens everything, so no match can hide
+  // behind a closed door.
+  const isOpen = (key: FoodCategory) => (q ? true : open.has(key));
+  const toggleOpen = (key: FoodCategory) =>
+    setOpen((s) => {
+      const n = new Set(s);
+      if (n.has(key)) n.delete(key); else n.add(key);
+      return n;
+    });
 
   /** What the shelf header says it holds, in this tab's terms. */
   const summarise = (list: Food[]) => {
@@ -126,7 +134,7 @@ export function FoodShelves({
           {ZONES.map((z) => (
             <button
               key={z.key}
-              onClick={() => { setZone(z.key); setOpen(null); }}
+              onClick={() => { setZone(z.key); setOpen(new Set()); }}
               aria-pressed={zone === z.key}
               className={`flex-1 rounded-lg px-3 py-1.5 font-medium transition-colors sm:flex-none ${
                 zone === z.key
@@ -214,7 +222,7 @@ export function FoodShelves({
               title={g.label}
               subtitle={summarise(g.foods)}
               open={isOpen(g.key)}
-              onToggle={() => setOpen(isOpen(g.key) ? null : g.key)}
+              onToggle={() => toggleOpen(g.key)}
             >
               <TileGrid columns={tilesPerRow ?? null}>
                 {g.foods.map((f, idx) => (
