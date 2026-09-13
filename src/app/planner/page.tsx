@@ -15,7 +15,7 @@ import {
   getHours,
   getMinutes
 } from "date-fns";
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, CalendarDays, Search, CalendarPlus, UtensilsCrossed, Eraser, Share } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, X, CalendarDays, Search, CalendarPlus, UtensilsCrossed, Eraser, Share, Wand2 } from "lucide-react";
 import { useApp, recipeTotalsPerServing, recipeCaloriesPerServing, newId } from "@/lib/store";
 import { recipeCostPerServing } from "@/lib/cost";
 import { weekDays, isoOf, monthGrid, MEAL_ORDER, MEAL_LABEL } from "@/lib/week";
@@ -24,6 +24,7 @@ import {
   START_HOUR, END_HOUR, HOUR_PX, formatHour, clockLabel
 } from "@/lib/mealtime";
 import { MealDetailModal } from "@/components/MealDetailModal";
+import { CreateMealPlanModal } from "@/components/CreateMealPlanModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ClearMealsSheet } from "@/components/ClearMealsSheet";
 import { SearchFilterBar } from "@/components/SearchFilterBar";
@@ -56,6 +57,7 @@ export default function Planner() {
   const [search, setSearch] = useState("");
   const [mealFilter, setMealFilter] = useState("all");
   const [exporting, setExporting] = useState(false);
+  const [creatingPlan, setCreatingPlan] = useState(false);
   const q = search.trim().toLowerCase();
 
   const shift = (dir: number) => {
@@ -138,6 +140,13 @@ export default function Planner() {
           </span>
           <h1 className="text-xl font-semibold tracking-tight md:text-2xl">Meal Plan</h1>
         </div>
+
+        <button
+          onClick={() => setCreatingPlan(true)}
+          className="flex items-center gap-1.5 rounded-lg bg-gradient-to-b from-accent to-accent-deep px-3.5 py-1.5 text-sm font-medium text-on-accent shadow hover:brightness-110"
+        >
+          <Wand2 size={15} /> Create Meal Plan
+        </button>
 
         <button
           onClick={() => setAnchor(new Date())}
@@ -241,6 +250,8 @@ export default function Planner() {
       )}
 
       {openMealId && <MealDetailModal mealId={openMealId} onClose={() => setOpenMealId(null)} />}
+
+      {creatingPlan && <CreateMealPlanModal anchor={anchor} onClose={() => setCreatingPlan(false)} />}
 
       {exporting && (
         <ExportSheet
