@@ -1,18 +1,18 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { X, Camera, Upload, Loader2, Trash2, Sparkles, KeyRound, AlertCircle, Check } from "lucide-react";
+import { X, Camera, Upload, Trash2, Sparkles, Check } from "lucide-react";
 import { useApp, newId } from "@/lib/store";
 import { scanRecipe, demoScanRecipe, buildRecipeFromText, parseTextLocally, SERVER_AI, type ScannedRecipe } from "@/lib/recipescan";
 import { normalizeName, mapCategory, ReceiptError } from "@/lib/receipt";
 import { convertUnits } from "@/lib/foodtable";
 import { UNITS, fmtQty } from "@/lib/units";
 import { MEAL_ORDER, MEAL_LABEL } from "@/lib/week";
+import { useApiKey, readImageFile } from "@/lib/apikey";
+import { ApiKeyBox, ScanLoading, ScanError } from "./ScanSteps";
 import type { Food, MealType, Unit } from "@/lib/types";
 
 type Step = "upload" | "loading" | "review" | "done" | "error";
-const KEY_STORE = "anthropic_api_key";
-const OK_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
 const CATS = ["Protein", "Fruit", "Veggie", "Pantry"] as const;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -21,8 +21,7 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
   const [step, setStep] = useState<Step>("upload");
   const [error, setError] = useState("");
   const [recipe, setRecipe] = useState<ScannedRecipe | null>(null);
-  const [apiKey, setApiKey] = useState(() => (typeof window !== "undefined" ? localStorage.getItem(KEY_STORE) ?? "" : ""));
-  const [showKey, setShowKey] = useState(false);
+  const [apiKey, setApiKey] = useApiKey();
   const [text, setText] = useState("");
   const [notice, setNotice] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -47,8 +46,6 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
     );
   };
 
-  const saveKey = (k: string) => { setApiKey(k); if (typeof window !== "undefined") localStorage.setItem(KEY_STORE, k.trim()); };
-
   const run = async (p: Promise<ScannedRecipe>) => {
     setStep("loading");
     try { setRecipe(await p); setStep("review"); }
@@ -57,12 +54,14 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
 
   const onFile = (file: File | undefined) => {
     if (!file) return;
-    if (!OK_TYPES.includes(file.type as (typeof OK_TYPES)[number])) { setError("Use a JPG, PNG, or WebP photo."); setStep("error"); return; }
-    if (!aiAvailable) { setError("Add your Anthropic API key in Settings to scan a photo — or tap “Try a sample”."); setStep("error"); return; }
-    const reader = new FileReader();
-    reader.onload = () => run(scanRecipe(apiKey.trim(), String(reader.result).split(",")[1] ?? "", file.type as (typeof OK_TYPES)[number]));
-    reader.onerror = () => { setError("Couldn't read that file."); setStep("error"); };
-    reader.readAsDataURL(file);
+    readImageFile(
+      file,
+      (base64, type) => {
+        if (!aiAvailable) { setError("Add your Anthropic API key in Settings to scan a photo — or tap “Try a sample”."); setStep("error"); return; }
+        run(scanRecipe(apiKey.trim(), base64, type));
+      },
+      (message) => { setError(message); setStep("error"); },
+    );
   };
 
   const patch = (p: Partial<ScannedRecipe>) => setRecipe((r) => (r ? { ...r, ...p } : r));
@@ -156,31 +155,17 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
                   <button onClick={() => run(demoScanRecipe())} className="w-full rounded-xl border border-dashed border-line-2 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-3">Try a sample recipe (no key needed)</button>
                 </>
               )}
-              <div className="rounded-xl border border-line bg-surface p-3">
-                <button onClick={() => setShowKey((v) => !v)} className="flex w-full items-center gap-2 text-sm font-medium text-ink-2">
-                  <KeyRound size={15} className="text-muted" /> Anthropic API key {apiKey ? <span className="text-xs text-accent-soft">· set</span> : <span className="text-xs text-muted">· not set</span>}
-                </button>
-                {showKey && (
-                  <div className="mt-2 space-y-2">
-                    <input type="password" value={apiKey} onChange={(e) => saveKey(e.target.value)} placeholder="sk-ant-..." className="w-full rounded-lg field px-3 py-2 text-sm" />
-                    <p className="text-[11px] leading-4 text-muted">Stored only in this browser, sent straight to Anthropic. Real scanning is paid per use.</p>
-                  </div>
-                )}
-              </div>
+              <ApiKeyBox
+                apiKey={apiKey}
+                onChange={setApiKey}
+                note="Stored only in this browser, sent straight to Anthropic. Real scanning is paid per use."
+              />
             </div>
           )}
 
-          {step === "loading" && (
-            <div className="flex flex-col items-center justify-center gap-3 py-20 text-sm text-muted"><Loader2 size={30} className="animate-spin text-accent-soft" /> Reading your recipe…</div>
-          )}
+          {step === "loading" && <ScanLoading text="Reading your recipe…" />}
 
-          {step === "error" && (
-            <div className="flex flex-col items-center gap-4 py-12 text-center">
-              <AlertCircle size={34} className="text-danger-soft" />
-              <p className="max-w-sm text-sm text-ink-2">{error}</p>
-              <button onClick={() => setStep("upload")} className="rounded-xl bg-gradient-to-b from-accent to-accent-deep px-5 py-2.5 text-sm font-medium text-on-accent shadow-lg hover:brightness-110">Try again</button>
-            </div>
-          )}
+          {step === "error" && <ScanError message={error} onRetry={() => setStep("upload")} />}
 
           {step === "review" && recipe && (
             <div className="space-y-4">

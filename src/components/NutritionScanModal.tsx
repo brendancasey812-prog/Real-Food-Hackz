@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import {
-  X, Camera, Upload, Loader2, Sparkles, KeyRound, AlertCircle, Check, Search
+  X, Camera, Upload, Sparkles, Check, Search
 } from "lucide-react";
 import { useApp, newId } from "@/lib/store";
 import { ReceiptError } from "@/lib/receipt";
@@ -12,11 +12,11 @@ import {
 } from "@/lib/nutritionscan";
 import { UNITS, unitLabel, fmtQty } from "@/lib/units";
 import { FOOD_CATEGORIES } from "@/lib/foodcat";
+import { useApiKey, readImageFile } from "@/lib/apikey";
+import { ApiKeyBox, ScanLoading, ScanError } from "./ScanSteps";
 import type { Food, FoodCategory, Location, Unit } from "@/lib/types";
 
 type Step = "upload" | "loading" | "review" | "done" | "error";
-const KEY_STORE = "anthropic_api_key";
-const OK_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
 
 /**
  * Photograph a Nutrition Facts panel and put its macros on a food.
@@ -32,10 +32,7 @@ export function NutritionScanModal({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState<Step>("upload");
   const [error, setError] = useState("");
   const [scan, setScan] = useState<ScannedNutrition | null>(null);
-  const [apiKey, setApiKey] = useState(() =>
-    typeof window !== "undefined" ? localStorage.getItem(KEY_STORE) ?? "" : "",
-  );
-  const [showKey, setShowKey] = useState(false);
+  const [apiKey, setApiKey] = useApiKey();
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   // Where the numbers land: an existing food, or a new one.
@@ -59,11 +56,6 @@ export function NutritionScanModal({ onClose }: { onClose: () => void }) {
       .sort((a, b) => a.name.localeCompare(b.name))
       .slice(0, 40);
   }, [foods, query]);
-
-  const saveKey = (k: string) => {
-    setApiKey(k);
-    if (typeof window !== "undefined") localStorage.setItem(KEY_STORE, k.trim());
-  };
 
   /** Once a label is read, guess the target food and the serving basis. */
   const settle = (s: ScannedNutrition, forUnit: Unit, id: string) => {
@@ -94,18 +86,11 @@ export function NutritionScanModal({ onClose }: { onClose: () => void }) {
 
   const onFile = (file: File | undefined) => {
     if (!file) return;
-    if (!OK_TYPES.includes(file.type as (typeof OK_TYPES)[number])) {
-      setError("That image type isn't supported. Please use a JPG, PNG, or WebP photo.");
-      setStep("error");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = String(reader.result).split(",")[1] ?? "";
-      run(scanNutritionLabel(apiKey.trim(), base64, file.type as (typeof OK_TYPES)[number]));
-    };
-    reader.onerror = () => { setError("Couldn't read that file. Try another photo."); setStep("error"); };
-    reader.readAsDataURL(file);
+    readImageFile(
+      file,
+      (base64, type) => run(scanNutritionLabel(apiKey.trim(), base64, type)),
+      (message) => { setError(message); setStep("error"); },
+    );
   };
 
   // Retarget: switching food changes the unit, so the basis is recomputed.
@@ -206,51 +191,18 @@ export function NutritionScanModal({ onClose }: { onClose: () => void }) {
                 Try a sample label (no key needed)
               </button>
 
-              <div className="rounded-xl border border-line bg-surface p-4">
-                <button
-                  onClick={() => setShowKey((v) => !v)}
-                  className="flex w-full items-center gap-2 text-left text-sm font-medium"
-                >
-                  <KeyRound size={15} className="text-muted" />
-                  Anthropic API key{" "}
-                  {apiKey
-                    ? <span className="text-xs text-accent-soft">· set</span>
-                    : <span className="text-xs text-muted">· not set</span>}
-                </button>
-                {showKey && (
-                  <>
-                    <input
-                      type="password"
-                      value={apiKey}
-                      onChange={(e) => saveKey(e.target.value)}
-                      placeholder="sk-ant-…"
-                      className="field mt-3 w-full rounded-lg px-3 py-2 text-sm"
-                    />
-                    <p className="mt-2 text-[11px] leading-4 text-muted">
-                      Stored only in this browser and sent straight to Anthropic. The sample above
-                      needs no key.
-                    </p>
-                  </>
-                )}
-              </div>
+              <ApiKeyBox
+                apiKey={apiKey}
+                onChange={setApiKey}
+                note="Stored only in this browser and sent straight to Anthropic. The sample above needs no key."
+              />
             </div>
           )}
 
-          {step === "loading" && (
-            <div className="flex flex-col items-center gap-3 py-16 text-sm text-muted">
-              <Loader2 size={30} className="animate-spin text-accent-soft" />
-              Reading the label…
-            </div>
-          )}
+          {step === "loading" && <ScanLoading text="Reading the label…" />}
 
           {step === "error" && (
-            <div className="flex flex-col items-center gap-3 py-12 text-center">
-              <AlertCircle size={34} className="text-danger-soft" />
-              <p className="max-w-sm text-sm text-ink-2">{error}</p>
-              <button onClick={() => { setError(""); setStep("upload"); }} className="btn-accent mt-2 rounded-xl px-5 py-2.5 text-sm">
-                Try again
-              </button>
-            </div>
+            <ScanError message={error} onRetry={() => { setError(""); setStep("upload"); }} />
           )}
 
           {step === "review" && scan && (

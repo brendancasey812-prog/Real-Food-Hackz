@@ -1,15 +1,15 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { X, Camera, Upload, Loader2, Trash2, Sparkles, KeyRound, AlertCircle, Check } from "lucide-react";
+import { X, Camera, Upload, Trash2, Sparkles, Check } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { scanReceipt, demoScan, ReceiptError } from "@/lib/receipt";
+import { useApiKey, readImageFile } from "@/lib/apikey";
+import { ApiKeyBox, ScanLoading, ScanError } from "./ScanSteps";
 import type { ScannedItem, ScanResult } from "@/lib/types";
 
 type Step = "upload" | "loading" | "review" | "done" | "error";
 const CATS: ScannedItem["category"][] = ["Protein", "Fruit", "Veggie", "Pantry"];
-const KEY_STORE = "anthropic_api_key";
-const OK_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
 
 export function ScanReceiptModal({ onClose }: { onClose: () => void }) {
   const commitScan = useApp((s) => s.commitScan);
@@ -18,14 +18,8 @@ export function ScanReceiptModal({ onClose }: { onClose: () => void }) {
   const [items, setItems] = useState<ScannedItem[]>([]);
   const [excluded, setExcluded] = useState<ScanResult["excluded_items"]>([]);
   const [summary, setSummary] = useState({ merged: 0, added: 0, skipped: 0 });
-  const [apiKey, setApiKey] = useState(() => (typeof window !== "undefined" ? localStorage.getItem(KEY_STORE) ?? "" : ""));
-  const [showKey, setShowKey] = useState(false);
+  const [apiKey, setApiKey] = useApiKey();
   const fileRef = useRef<HTMLInputElement | null>(null);
-
-  const saveKey = (k: string) => {
-    setApiKey(k);
-    if (typeof window !== "undefined") localStorage.setItem(KEY_STORE, k.trim());
-  };
 
   const runScan = async (result: Promise<ScanResult>) => {
     setStep("loading");
@@ -42,24 +36,18 @@ export function ScanReceiptModal({ onClose }: { onClose: () => void }) {
 
   const onFile = (file: File | undefined) => {
     if (!file) return;
-    if (!OK_TYPES.includes(file.type as (typeof OK_TYPES)[number])) {
-      setError("That image type isn't supported. Please use a JPG, PNG, or WebP photo.");
-      setStep("error");
-      return;
-    }
-    if (!apiKey.trim()) {
-      setError("Add your Anthropic API key in Settings to scan a real photo — or tap “Try a sample” to see how it works.");
-      setStep("error");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result);
-      const base64 = dataUrl.split(",")[1] ?? "";
-      runScan(scanReceipt(apiKey.trim(), base64, file.type as (typeof OK_TYPES)[number]));
-    };
-    reader.onerror = () => { setError("Couldn't read that file. Try another photo."); setStep("error"); };
-    reader.readAsDataURL(file);
+    readImageFile(
+      file,
+      (base64, type) => {
+        if (!apiKey.trim()) {
+          setError("Add your Anthropic API key in Settings to scan a real photo — or tap “Try a sample” to see how it works.");
+          setStep("error");
+          return;
+        }
+        runScan(scanReceipt(apiKey.trim(), base64, type));
+      },
+      (message) => { setError(message); setStep("error"); },
+    );
   };
 
   const updateItem = (i: number, patch: Partial<ScannedItem>) =>
@@ -113,46 +101,17 @@ export function ScanReceiptModal({ onClose }: { onClose: () => void }) {
                 Try a sample receipt (no key needed)
               </button>
 
-              {/* API key settings */}
-              <div className="rounded-xl border border-line bg-surface p-3">
-                <button onClick={() => setShowKey((v) => !v)} className="flex w-full items-center gap-2 text-sm font-medium text-ink-2">
-                  <KeyRound size={15} className="text-muted" />
-                  Anthropic API key {apiKey ? <span className="text-xs text-accent-soft">· set</span> : <span className="text-xs text-muted">· not set</span>}
-                </button>
-                {showKey && (
-                  <div className="mt-2 space-y-2">
-                    <input
-                      type="password"
-                      value={apiKey}
-                      onChange={(e) => saveKey(e.target.value)}
-                      placeholder="sk-ant-..."
-                      className="w-full rounded-lg field px-3 py-2 text-sm"
-                    />
-                    <p className="text-[11px] leading-4 text-muted">
-                      Stored only in this browser and sent straight to Anthropic. Get one at console.anthropic.com. Real scanning uses the API (paid per use).
-                    </p>
-                  </div>
-                )}
-              </div>
+              <ApiKeyBox
+                apiKey={apiKey}
+                onChange={setApiKey}
+                note="Stored only in this browser and sent straight to Anthropic. Get one at console.anthropic.com. Real scanning uses the API (paid per use)."
+              />
             </div>
           )}
 
-          {step === "loading" && (
-            <div className="flex flex-col items-center justify-center gap-3 py-20 text-sm text-muted">
-              <Loader2 size={30} className="animate-spin text-accent-soft" />
-              Reading your receipt…
-            </div>
-          )}
+          {step === "loading" && <ScanLoading text="Reading your receipt…" />}
 
-          {step === "error" && (
-            <div className="flex flex-col items-center gap-4 py-12 text-center">
-              <AlertCircle size={34} className="text-danger-soft" />
-              <p className="max-w-sm text-sm text-ink-2">{error}</p>
-              <button onClick={() => setStep("upload")} className="rounded-xl bg-gradient-to-b from-accent to-accent-deep px-5 py-2.5 text-sm font-medium text-on-accent shadow-lg hover:brightness-110">
-                Try again
-              </button>
-            </div>
-          )}
+          {step === "error" && <ScanError message={error} onRetry={() => setStep("upload")} />}
 
           {step === "review" && (
             <div className="space-y-4">
