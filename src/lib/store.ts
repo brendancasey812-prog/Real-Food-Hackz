@@ -9,6 +9,7 @@ import type {
   Member,
   Food,
   Macros,
+  MealCardStyle,
   PlannedMeal,
   PriceQuote,
   Recipe,
@@ -61,6 +62,8 @@ interface AppState extends AppData {
   moveFood: (foodId: string, delta: -1 | 1) => void;
   /** How many foods per shelf row; null lets the screen decide. */
   setTilesPerRow: (n: number | null) => void;
+  /** How Meal Plan V2 draws each card: photo, text, or emoji. */
+  setMealCardStyle: (style: MealCardStyle) => void;
   addRecipe: (recipe: Recipe, newFoods?: Food[]) => void;
   updateRecipe: (recipe: Recipe) => void;
   removeRecipe: (id: string) => void;
@@ -163,6 +166,8 @@ export const useApp = create<AppState>()(
 
       setTilesPerRow: (n) =>
         set({ tilesPerRow: n == null ? null : Math.max(1, Math.min(12, Math.round(n))) }),
+
+      setMealCardStyle: (style) => set({ mealCardStyle: style }),
 
       addFood: (food, startQty = 0) =>
         set((s) => {
