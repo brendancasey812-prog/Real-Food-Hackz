@@ -186,7 +186,12 @@ export function AppTile({
   );
 }
 
-/** A small round tick pinned to a tile's corner. */
+/**
+ * A round tick pinned to a tile's corner — the one-tap way to zero out a
+ * grocery item (mark it bought, clearing its shortfall). Sized well past the
+ * old 24px dot, which was easy to miss and easy to fat-finger past, onto the
+ * tile face underneath instead.
+ */
 export function TileTick({
   on, label, onClick
 }: {
@@ -199,11 +204,11 @@ export function TileTick({
       onClick={onClick}
       aria-label={label}
       aria-pressed={on}
-      className={`flex h-6 w-6 items-center justify-center rounded-full border-2 shadow-sm transition-colors ${
+      className={`flex h-8 w-8 items-center justify-center rounded-full border-2 shadow-sm transition-colors active:scale-90 ${
         on ? "border-accent bg-accent text-on-accent" : "border-line-2 bg-page hover:border-accent"
       }`}
     >
-      {on && <Check size={13} strokeWidth={3} />}
+      {on && <Check size={16} strokeWidth={3} />}
     </button>
   );
 }

@@ -1,4 +1,4 @@
-import type { Food, FoodCategory } from "./types";
+import type { Food, FoodCategory, Recipe } from "./types";
 
 /** Display order + label for food categories (used to group the Kitchen). */
 export const FOOD_CATEGORIES: { key: FoodCategory; label: string }[] = [
@@ -18,6 +18,46 @@ export const FOOD_CATEGORIES: { key: FoodCategory; label: string }[] = [
 export const FOOD_CATEGORY_LABEL: Record<FoodCategory, string> = Object.fromEntries(
   FOOD_CATEGORIES.map((c) => [c.key, c.label]),
 ) as Record<FoodCategory, string>;
+
+/** One representative emoji per food category, for the Meal Plan V2 emoji view. */
+export const FOOD_CATEGORY_EMOJI: Record<FoodCategory, string> = {
+  protein: "🍗",
+  dairy: "🧀",
+  vegetable: "🥦",
+  fruit: "🍎",
+  grain: "🌾",
+  starch: "🥔",
+  legume: "🫘",
+  nut: "🥜",
+  fat: "🧈",
+  condiment: "🧂",
+  spice: "🌿",
+};
+
+/** A dish with no clear dominant ingredient — an empty recipe, say. */
+const DEFAULT_RECIPE_EMOJI = "🍽️";
+
+/**
+ * A recipe's emoji, standing in for a photo when Meal Plan V2 is in its
+ * emoji view: whichever food category contributes the most calories to one
+ * serving (sub-recipes aren't unpacked for this — a good-enough sketch of
+ * the dish, not a precise ingredient audit).
+ */
+export function recipeEmoji(recipe: Recipe, foods: Food[]): string {
+  const byCategory = new Map<FoodCategory, number>();
+  for (const ing of recipe.ingredients) {
+    const food = foods.find((f) => f.id === ing.foodId);
+    if (!food) continue;
+    const cal = food.caloriesPerUnit * ing.quantity;
+    byCategory.set(food.category, (byCategory.get(food.category) ?? 0) + cal);
+  }
+  let best: FoodCategory | null = null;
+  let bestCal = -1;
+  for (const [category, cal] of byCategory) {
+    if (cal > bestCal) { bestCal = cal; best = category; }
+  }
+  return best ? FOOD_CATEGORY_EMOJI[best] : DEFAULT_RECIPE_EMOJI;
+}
 
 /**
  * The order foods appear in.

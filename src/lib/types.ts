@@ -7,6 +7,9 @@ export type Unit = "each" | "cup" | "tbsp" | "tsp" | "oz";
 
 export type MealType = "breakfast" | "lunch" | "snack" | "dinner" | "extra";
 
+/** How Meal Plan V2 draws a meal card. */
+export type MealCardStyle = "photo" | "text" | "emoji";
+
 /** Groups foods within a fridge/pantry section (protein, vegetables, legumes, …). */
 export type FoodCategory =
   | "protein"
@@ -336,4 +339,10 @@ export interface AppData {
    * to read across the kitchen, or more of them at once.
    */
   tilesPerRow?: number | null;
+  /**
+   * How Meal Plan V2 draws each meal card: a large photo, plain text, or a
+   * category emoji. Absent means "photo" — the tab's default, most visual
+   * look.
+   */
+  mealCardStyle?: MealCardStyle;
 }

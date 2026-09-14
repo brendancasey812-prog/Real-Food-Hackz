@@ -25,6 +25,7 @@ import {
 } from "@/lib/mealtime";
 import { MealDetailModal } from "@/components/MealDetailModal";
 import { CreateMealPlanModal } from "@/components/CreateMealPlanModal";
+import { PlannerV2 } from "@/components/PlannerV2";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ClearMealsSheet } from "@/components/ClearMealsSheet";
 import { SearchFilterBar } from "@/components/SearchFilterBar";
@@ -58,6 +59,7 @@ export default function Planner() {
   const [mealFilter, setMealFilter] = useState("all");
   const [exporting, setExporting] = useState(false);
   const [creatingPlan, setCreatingPlan] = useState(false);
+  const [tab, setTab] = useState<"classic" | "v2">("classic");
   const q = search.trim().toLowerCase();
 
   const shift = (dir: number) => {
@@ -148,40 +150,44 @@ export default function Planner() {
           <Wand2 size={15} /> Create Meal Plan
         </button>
 
-        <button
-          onClick={() => setAnchor(new Date())}
-          className="rounded-lg border border-line bg-surface px-3.5 py-1.5 text-sm font-medium hover:bg-surface-3"
-        >
-          Today
-        </button>
-
-        <div className="flex items-center gap-0.5">
-          <button onClick={() => shift(-1)} aria-label="Previous" className="flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-surface-3 hover:text-ink">
-            <ChevronLeft size={20} />
-          </button>
-          <button onClick={() => shift(1)} aria-label="Next" className="flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-surface-3 hover:text-ink">
-            <ChevronRight size={20} />
-          </button>
-        </div>
-
-        <h2 className="min-w-0 flex-1 truncate text-base font-medium text-ink md:text-lg">{title}</h2>
-
-        {/* View switcher (top right) — works on phone & web */}
-        <div className="ml-auto flex shrink-0 rounded-lg border border-line bg-surface p-0.5 text-xs md:text-sm">
-          {VIEWS.map((v) => (
+        {tab === "classic" && (
+          <>
             <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`rounded-md px-2.5 py-1.5 font-medium capitalize transition-colors md:px-3.5 ${
-                view === v
-                  ? "bg-gradient-to-b from-accent to-accent-deep text-on-accent shadow"
-                  : "text-muted hover:text-ink"
-              }`}
+              onClick={() => setAnchor(new Date())}
+              className="rounded-lg border border-line bg-surface px-3.5 py-1.5 text-sm font-medium hover:bg-surface-3"
             >
-              {v}
+              Today
             </button>
-          ))}
-        </div>
+
+            <div className="flex items-center gap-0.5">
+              <button onClick={() => shift(-1)} aria-label="Previous" className="flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-surface-3 hover:text-ink">
+                <ChevronLeft size={20} />
+              </button>
+              <button onClick={() => shift(1)} aria-label="Next" className="flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-surface-3 hover:text-ink">
+                <ChevronRight size={20} />
+              </button>
+            </div>
+
+            <h2 className="min-w-0 flex-1 truncate text-base font-medium text-ink md:text-lg">{title}</h2>
+
+            {/* View switcher (top right) — works on phone & web */}
+            <div className="ml-auto flex shrink-0 rounded-lg border border-line bg-surface p-0.5 text-xs md:text-sm">
+              {VIEWS.map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`rounded-md px-2.5 py-1.5 font-medium capitalize transition-colors md:px-3.5 ${
+                    view === v
+                      ? "bg-gradient-to-b from-accent to-accent-deep text-on-accent shadow"
+                      : "text-muted hover:text-ink"
+                  }`}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* Take the week with you: text, spreadsheet, or real calendar events */}
         <button
@@ -206,23 +212,44 @@ export default function Planner() {
         <SettingsButton className="hidden md:flex" />
       </header>
 
-      <SearchFilterBar
-        query={search}
-        onQuery={setSearch}
-        placeholder="Search meals & events…"
-        value={mealFilter}
-        onValue={setMealFilter}
-        options={[
-          { value: "all", label: "All items" },
-          ...MEAL_ORDER.map((m) => ({ value: m, label: MEAL_LABEL[m] })),
-          { value: "event", label: "Events" },
-        ]}
-      />
+      {/* Meal Plan / Meal Plan V2 */}
+      <div className="mb-4 flex w-fit rounded-xl border border-line bg-surface p-0.5 text-sm">
+        {([["classic", "Meal Plan"], ["v2", "Meal Plan V2"]] as const).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setTab(k)}
+            className={`rounded-lg px-4 py-1.5 font-medium transition-colors ${
+              tab === k ? "bg-gradient-to-b from-accent to-accent-deep text-on-accent shadow" : "text-muted hover:text-ink"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
-      {view === "day" && <TimeGrid days={[anchor]} {...gridProps} />}
-      {view === "week" && <TimeGrid days={weekDays(anchor)} {...gridProps} />}
-      {view === "month" && <MonthView anchor={anchor} recipes={recipes} events={events ?? []} dayMeals={dayMeals} query={q} mealFilter={mealFilter} onOpenDay={openDay} onAdd={(iso) => setPicking({ iso, hour: null, durH: 1 })} />}
-      {view === "year" && <YearView anchor={anchor} plan={plan} events={events ?? []} onOpenDay={openDay} onOpenMonth={(d) => { setAnchor(d); setView("month"); }} />}
+      {tab === "v2" ? (
+        <PlannerV2 />
+      ) : (
+        <>
+          <SearchFilterBar
+            query={search}
+            onQuery={setSearch}
+            placeholder="Search meals & events…"
+            value={mealFilter}
+            onValue={setMealFilter}
+            options={[
+              { value: "all", label: "All items" },
+              ...MEAL_ORDER.map((m) => ({ value: m, label: MEAL_LABEL[m] })),
+              { value: "event", label: "Events" },
+            ]}
+          />
+
+          {view === "day" && <TimeGrid days={[anchor]} {...gridProps} />}
+          {view === "week" && <TimeGrid days={weekDays(anchor)} {...gridProps} />}
+          {view === "month" && <MonthView anchor={anchor} recipes={recipes} events={events ?? []} dayMeals={dayMeals} query={q} mealFilter={mealFilter} onOpenDay={openDay} onAdd={(iso) => setPicking({ iso, hour: null, durH: 1 })} />}
+          {view === "year" && <YearView anchor={anchor} plan={plan} events={events ?? []} onOpenDay={openDay} onOpenMonth={(d) => { setAnchor(d); setView("month"); }} />}
+        </>
+      )}
 
       {picking && (
         <AddModal
