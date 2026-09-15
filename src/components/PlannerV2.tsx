@@ -181,13 +181,13 @@ export function PlannerV2() {
       {daysInScope.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">No days selected — pick at least one above.</p>
       ) : (
-        <div className="space-y-8">
+        <div className={scope === "day" ? "space-y-3" : "space-y-8"}>
           {daysInScope.map((d) => {
             const iso = isoOf(d);
             return (
               <section key={iso}>
-                <h2 className="mb-3 text-lg font-semibold text-ink">{format(d, "EEEE, MMM d")}</h2>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {scope !== "day" && <h2 className="mb-3 text-lg font-semibold text-ink">{format(d, "EEEE, MMM d")}</h2>}
+                <div className={scope === "day" ? "grid grid-cols-1 gap-3" : "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"}>
                   {mealTypesFor(iso).map((mt) => {
                     const meal = plan.find((m) => m.date === iso && m.mealType === mt);
                     const recipe = meal ? recipes.find((r) => r.id === meal.recipeId) : undefined;
@@ -200,6 +200,7 @@ export function PlannerV2() {
                         foods={foods}
                         recipes={recipes}
                         style={style}
+                        wide={scope === "day"}
                         onOpen={() => meal && setOpenMealId(meal.id)}
                         onAdd={() => setSlot({ iso, meal: mt })}
                         onRemove={() => meal && askRemove(meal)}
@@ -251,7 +252,7 @@ export function PlannerV2() {
 }
 
 function MealCardV2({
-  mealType, meal, recipe, foods, recipes, style, onOpen, onAdd, onRemove,
+  mealType, meal, recipe, foods, recipes, style, wide = false, onOpen, onAdd, onRemove,
 }: {
   mealType: MealType;
   meal: PlannedMeal | undefined;
@@ -259,6 +260,9 @@ function MealCardV2({
   foods: Food[];
   recipes: Recipe[];
   style: MealCardStyle;
+  /** Day view: one full-width card instead of one of a row of three — a
+   *  wider, flatter photo fills that width without towering over the page. */
+  wide?: boolean;
   onOpen: () => void;
   onAdd: () => void;
   onRemove: () => void;
@@ -272,7 +276,7 @@ function MealCardV2({
     return (
       <button
         onClick={onAdd}
-        className="flex min-h-[160px] flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line-2 p-4 text-sm font-medium text-muted transition-colors hover:border-accent hover:text-accent-soft"
+        className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line-2 p-4 text-sm font-medium text-muted transition-colors hover:border-accent hover:text-accent-soft ${wide ? "min-h-[120px]" : "min-h-[160px]"}`}
       >
         <Plus size={22} />
         Add {MEAL_LABEL[mealType].toLowerCase()}
@@ -303,13 +307,13 @@ function MealCardV2({
       </button>
 
       {style === "photo" && (
-        <div className="relative aspect-[16/10] w-full cursor-pointer overflow-hidden bg-page" onClick={onOpen}>
+        <div className={`relative w-full cursor-pointer overflow-hidden bg-page ${wide ? "aspect-[21/9]" : "aspect-[16/10]"}`} onClick={onOpen}>
           {recipe.image ? (
             // eslint-disable-next-line @next/next/no-img-element -- data URLs, no optimizer
             <img src={recipe.image} alt={recipe.name} className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-surface-2 to-page text-faint">
-              <UtensilsCrossed size={28} />
+              <UtensilsCrossed size={wide ? 40 : 28} />
             </div>
           )}
           <button
@@ -332,7 +336,10 @@ function MealCardV2({
       )}
 
       {style === "emoji" && (
-        <button onClick={onOpen} className="flex aspect-[16/10] w-full items-center justify-center bg-gradient-to-br from-surface-2 to-page text-6xl leading-none">
+        <button
+          onClick={onOpen}
+          className={`flex w-full items-center justify-center bg-gradient-to-br from-surface-2 to-page leading-none ${wide ? "aspect-[21/9] text-8xl" : "aspect-[16/10] text-6xl"}`}
+        >
           {recipeEmoji(recipe, foods)}
         </button>
       )}
@@ -342,7 +349,7 @@ function MealCardV2({
           <span className={`h-2 w-2 rounded-full ${color.dot}`} />
           {MEAL_LABEL[mealType]}
         </span>
-        <h3 className="mt-1 line-clamp-2 font-semibold leading-snug text-ink">{recipe.name}</h3>
+        <h3 className={`mt-1 line-clamp-2 font-semibold leading-snug text-ink ${wide ? "text-lg" : ""}`}>{recipe.name}</h3>
         <span className="mt-2 inline-flex w-fit items-center gap-1.5 text-xs font-medium text-cal-soft">
           <Flame size={13} /> {cal.toLocaleString()} cal
         </span>
