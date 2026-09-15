@@ -9,7 +9,7 @@ import { householdSize, householdName, portionsFor, portionNote, scaleRecipe } f
 import { ServingsStepper } from "./ServingsStepper";
 import { pluralUnit, fmtQty, amountPerBuyUnit } from "@/lib/units";
 import { gramsForFood } from "@/lib/usda";
-import { ingredientCost, recipeCostPerServing, fmtMoney } from "@/lib/cost";
+import { ingredientCost, recipeCostPerServing, recipeTotalCost, fmtMoney } from "@/lib/cost";
 import { FoodSheet } from "./FoodSheet";
 import { mealStart, clockLabel } from "@/lib/mealtime";
 import { MEAL_LABEL } from "@/lib/week";
@@ -97,6 +97,10 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
   const total = ingTotal + compTotal;
   const servings = editing && draft ? Math.max(1, draft.servings) : recipe.servings;
   const perServing = Math.round(total / servings);
+  // Cost tracks the saved recipe, not the in-progress draft — same as the
+  // per-serving cost line above, which only shows outside edit mode too.
+  const costTotal = recipeTotalCost(recipe, recipes, prices, selectedStoreId);
+  const missingPrices = costTotal.lines - costTotal.priced;
 
   const q = query.trim().toLowerCase();
   const addable = foods
@@ -306,10 +310,22 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
             </div>
           )}
 
-          {/* Totals */}
-          <div className="mt-4 flex items-center justify-between rounded-xl bg-cal/12 px-4 py-3 text-sm">
-            <span className="flex items-center gap-1.5 font-medium text-cal-soft"><Flame size={15} /> {perServing} cal / serving</span>
-            <span className="text-cal-soft">{total} cal total ({servings} serving{servings > 1 ? "s" : ""})</span>
+          {/* Totals — the calorie total, and (outside edit mode) the cost
+              total under the individual ingredient costs above */}
+          <div className="mt-4 rounded-xl bg-cal/12 px-4 py-3 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 font-medium text-cal-soft"><Flame size={15} /> {perServing} cal / serving</span>
+              <span className="text-cal-soft">{total} cal total ({servings} serving{servings > 1 ? "s" : ""})</span>
+            </div>
+            {!editing && costTotal.lines > 0 && (
+              <div className="mt-1.5 flex items-center justify-between border-t border-cal/20 pt-1.5">
+                <span className="font-medium text-accent-soft">Total cost</span>
+                <span className={costTotal.priced > 0 ? "font-medium text-accent-soft" : "text-muted"}>
+                  {costTotal.priced > 0 ? fmtMoney(costTotal.cost) : "no prices set"}
+                  {missingPrices > 0 && <span className="ml-1 text-warn-soft">+{missingPrices} unpriced</span>}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
