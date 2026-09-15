@@ -261,6 +261,23 @@ export function RecipeDetailModal({
                     <p className="rounded-xl border border-line px-3 py-4 text-center text-xs text-muted">No ingredients yet.</p>
                   )}
                 </div>
+
+                {/* Totals — under the individual ingredient costs above */}
+                {recipe.ingredients.length + comps.length > 0 && (
+                  <div className="mt-2 rounded-xl bg-cal/12 px-4 py-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 font-medium text-cal-soft"><Flame size={15} /> Calorie total</span>
+                      <span className="text-cal-soft">{total.toLocaleString()} cal</span>
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between border-t border-cal/20 pt-1.5">
+                      <span className="font-medium text-accent-soft">Total cost</span>
+                      <span className={costTotal.priced > 0 ? "font-medium text-accent-soft" : "text-muted"}>
+                        {costTotal.priced > 0 ? fmtMoney(costTotal.cost) : "no prices set"}
+                        {missingPrices > 0 && <span className="ml-1 text-warn-soft">+{missingPrices} unpriced</span>}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </section>
 
               <section>

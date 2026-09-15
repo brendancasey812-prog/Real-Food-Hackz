@@ -62,10 +62,10 @@ export function LeafMark({ size = 32, className = "" }: { size?: number; classNa
 /** Leaf + wordmark — the site header lockup. */
 export function Logo({ small = false }: { small?: boolean }) {
   return (
-    <div className="flex items-center gap-2.5">
-      <LeafMark size={small ? 28 : 36} />
+    <div className="flex min-w-0 items-center gap-2.5">
+      <LeafMark size={small ? 28 : 36} className="shrink-0" />
       <span
-        className={`font-semibold tracking-tight text-ink ${small ? "text-base" : "text-lg"}`}
+        className={`min-w-0 truncate font-semibold tracking-tight text-ink ${small ? "text-base" : "text-lg"}`}
       >
         Real Food Hackz
       </span>
