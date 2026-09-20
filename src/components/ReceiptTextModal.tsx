@@ -79,6 +79,8 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
     selectedStoreId === BEST_STORE_ID ? BASE_STORE_ID : selectedStoreId,
   );
   const [summary, setSummary] = useState({ stocked: 0, priced: 0, created: 0 });
+  // The first few lines of a paste nothing could be read out of.
+  const [unread, setUnread] = useState<string[]>([]);
 
   const storeName =
     storeId === BASE_STORE_ID
@@ -125,9 +127,26 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
     };
   };
 
+  /**
+   * Read the pasted text, and only move on if it actually said something.
+   *
+   * Advancing with nothing found was the worst thing this screen did: it
+   * asked which store to record prices at, for zero items, which looks like
+   * the app losing your receipt rather than failing to read it. Now it stays
+   * put and shows what it couldn't make sense of.
+   */
   const parse = () => {
+    const lines = parseReceiptText(text);
+    if (lines.length === 0) {
+      setUnread(
+        text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 6),
+      );
+      setRows([]);
+      return;
+    }
+    setUnread([]);
     setRows(
-      parseReceiptText(text).map((l) => {
+      lines.map((l) => {
         const best = rankFoods(foods, l.food, 1, l.category)[0];
         return buildRow(l, best && best.score >= 0.3 ? best : undefined);
       }),
@@ -272,6 +291,24 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
                 (&ldquo;1.05lb @6.99/lb&rdquo;) and printed pack sizes (&ldquo;32oz&rdquo;) let the app work
                 out what a unit costs, so your prices update with your kitchen.
               </p>
+              {unread.length > 0 && (
+                <div className="mb-3 rounded-xl border border-warn/40 bg-warn/10 px-3 py-2.5 text-[11px] leading-4 text-warn-soft">
+                  <p className="flex items-start gap-2 font-medium">
+                    <TriangleAlert size={13} className="mt-px shrink-0" />
+                    Nothing on that looked like a bought item, so nothing was
+                    imported.
+                  </p>
+                  <p className="mt-1.5 text-muted">
+                    Every item needs a name and a price on the same line — a
+                    dollar sign is optional. Here is what it read:
+                  </p>
+                  <ul className="mt-1.5 space-y-0.5 font-mono text-[10px] text-muted">
+                    {unread.map((l, i) => (
+                      <li key={i} className="truncate">{l}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <textarea
                 autoFocus
                 value={text}

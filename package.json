@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:cost": "tsc scripts/cost.test.ts src/lib/cost.ts --outDir .test-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck && node .test-out/scripts/cost.test.js"
+    "test:cost": "tsc scripts/cost.test.ts src/lib/cost.ts --outDir .test-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck && node .test-out/scripts/cost.test.js",
+    "test:receipt": "tsc scripts/receipt.test.ts src/lib/receipttext.ts --outDir .test-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck && node .test-out/scripts/receipt.test.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

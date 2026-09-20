@@ -46,7 +46,22 @@ const SECTIONS = new Set([
 
 /** Lines that are totals, savings or headers rather than things you bought. */
 const NOT_AN_ITEM =
-  /^(total|subtotal|sales tax|tax|savings|total savings|total items|calculated|order|balance|payment|change|tip|delivery|service fee|bag fee|regular price|you saved|member savings|est\.?\s|thank you)/i;
+  new RegExp(
+    "^(" +
+      // Sums the till strikes at the end.
+      "total|subtotal|sales tax|tax|savings|total savings|total items|items sold|" +
+      "net sales|gross|balance|amount due|rounding|" +
+      // How it was paid for. A bare price follows every one of these, which is
+      // why they read as groceries to anything looking only for a number.
+      "payment|tender|change|cash ?back|cash|card|credit|debit|visa|mastercard|" +
+      "master ?card|amex|american express|discover|apple pay|google pay|ebt|" +
+      "auth|approval|account|ref ?#|terminal|reg ?#|store ?#|trn|" +
+      // Everything else printed around the shopping.
+      "calculated|order|tip|delivery|service fee|bag fee|regular price|" +
+      "you saved|member savings|coupon|points|loyalty|est\\.?\\s|thank you" +
+      ")",
+    "i",
+  );
 
 /**
  * Words that describe the brand or the packaging rather than the food. Dropped
@@ -61,6 +76,8 @@ const BRANDISH = new Set([
   "signature", "brand", "farms", "farm", "co", "company", "inc", "natural",
   "naturals", "grade", "aa", "a", "the", "of", "and", "with", "puck", "spread",
   "each", "ct", "count", "oz", "lb", "lbs", "fl", "fz", "floz", "g", "kg", "ml", "l",
+  // Container sizes, which say how much you bought rather than what it is.
+  "gal", "gallon", "qt", "quart", "pt", "pint", "doz", "dozen", "half",
 ]);
 
 /**
@@ -186,22 +203,59 @@ function parseTillLine(line: string, section: string | undefined): ReceiptTextLi
 }
 
 /**
+ * A line ending in a price, with or without a dollar sign.
+ *
+ * Most tills print "BANANAS    2.60" and leave the dollar sign to the emailed
+ * version, so a parser that insists on one reads a whole receipt as nothing at
+ * all. The price is the figure at the end of the line; a single letter after
+ * it is the tax flag, and two letters are a unit, which is not a price.
+ */
+const PRICED_LINE = /^(.*?)[\s\t]+\$?([\d,]+\.\d{2})(?:[\s\t]+([A-Za-z]))?\s*$/;
+
+/**
+ * The weight half of an item split over two lines:
+ *
+ *   RED GRAPES
+ *       1.86 lb @ 2.99 /lb        5.56
+ *
+ * It carries the price but not the name, so it belongs to the line above.
+ */
+const WEIGHT_LINE =
+  /^[\s\t]*([\d.]+)\s*(lb|lbs|oz|kg|g)\b\s*@\s*\$?([\d.]+)\s*\/\s*(lb|oz|kg|g)\b[\s\t]*\$?([\d,]+\.\d{2})?\s*$/i;
+
+/** "2 @ 1.29" printed after the name: how many, at what each. */
+const MULTIPLE = /(\d+)\s*@\s*\$?[\d.]+\s*$/;
+
+/** Grams in one of the units a receipt weighs in. */
+const GRAMS_IN: Record<string, number> = {
+  oz: G_PER_OZ, lb: G_PER_LB, lbs: G_PER_LB, kg: 1000, g: 1,
+};
+
+/** True when there is a real word in here, rather than only digits and units. */
+const hasWords = (s: string) => /[a-z]{2,}/i.test(s.replace(/\b(lb|lbs|oz|kg|ct|ea|fl)\b/gi, ""));
+
+/**
  * Parse pasted receipt text into items.
  *
- * Handles the two shapes receipts use: a plain "name … $price" line, and a
- * weighed "name - 1.05lb @6.99/lb … $7.34" line. A "Quantity: n" line that
- * follows attaches to the item above it, which is how most order summaries
- * lay it out.
+ * Handles the shapes receipts actually come in: the till kind, which prints
+ * its own amount and unit-price columns; the emailed kind, "name … $price";
+ * anything weighed, whether the weight sits on the name's line or under it;
+ * and the plainest kind of all, a name and a bare price. A "Quantity: n" line
+ * attaches to the item above it, which is how order summaries lay it out.
  */
 export function parseReceiptText(text: string): ReceiptTextLine[] {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const out: ReceiptTextLine[] = [];
   let section: string | undefined;
 
+  // The name of an item whose price is printed on the next line down.
+  let pending: string | undefined;
+
   for (const line of lines) {
     const upper = line.toUpperCase().replace(/[^A-Z/\s]/g, "").trim();
     if (SECTIONS.has(upper)) {
       section = upper;
+      pending = undefined;
       continue;
     }
 
@@ -224,19 +278,74 @@ export function parseReceiptText(text: string): ReceiptTextLine[] {
     const till = parseTillLine(line, section);
     if (till) {
       out.push(till);
+      pending = undefined;
       continue;
     }
 
-    // The price is the last money figure on the line.
-    const prices = [...line.matchAll(/\$\s?([\d,]+\.\d{2})/g)];
-    if (prices.length === 0) continue;
-    const total = money(prices[prices.length - 1][1]);
-    if (!Number.isFinite(total) || total <= 0) continue;
+    // A weight line under a name: "1.86 lb @ 2.99 /lb   5.56".
+    const under = line.match(WEIGHT_LINE);
+    if (under && (pending || out.length > 0)) {
+      const amount = Number(under[1]);
+      const rate = Number(under[3]);
+      const grams = amount * (GRAMS_IN[under[2].toLowerCase()] ?? 0);
+      const paid = under[5] != null ? money(under[5]) : null;
+      if (pending) {
+        // The name came first and had no price of its own, so this completes it.
+        const food = foodFromLabel(pending);
+        const placed = classifyByName(food) ?? classifyByName(pending);
+        const total = paid ?? (Number.isFinite(rate) ? (grams / G_PER_LB) * rate : 0);
+        if (Number.isFinite(total) && total > 0 && grams > 0) {
+          out.push({
+            raw: `${pending} ${line.trim()}`,
+            label: pending,
+            food,
+            total,
+            quantity: 1,
+            grams,
+            perLb: under[4].toLowerCase() === "oz" ? rate * 16 : rate,
+            section,
+            category: placed?.category ?? "condiment",
+            location: placed?.location ?? sectionLocation(section),
+          });
+        }
+      } else {
+        // No pending name, so it is the weight of the item just pushed.
+        const last = out[out.length - 1];
+        if (grams > 0) last.grams = grams;
+        if (Number.isFinite(rate)) last.perLb = under[4].toLowerCase() === "oz" ? rate * 16 : rate;
+        if (paid != null && paid > 0) last.total = paid;
+      }
+      pending = undefined;
+      continue;
+    }
 
-    // Everything before the price, minus the tab/space gutter, is the label.
-    let label = line.slice(0, prices[prices.length - 1].index).trim();
-    label = label.replace(/[\t\s]+$/, "").replace(/[.\-–—]+$/, "").trim();
-    if (!label) continue;
+    // Otherwise: a name and a price, the dollar sign optional.
+    const priced = line.match(PRICED_LINE);
+    if (!priced) {
+      // No price here. If it reads like a name, the price may be below it.
+      if (hasWords(line) && !/^[\d\s.$-]+$/.test(line)) pending = line.trim();
+      continue;
+    }
+
+    const total = money(priced[2]);
+    if (!Number.isFinite(total) || total <= 0) { pending = undefined; continue; }
+
+    let label = priced[1].replace(/[\t\s]+$/, "").replace(/[.\-–—]+$/, "").trim();
+    if (!label || !hasWords(label)) { pending = undefined; continue; }
+    pending = undefined;
+
+    // A leading item number belongs to the till, not to the food.
+    label = label.replace(/^\d{1,4}[\s\t]+(?=[A-Za-z])/, "").trim();
+
+    // "GREEK YOGURT   2 @ 1.29" — how many, printed after the name.
+    let counted = 1;
+    const multiple = label.match(MULTIPLE);
+    if (multiple) {
+      const n = Number(multiple[1]);
+      if (Number.isFinite(n) && n > 0) counted = n;
+      label = label.slice(0, multiple.index).replace(/[-–—\s]+$/, "").trim();
+      if (!label) { continue; }
+    }
 
     // "- 1.05lb @6.99/lb" — weight sold by the pound.
     const weighed = label.match(/-\s*([\d.]+)\s*(lb|lbs|oz)\b\s*(?:@\s*\$?([\d.]+)\s*\/\s*(lb|oz))?/i);
@@ -263,12 +372,13 @@ export function parseReceiptText(text: string): ReceiptTextLine[] {
       label,
       food,
       total,
-      quantity: 1,
+      quantity: counted,
       grams,
       packGrams: pack.grams,
       packFlOz: pack.flOz,
       perLb,
       section,
+      taxable: priced[3] ? priced[3].toUpperCase() === "T" : undefined,
       category: placed?.category ?? "condiment",
       location: placed?.location ?? sectionLocation(section),
     });
