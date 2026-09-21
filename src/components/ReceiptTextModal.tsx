@@ -263,7 +263,7 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-4" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="sheet-up flex max-h-[92vh] w-full max-w-3xl flex-col rounded-t-3xl border border-line bg-page md:rounded-3xl"
+        className="sheet-up flex sheet-max w-full max-w-3xl flex-col rounded-t-3xl border border-line bg-page md:rounded-3xl"
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-3.5">
           {step === "review" ? (
@@ -283,7 +283,7 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} aria-label="Close" className="text-muted hover:text-ink"><X size={20} /></button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto scroll-own p-5">
           {step === "paste" && (
             <>
               <p className="mb-3 text-sm text-muted">

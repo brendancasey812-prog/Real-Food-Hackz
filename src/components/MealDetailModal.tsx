@@ -110,7 +110,7 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-4">
-      <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl border border-line bg-page md:rounded-2xl">
+      <div className="flex sheet-max w-full max-w-md flex-col overflow-hidden rounded-t-3xl border border-line bg-page md:rounded-2xl">
         {/* Header: Edit (top-left) · title · Close (top-right) */}
         <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
           {editing ? (
@@ -126,7 +126,7 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
           <button onClick={onClose} className="text-muted hover:text-ink" aria-label="Close"><X size={20} /></button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 overflow-y-auto scroll-own p-4">
           {/* Title / meta */}
           {editing && draft ? (
             <div className="mb-4 space-y-3">
@@ -293,7 +293,7 @@ export function MealDetailModal({ mealId, onClose }: { mealId: string; onClose: 
                     <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
                     <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search ingredients…" className="w-full rounded-lg field py-1.5 pl-8 pr-2 text-sm" />
                   </div>
-                  <div className="max-h-40 overflow-y-auto">
+                  <div className="max-h-40 overflow-y-auto scroll-own">
                     {addable.length === 0 && <p className="px-2 py-3 text-center text-xs text-muted">No matching ingredients.</p>}
                     {addable.slice(0, 40).map((f: Food) => (
                       <button key={f.id} onClick={() => addIng(f.id)} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-ink hover:bg-accent-wash">

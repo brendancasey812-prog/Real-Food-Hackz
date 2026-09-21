@@ -148,7 +148,7 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-4">
-      <div className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-line bg-page md:rounded-2xl">
+      <div className="flex sheet-max w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-line bg-page md:rounded-2xl">
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="flex items-center gap-2 font-semibold">
             <Sparkles size={18} className="text-accent-soft" />
@@ -157,7 +157,7 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
           <button onClick={onClose} className="text-muted hover:text-ink"><X size={20} /></button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto scroll-own p-5">
           {step === "upload" && (
             <div className="space-y-5">
               {mode === "text" ? (

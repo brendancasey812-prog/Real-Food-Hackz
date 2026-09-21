@@ -101,7 +101,7 @@ export function RecipeDetailModal({
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-6" onClick={onClose}>
       <div
-        className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-t-3xl border border-line bg-page shadow-2xl md:rounded-2xl"
+        className="flex sheet-max w-full max-w-6xl flex-col overflow-hidden rounded-t-3xl border border-line bg-page shadow-2xl md:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -113,7 +113,7 @@ export function RecipeDetailModal({
           <button onClick={onClose} className="text-muted hover:text-ink" aria-label="Close recipe"><X size={20} /></button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto scroll-own">
           {/* Hero photo — a real photo gets room; an empty placeholder stays a
               slim strip so the recipe itself is what fills the screen. */}
           <div className={`relative w-full overflow-hidden bg-page ${recipe.image ? "max-h-[42vh] aspect-[21/9]" : "h-24"}`}>

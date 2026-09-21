@@ -163,7 +163,7 @@ export function StorePicker({
           {error && <p className="mt-2 text-[11px] text-warn-soft">{error}</p>}
 
           {found.length > 0 && (
-            <div className="mt-2 max-h-56 overflow-y-auto rounded-lg border border-line">
+            <div className="mt-2 max-h-56 overflow-y-auto scroll-own rounded-lg border border-line">
               {found.slice(0, 12).map((c) => {
                 const already = saved.has(`${c.name.toLowerCase()}|${(c.zip ?? "").trim()}`);
                 return (

@@ -52,7 +52,7 @@ export function ExportSheet({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-scrim backdrop-blur-sm md:items-center md:p-4" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="sheet-up flex max-h-[92vh] w-full max-w-lg flex-col rounded-t-3xl border border-line bg-page md:rounded-3xl"
+        className="sheet-up flex sheet-max w-full max-w-lg flex-col rounded-t-3xl border border-line bg-page md:rounded-3xl"
       >
         <div className="shrink-0 px-5 pt-4">
           <span aria-hidden className="mx-auto mb-3 block h-1 w-10 rounded-full bg-line-2 md:hidden" />

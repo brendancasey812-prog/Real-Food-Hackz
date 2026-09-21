@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
@@ -14,6 +14,25 @@ export const metadata: Metadata = {
   title: "Real Food Hackz — Meal planning that tracks your kitchen",
   description:
     "Plan meals, track calories, manage your fridge & pantry, and auto-build your grocery list — all in sync."
+};
+
+/**
+ * Let people zoom.
+ *
+ * Plenty of apps quietly forbid it to keep their layout pristine, which leaves
+ * anyone who needs bigger text stuck with whatever size the designer picked —
+ * and a receipt row or a price is exactly the thing you want to lean in on.
+ * Pinch to five times, on a phone or a laptop trackpad.
+ *
+ * `viewportFit: "cover"` lets the page reach under a notch and a home bar,
+ * which is what the `env(safe-area-inset-*)` padding on the tab bar is for.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: "cover",
 };
 
 /**

@@ -417,6 +417,63 @@ body {
   .bar {
     background: color-mix(in srgb, var(--bg) 78%, transparent);
   }
+
+  /* A side panel slides in from the edge it is anchored to. */
+  @keyframes panel-in {
+    from { transform: translateX(6%); opacity: 0.6; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+}
+
+/*
+ * Heights measured against what you can actually see.
+ *
+ * On a phone `100vh` is the viewport with the address bar retracted, which is
+ * taller than the window you are looking at — so a sheet sized in `vh` hangs
+ * its last inch, and its buttons, below the bottom of the screen with no way
+ * to scroll to them. `dvh` tracks the visible area as the browser chrome
+ * slides in and out. The `vh` line above each `dvh` one is the fallback: a
+ * browser that doesn't know `dvh` drops that declaration and keeps the first.
+ *
+ * These are `@utility` rather than plain classes because that is how Tailwind
+ * v4 is told about a class of our own — written into `@layer components` they
+ * are quietly dropped, and a sheet with no max-height is exactly the bug this
+ * is here to fix.
+ */
+@utility sheet-max {
+  max-height: 92vh;
+  max-height: 92dvh;
+}
+
+@utility screen-tall {
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* The planner grid, which reserves room for the header above it. */
+@utility grid-scroll {
+  max-height: calc(100vh - 250px);
+  max-height: calc(100dvh - 250px);
+}
+
+/*
+ * A scroll of its own.
+ *
+ * Without this, reaching the end of a sheet's list hands the gesture to the
+ * page behind it, which then scrolls instead — the sheet appears stuck while
+ * something you can't see moves.
+ */
+@utility scroll-own {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* On a phone the settings panel rises; from `sm` up it comes in from the side. */
+@utility panel-in {
+  animation: sheet-up 0.26s cubic-bezier(0.2, 0.8, 0.3, 1);
+  @media (width >= 40rem) {
+    animation: panel-in 0.24s cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
 }
 
 * {

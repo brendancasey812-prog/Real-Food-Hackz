@@ -34,7 +34,7 @@ export function EditItemsSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-6">
-      <div className="sheet-up flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border border-line bg-page shadow-2xl md:rounded-3xl">
+      <div className="sheet-up flex sheet-max w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border border-line bg-page shadow-2xl md:rounded-3xl">
         <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
           <div className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-wash text-accent-soft">
@@ -54,7 +54,7 @@ export function EditItemsSheet({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto scroll-own px-5 py-4">
           <EditItems />
         </div>
 

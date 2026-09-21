@@ -97,7 +97,7 @@ export function ClearMealsSheet({
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-scrim backdrop-blur-sm md:items-center md:p-4" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="sheet-up flex max-h-[90vh] w-full max-w-md flex-col rounded-t-3xl border border-line bg-page md:rounded-3xl"
+        className="sheet-up flex sheet-max w-full max-w-md flex-col rounded-t-3xl border border-line bg-page md:rounded-3xl"
       >
         <div className="shrink-0 px-5 pt-4">
           <span aria-hidden className="mx-auto mb-3 block h-1 w-10 rounded-full bg-line-2 md:hidden" />
@@ -112,7 +112,7 @@ export function ClearMealsSheet({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto scroll-own px-5 py-4">
           <Label>Quick</Label>
           <div className="overflow-hidden rounded-xl border border-line bg-surface">
             {quick.map((row, i) => {

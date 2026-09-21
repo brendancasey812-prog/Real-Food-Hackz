@@ -42,7 +42,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-full text-ink">
       {/* Desktop sidebar (website format) */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-line bg-surface px-4 py-6 backdrop-blur-xl md:flex">
+      <aside className="sticky top-0 hidden screen-tall w-64 shrink-0 flex-col border-r border-line bg-surface px-4 py-6 backdrop-blur-xl md:flex">
         <div className="mb-8 px-1.5">
           <Logo />
         </div>
@@ -77,7 +77,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobile top bar (app format) */}
+        {/*
+          Mobile top bar (app format).
+
+          `backdrop-blur` here makes this header the containing block for any
+          `position: fixed` descendant, so anything full-screen opened from it
+          has to go through <Portal> or it will measure this bar instead of the
+          window. SettingsButton does.
+        */}
         <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bar px-4 py-3 backdrop-blur-xl md:hidden">
           <Logo small />
           <SettingsButton />

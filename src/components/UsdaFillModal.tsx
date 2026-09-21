@@ -83,7 +83,7 @@ export function UsdaFillModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-4">
-      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border border-line bg-page md:rounded-2xl">
+      <div className="flex sheet-max w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border border-line bg-page md:rounded-2xl">
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="flex items-center gap-2 font-semibold">
             <BookMarked size={18} className="text-accent-soft" /> Fill macros from USDA
@@ -91,7 +91,7 @@ export function UsdaFillModal({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} aria-label="Close" className="text-muted hover:text-ink"><X size={20} /></button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto scroll-own p-5">
           {done != null ? (
             <div className="flex flex-col items-center gap-3 py-14 text-center">
               <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent-wash text-accent-soft">

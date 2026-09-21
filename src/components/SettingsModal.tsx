@@ -145,14 +145,31 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
     setFocusAreas(focusAreas.includes(k) ? focusAreas.filter((f) => f !== k) : [...focusAreas, k]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-4">
-      <div className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-line bg-page md:rounded-2xl">
-        <div className="flex items-center justify-between border-b border-line px-5 py-4">
+    /*
+     * Settings comes in from the right, alongside the page rather than on top
+     * of it — the button that opens it is over there, and a panel the full
+     * height of the window has room for the whole of a long form instead of a
+     * box floating in the middle of it. On a phone it is still a sheet from
+     * the bottom, which is where a thumb is.
+     */
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-scrim backdrop-blur-sm sm:items-stretch sm:justify-end"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Settings"
+        className="panel-in flex sheet-max w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-line bg-page sm:h-full sm:max-h-none sm:rounded-none sm:border-y-0 sm:border-r-0 sm:shadow-2xl"
+      >
+        <span aria-hidden className="mx-auto mt-3 block h-1 w-10 shrink-0 rounded-full bg-line-2 sm:hidden" />
+        <div className="flex shrink-0 items-center justify-between border-b border-line px-5 py-4">
           <h2 className="text-lg font-semibold">Settings</h2>
           <button onClick={onClose} className="text-muted hover:text-ink" aria-label="Close settings"><X size={20} /></button>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto scroll-own p-4">
           {/* My Profile */}
           <Section icon={User} title="My Profile" subtitle="Birth date, height, weight, sex">
             <div className="space-y-3">

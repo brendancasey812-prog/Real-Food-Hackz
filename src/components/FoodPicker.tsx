@@ -119,7 +119,7 @@ export function FoodPicker({
               />
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-1">
+            <div className="min-h-0 flex-1 overflow-y-auto scroll-own p-1">
               {allowNew && (
                 <button
                   type="button"

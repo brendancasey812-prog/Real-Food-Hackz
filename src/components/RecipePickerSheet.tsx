@@ -34,7 +34,7 @@ export function RecipePickerSheet({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-4" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl border border-line bg-page md:rounded-2xl"
+        className="flex sheet-max w-full max-w-md flex-col overflow-hidden rounded-t-3xl border border-line bg-page md:rounded-2xl"
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h3 className="font-semibold">{MEAL_LABEL[meal]} · {format(new Date(date), "EEE, MMM d")}</h3>
@@ -52,7 +52,7 @@ export function RecipePickerSheet({
             />
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        <div className="min-h-0 flex-1 overflow-y-auto scroll-own p-2">
           {current && (
             <button onClick={onClear} className="mb-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-danger-soft hover:bg-danger/10">
               <X size={14} /> Clear this slot

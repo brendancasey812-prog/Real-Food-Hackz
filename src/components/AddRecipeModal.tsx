@@ -100,7 +100,7 @@ export function AddRecipeModal({ recipe, onClose }: { recipe?: Recipe; onClose: 
 
   return (
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-scrim p-0 md:items-center md:p-4">
-      <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-line bg-page p-6 md:rounded-2xl">
+      <div className="sheet-max w-full max-w-lg overflow-y-auto scroll-own rounded-t-3xl border border-line bg-page p-6 md:rounded-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">{editing ? "Edit recipe" : "New recipe"}</h2>
           <button onClick={onClose} className="text-muted hover:text-ink"><X size={20} /></button>

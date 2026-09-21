@@ -106,7 +106,7 @@ export function FoodSheet({
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-scrim backdrop-blur-sm md:items-center md:p-4" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="sheet-up max-h-[88vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-line bg-page p-5 pb-8 md:rounded-3xl md:pb-5"
+        className="sheet-up sheet-max w-full max-w-md overflow-y-auto scroll-own rounded-t-3xl border border-line bg-page p-5 pb-8 md:rounded-3xl md:pb-5"
       >
         <span aria-hidden className="mx-auto mb-4 block h-1 w-10 rounded-full bg-line-2 md:hidden" />
 

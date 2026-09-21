@@ -51,12 +51,12 @@ function Table({ title, rows, wide }: { title: string; rows: Row[]; wide?: boole
 export function ConversionsModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-6">
-      <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl border border-line bg-page md:rounded-2xl">
+      <div className="flex sheet-max w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl border border-line bg-page md:rounded-2xl">
         <div className="flex items-center justify-between border-b border-line px-6 py-4">
           <h2 className="text-lg font-semibold">Conversions chart</h2>
           <button onClick={onClose} className="text-muted hover:text-ink"><X size={20} /></button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-6">
+        <div className="min-h-0 flex-1 overflow-y-auto scroll-own p-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Table title="Volume" rows={VOLUME} wide />
             <Table title="Weight" rows={WEIGHT} />

@@ -570,7 +570,7 @@ function TimeGrid({
       </div>
 
       {/* Scrollable time area */}
-      <div ref={setScroll} className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 250px)" }}>
+      <div ref={setScroll} className="grid-scroll overflow-y-auto scroll-own">
         <div className="flex" style={{ height: gridHeight }}>
           {/* Hour gutter */}
           <div className="w-14 shrink-0 md:w-16">
@@ -882,7 +882,7 @@ function AddModal({
 
   return (
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-scrim p-0 backdrop-blur-sm md:items-center md:p-4">
-      <div className="max-h-[82vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-line bg-page p-5 md:rounded-2xl">
+      <div className="sheet-max w-full max-w-md overflow-y-auto rounded-t-3xl border border-line bg-page p-5 md:rounded-2xl">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-semibold">Add · {format(new Date(iso), "EEE, MMM d")}{when}</h2>
           <button onClick={onClose} className="text-muted hover:text-ink"><X size={20} /></button>
