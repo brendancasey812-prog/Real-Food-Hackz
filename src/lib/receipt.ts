@@ -53,8 +53,12 @@ export async function scanReceipt(
     apiKey,
     RECEIPT_SYSTEM_PROMPT,
     "Extract the food items from this receipt as JSON.",
-    { media_type: mediaType, data: base64 },
-    "Add your Anthropic API key in Settings to scan a real photo — or try a sample.",
+    {
+      image: { media_type: mediaType, data: base64 },
+      noKeyMessage: "Add your Anthropic API key in Settings to scan a real photo — or try a sample.",
+      refusalMessage: "The image couldn't be processed. Please use a photo of a grocery receipt.",
+      serverErrorMessage: "The receipt service failed. Try again.",
+    },
   );
   return parseScan(text);
 }

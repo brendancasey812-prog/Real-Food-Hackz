@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { X, Camera, Upload, Trash2, Sparkles, Check, FileSpreadsheet, Download, TriangleAlert } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { scanReceipt, demoScan, scannedItemsToCsv, csvToScannedItems, ReceiptError } from "@/lib/receipt";
+import { SERVER_AI } from "@/lib/aiclient";
 import { useApiKey, readImageFile } from "@/lib/apikey";
 import { download, exportName } from "@/lib/exportfile";
 import { ApiKeyBox, ScanLoading, ScanError } from "./ScanSteps";
@@ -24,6 +25,10 @@ export function ScanReceiptModal({ onClose }: { onClose: () => void }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const csvRef = useRef<HTMLInputElement | null>(null);
 
+  // The server proxy handles AI when this build has one; otherwise a photo
+  // scan needs the user's own key. Matches RecipeScanModal's `aiAvailable`.
+  const aiAvailable = SERVER_AI || apiKey.trim() !== "";
+
   const runScan = async (result: Promise<ScanResult>) => {
     setStep("loading");
     try {
@@ -43,7 +48,7 @@ export function ScanReceiptModal({ onClose }: { onClose: () => void }) {
     readImageFile(
       file,
       (base64, type) => {
-        if (!apiKey.trim()) {
+        if (!aiAvailable) {
           setError("Add your Anthropic API key in Settings to scan a real photo — or tap “Try a sample” to see how it works.");
           setStep("error");
           return;

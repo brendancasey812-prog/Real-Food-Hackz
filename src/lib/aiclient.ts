@@ -25,7 +25,12 @@ export type ImagePart = {
  * Returns null when this build has no proxy, or the server has no key set —
  * the caller then falls back to the user's own key.
  */
-async function viaServer(system: string, text: string, image?: ImagePart): Promise<string | null> {
+async function viaServer(
+  system: string,
+  text: string,
+  image: ImagePart | undefined,
+  serverErrorMessage: string,
+): Promise<string | null> {
   if (!SERVER_AI) return null;
   let resp: Response;
   try {
@@ -39,18 +44,25 @@ async function viaServer(system: string, text: string, image?: ImagePart): Promi
   }
   if (resp.status === 501 || resp.status === 404) return null;
   const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new ReceiptError(data.error ?? "The AI service failed. Try again.");
+  if (!resp.ok) throw new ReceiptError(data.error ?? serverErrorMessage);
   return typeof data.text === "string" ? data.text : null;
 }
 
 /** Call Claude directly from the browser with the user's own key. */
-async function viaBrowser(apiKey: string, system: string, text: string, image?: ImagePart): Promise<string> {
+async function viaBrowser(
+  apiKey: string,
+  system: string,
+  text: string,
+  image: ImagePart | undefined,
+  maxTokens: number,
+  refusalMessage: string,
+): Promise<string> {
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
   let resp;
   try {
     resp = await client.messages.create({
       model: MODEL,
-      max_tokens: MAX_TOKENS,
+      max_tokens: maxTokens,
       system,
       messages: [
         {
@@ -71,7 +83,7 @@ async function viaBrowser(apiKey: string, system: string, text: string, image?: 
     throw new ReceiptError(err.message || "Couldn't reach the API. Check your connection and key.");
   }
   if (resp.stop_reason === "refusal") {
-    throw new ReceiptError("That input couldn't be processed. Try a clearer photo or a different description.");
+    throw new ReceiptError(refusalMessage);
   }
   const block = resp.content.find((b) => b.type === "text");
   if (!block || block.type !== "text") {
@@ -80,23 +92,45 @@ async function viaBrowser(apiKey: string, system: string, text: string, image?: 
   return block.text;
 }
 
+export interface AskClaudeOptions {
+  image?: ImagePart;
+  /** Shown when no key is configured anywhere — server or browser. */
+  noKeyMessage?: string;
+  /** Shown when Claude declines the request outright (`stop_reason: "refusal"`). */
+  refusalMessage?: string;
+  /** Response size ceiling; scanners with a small, fixed-shape reply (a
+   *  nutrition label) should keep this tight rather than inherit a budget
+   *  sized for a whole recipe or receipt. */
+  maxTokens?: number;
+  /** Shown when the server proxy itself errors with no message of its own. */
+  serverErrorMessage?: string;
+}
+
 /**
  * Ask Claude to do one text/JSON-returning task: the server proxy first (any
  * deployed key — the browser never sees it), then the user's own key. Every
  * scan feature — receipt, recipe, nutrition label — is a system prompt and a
- * response-shape check layered on top of this one call.
+ * response-shape check layered on top of this one call; `opts` is where each
+ * feature keeps its own wording and budget instead of inheriting one generic
+ * default that fits none of them precisely.
  */
 export async function askClaude(
   apiKey: string,
   system: string,
   text: string,
-  image?: ImagePart,
-  noKeyMessage = "Add your Anthropic API key in Settings to use this feature.",
+  opts: AskClaudeOptions = {},
 ): Promise<string> {
-  const served = await viaServer(system, text, image);
+  const {
+    image,
+    noKeyMessage = "Add your Anthropic API key in Settings to use this feature.",
+    refusalMessage = "That input couldn't be processed. Try again with something clearer.",
+    maxTokens = MAX_TOKENS,
+    serverErrorMessage = "The AI service failed. Try again.",
+  } = opts;
+  const served = await viaServer(system, text, image, serverErrorMessage);
   if (served != null) return served;
   if (!apiKey) throw new ReceiptError(noKeyMessage);
-  return viaBrowser(apiKey, system, text, image);
+  return viaBrowser(apiKey, system, text, image, maxTokens, refusalMessage);
 }
 
 /**

@@ -145,20 +145,23 @@ export async function scanRecipe(
   base64: string,
   mediaType: ImagePart["media_type"],
 ): Promise<ScannedRecipe> {
-  const text = await askClaude(
-    apiKey,
-    RECIPE_SYSTEM_PROMPT,
-    "Extract this recipe as JSON.",
-    { media_type: mediaType, data: base64 },
-    "Add your Anthropic API key in Settings to scan a photo.",
-  );
+  const text = await askClaude(apiKey, RECIPE_SYSTEM_PROMPT, "Extract this recipe as JSON.", {
+    image: { media_type: mediaType, data: base64 },
+    noKeyMessage: "Add your Anthropic API key in Settings to scan a photo.",
+    refusalMessage: "That image couldn't be processed. Please use a photo of a recipe.",
+    serverErrorMessage: "The recipe service failed. Try again.",
+  });
   return parseRecipe(text);
 }
 
 /** Build a recipe from pasted text via Claude. */
 export async function buildRecipeFromText(apiKey: string, text: string): Promise<ScannedRecipe> {
   const prompt = `Here is the recipe text:\n\n${text}\n\nBuild it into a recipe as JSON.`;
-  const out = await askClaude(apiKey, TEXT_SYSTEM_PROMPT, prompt, undefined, "Add your Anthropic API key in Settings to use AI parsing.");
+  const out = await askClaude(apiKey, TEXT_SYSTEM_PROMPT, prompt, {
+    noKeyMessage: "Add your Anthropic API key in Settings to use AI parsing.",
+    refusalMessage: "That text couldn't be processed into a recipe.",
+    serverErrorMessage: "The recipe service failed. Try again.",
+  });
   return parseRecipe(out);
 }
 
@@ -203,7 +206,11 @@ Target per serving: about ${Math.round(ask.targetCalories)} calories, ${Math.rou
 
 Return the recipe as JSON.`;
 
-  const out = await askClaude(apiKey, GENERATE_SYSTEM_PROMPT, prompt, undefined, "Add your Anthropic API key in Settings to build a recipe with AI.");
+  const out = await askClaude(apiKey, GENERATE_SYSTEM_PROMPT, prompt, {
+    noKeyMessage: "Add your Anthropic API key in Settings to build a recipe with AI.",
+    refusalMessage: "That request couldn't be turned into a recipe. Try describing the food differently.",
+    serverErrorMessage: "The recipe service failed. Try again.",
+  });
   return parseRecipe(out);
 }
 

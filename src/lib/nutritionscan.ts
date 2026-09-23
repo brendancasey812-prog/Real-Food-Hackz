@@ -82,13 +82,13 @@ export async function scanNutritionLabel(
   base64: string,
   mediaType: ImagePart["media_type"],
 ): Promise<ScannedNutrition> {
-  const text = await askClaude(
-    apiKey,
-    NUTRITION_SYSTEM_PROMPT,
-    "Read this nutrition label and return the JSON.",
-    { media_type: mediaType, data: base64 },
-    "Add your Anthropic API key in Settings to scan a label — or try the sample.",
-  );
+  const text = await askClaude(apiKey, NUTRITION_SYSTEM_PROMPT, "Read this nutrition label and return the JSON.", {
+    image: { media_type: mediaType, data: base64 },
+    noKeyMessage: "Add your Anthropic API key in Settings to scan a label — or try the sample.",
+    refusalMessage: "That image couldn't be processed. Please use a photo of a Nutrition Facts panel.",
+    serverErrorMessage: "The label service failed. Try again.",
+    maxTokens: 1024, // a label's reply is a small, fixed-shape JSON object
+  });
   return parseLabel(text);
 }
 
