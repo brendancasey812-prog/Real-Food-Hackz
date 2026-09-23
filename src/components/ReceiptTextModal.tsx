@@ -4,9 +4,13 @@ import { useMemo, useState } from "react";
 import { X, ClipboardList, Check, ArrowLeft, TriangleAlert } from "lucide-react";
 import { useApp, newId, foodById } from "@/lib/store";
 import {
-  parseReceiptText, amountInUnit, unitPrice, rankFoods,
+  parseReceiptText, readReceiptWithAi, amountInUnit, unitPrice, rankFoods,
   type ReceiptTextLine, type FoodSuggestion,
 } from "@/lib/receipttext";
+import { SERVER_AI } from "@/lib/ai";
+import { useApiKey } from "@/lib/apikey";
+import { ApiKeyBox } from "./ScanSteps";
+import { Sparkles, Loader2 } from "lucide-react";
 import { gramsForFood, searchUsda, unitNutrition } from "@/lib/usda";
 import { UNITS, unitLabel, pluralUnit } from "@/lib/units";
 import { fmtMoney, BASE_STORE_ID, BEST_STORE_ID } from "@/lib/cost";
@@ -81,6 +85,10 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
   const [summary, setSummary] = useState({ stocked: 0, priced: 0, created: 0 });
   // The first few lines of a paste nothing could be read out of.
   const [unread, setUnread] = useState<string[]>([]);
+  const [apiKey, setApiKey] = useApiKey();
+  const [asking, setAsking] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const aiReady = SERVER_AI || apiKey.trim() !== "";
 
   const storeName =
     storeId === BASE_STORE_ID
@@ -144,7 +152,13 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
       setRows([]);
       return;
     }
+    show(lines);
+  };
+
+  /** Take a set of read lines to the review screen. */
+  const show = (lines: ReceiptTextLine[]) => {
     setUnread([]);
+    setAiError("");
     setRows(
       lines.map((l) => {
         const best = rankFoods(foods, l.food, 1, l.category)[0];
@@ -152,6 +166,30 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
       }),
     );
     setStep("review");
+  };
+
+  /**
+   * Hand the paste to Claude, for receipts the rules can't take apart.
+   *
+   * Never the first thing tried: the rules cost nothing and handle the shapes
+   * receipts are usually printed in, so this is what you reach for when they
+   * come back empty or wrong.
+   */
+  const askClaudeToRead = async () => {
+    setAsking(true);
+    setAiError("");
+    try {
+      const lines = await readReceiptWithAi(text, apiKey);
+      if (lines.length === 0) {
+        setAiError("Claude read it and found nothing that was bought. Check the text is a receipt.");
+        return;
+      }
+      show(lines);
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "That didn't work. Try again.");
+    } finally {
+      setAsking(false);
+    }
   };
 
   const patch = (i: number, p: Partial<Row>) =>
@@ -307,7 +345,21 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
                       <li key={i} className="truncate">{l}</li>
                     ))}
                   </ul>
+                  <button
+                    onClick={askClaudeToRead}
+                    disabled={asking}
+                    className="mt-2.5 flex items-center gap-1.5 rounded-lg bg-gradient-to-b from-accent to-accent-deep px-3 py-1.5 text-xs font-medium text-on-accent shadow disabled:opacity-50"
+                  >
+                    {asking ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                    {asking ? "Claude is reading it…" : "Have Claude read it"}
+                  </button>
                 </div>
+              )}
+
+              {aiError && (
+                <p className="mb-3 rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-[11px] leading-4 text-danger-soft">
+                  {aiError}
+                </p>
               )}
               <textarea
                 autoFocus
@@ -317,6 +369,26 @@ export function ReceiptTextModal({ onClose }: { onClose: () => void }) {
                 placeholder={"PRODUCE\nBananas - 2.63lb @0.99/lb\t$2.60\nQuantity: 1"}
                 className="field w-full rounded-xl p-3 font-mono text-xs leading-5"
               />
+
+              {/* Reading it here rather than anywhere else — the key it spends
+                  is the user's own, so it belongs beside the button. */}
+              <div className="mt-3 space-y-2">
+                <button
+                  onClick={askClaudeToRead}
+                  disabled={asking || !text.trim()}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface py-2.5 text-sm font-medium text-ink-2 transition-colors hover:bg-surface-3 disabled:opacity-40"
+                >
+                  {asking ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} className="text-accent-soft" />}
+                  {asking ? "Claude is reading it…" : "Have Claude read it instead"}
+                </button>
+                {!aiReady && (
+                  <ApiKeyBox
+                    apiKey={apiKey}
+                    onChange={setApiKey}
+                    note="Kept in this browser only, and used just for the receipts you ask Claude to read. This site has no server to hold one for you."
+                  />
+                )}
+              </div>
             </>
           )}
 
