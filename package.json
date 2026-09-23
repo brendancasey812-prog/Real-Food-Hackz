@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:cost": "tsc scripts/cost.test.ts src/lib/cost.ts --outDir .test-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck && node .test-out/scripts/cost.test.js",
-    "test:receipt": "tsc scripts/receipt.test.ts src/lib/receipttext.ts --outDir .test-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck && node .test-out/scripts/receipt.test.js"
+    "test:receipt": "tsc scripts/receipt.test.ts src/lib/receipttext.ts --outDir .test-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck && node .test-out/scripts/receipt.test.js",
+    "test:csv": "tsc scripts/csv.test.ts src/lib/csv.ts src/lib/receipt.ts --outDir .test-out --module commonjs --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck && node .test-out/scripts/csv.test.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

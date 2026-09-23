@@ -1,14 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { ReceiptError } from "./receipt";
+import { askClaude, parseJsonLoose, ReceiptError, type ImagePart } from "./aiclient";
 import { parseUnitCell, convertUnits } from "./foodtable";
 import type { Unit } from "./types";
-
-const MODEL = "claude-opus-5";
-
-/** Set by next.config on builds that ship API routes (Vercel, not GitHub Pages). */
-export const SERVER_AI = process.env.NEXT_PUBLIC_SERVER_AI === "1";
-
-type ImagePart = { media_type: "image/jpeg" | "image/png" | "image/gif" | "image/webp"; data: string };
 
 export const NUTRITION_SYSTEM_PROMPT = `You are reading a Nutrition Facts panel for a food tracking app. You will be given a photo of a food package, nutrition label, or menu nutrition listing.
 
@@ -54,43 +46,13 @@ export interface PerUnitNutrition {
   fat: number;
 }
 
-/**
- * Try the server proxy first so the API key never touches the browser. Returns
- * null when this build has no proxy — the caller falls back to the user's key.
- */
-async function viaServer(text: string, image: ImagePart): Promise<string | null> {
-  if (!SERVER_AI) return null;
-  let resp: Response;
-  try {
-    resp = await fetch("/api/anthropic", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ system: NUTRITION_SYSTEM_PROMPT, text, image })
-    });
-  } catch {
-    return null;
-  }
-  if (resp.status === 501 || resp.status === 404) return null;
-  const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new ReceiptError(data.error ?? "The label service failed. Try again.");
-  return typeof data.text === "string" ? data.text : null;
-}
-
 const num = (v: unknown, fallback = 0) => {
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 };
 
 function parseLabel(text: string): ScannedNutrition {
-  const cleaned = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
-  let data: unknown;
-  try {
-    data = JSON.parse(cleaned);
-  } catch {
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    if (!match) throw new ReceiptError("That label couldn't be read. Try a straight-on photo of the Nutrition Facts panel.");
-    data = JSON.parse(match[0]);
-  }
+  const data = parseJsonLoose(text, "That label couldn't be read. Try a straight-on photo of the Nutrition Facts panel.");
   const obj = data as Record<string, unknown>;
   if (typeof obj.error === "string" && obj.error) {
     throw new ReceiptError(`That doesn't look like a nutrition label — ${obj.error}`);
@@ -120,41 +82,14 @@ export async function scanNutritionLabel(
   base64: string,
   mediaType: ImagePart["media_type"],
 ): Promise<ScannedNutrition> {
-  const ask = "Read this nutrition label and return the JSON.";
-  const image: ImagePart = { media_type: mediaType, data: base64 };
-
-  const server = await viaServer(ask, image);
-  if (server) return parseLabel(server);
-
-  if (!apiKey) {
-    throw new ReceiptError("Add your Anthropic API key in Settings to scan a label — or try the sample.");
-  }
-  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-  let resp;
-  try {
-    resp = await client.messages.create({
-      model: MODEL,
-      max_tokens: 1024,
-      system: NUTRITION_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
-            { type: "text", text: ask },
-          ]
-        },
-      ]
-    });
-  } catch (e) {
-    const err = e as { status?: number; message?: string };
-    if (err.status === 401) throw new ReceiptError("Your Anthropic API key was rejected. Check it in Settings.");
-    if (err.status === 429) throw new ReceiptError("Rate limited by Anthropic. Wait a moment and try again.");
-    throw new ReceiptError(err.message ?? "Couldn't reach Anthropic. Check your connection and try again.");
-  }
-  const block = resp.content.find((b) => b.type === "text");
-  if (!block || block.type !== "text") throw new ReceiptError("The model returned no text. Try again.");
-  return parseLabel(block.text);
+  const text = await askClaude(
+    apiKey,
+    NUTRITION_SYSTEM_PROMPT,
+    "Read this nutrition label and return the JSON.",
+    { media_type: mediaType, data: base64 },
+    "Add your Anthropic API key in Settings to scan a label — or try the sample.",
+  );
+  return parseLabel(text);
 }
 
 /**

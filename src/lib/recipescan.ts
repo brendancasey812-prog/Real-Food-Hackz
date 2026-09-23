@@ -1,38 +1,10 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { ReceiptError } from "./receipt";
+import { askClaude, parseJsonLoose, ReceiptError, SERVER_AI, type ImagePart } from "./aiclient";
+import { stringifyCsv } from "./csv";
 import { parseFoodTable, parseQuantity, parseUnitCell, type FoodTable } from "./foodtable";
 import { MEAL_LABEL } from "./week";
 import type { MealType, Unit } from "./types";
 
-const MODEL = "claude-opus-5";
-
-/** Set by next.config on builds that ship API routes (Vercel, not GitHub Pages). */
-export const SERVER_AI = process.env.NEXT_PUBLIC_SERVER_AI === "1";
-
-type ImagePart = { media_type: "image/jpeg" | "image/png" | "image/gif" | "image/webp"; data: string };
-
-/**
- * Try the server-side proxy first so the API key never touches the browser.
- * Returns null when this build has no proxy, or the server has no key set —
- * the caller then falls back to the user's own key.
- */
-async function viaServer(system: string, text: string, image?: ImagePart): Promise<string | null> {
-  if (!SERVER_AI) return null;
-  let resp: Response;
-  try {
-    resp = await fetch("/api/anthropic", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ system, text, image })
-    });
-  } catch {
-    return null; // offline or route missing — fall back to the client key
-  }
-  if (resp.status === 501 || resp.status === 404) return null;
-  const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new ReceiptError(data.error ?? "The recipe service failed. Try again.");
-  return typeof data.text === "string" ? data.text : null;
-}
+export { SERVER_AI };
 
 export interface ScannedRecipeIngredient {
   food: string;
@@ -135,15 +107,7 @@ function coerceUnit(raw: unknown, quantity: number): { unit: Unit; quantity: num
 }
 
 function parseRecipe(text: string): ScannedRecipe {
-  const cleaned = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
-  let data: unknown;
-  try {
-    data = JSON.parse(cleaned);
-  } catch {
-    const m = cleaned.match(/\{[\s\S]*\}/);
-    if (!m) throw new ReceiptError("The recipe couldn't be read. Try a clearer, straight-on photo.");
-    data = JSON.parse(m[0]);
-  }
+  const data = parseJsonLoose(text, "The recipe couldn't be read. Try a clearer, straight-on photo.");
   const o = data as Partial<ScannedRecipe>;
   const ingredients = (Array.isArray(o.ingredients) ? o.ingredients : [])
     .filter((i) => i && i.food)
@@ -179,70 +143,23 @@ function parseRecipe(text: string): ScannedRecipe {
 export async function scanRecipe(
   apiKey: string,
   base64: string,
-  mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+  mediaType: ImagePart["media_type"],
 ): Promise<ScannedRecipe> {
-  const served = await viaServer(RECIPE_SYSTEM_PROMPT, "Extract this recipe as JSON.", {
-    media_type: mediaType,
-    data: base64
-  });
-  if (served) return parseRecipe(served);
-
-  if (!apiKey) throw new ReceiptError("Add your Anthropic API key in Settings to scan a photo.");
-  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-  let resp;
-  try {
-    resp = await client.messages.create({
-      model: MODEL,
-      max_tokens: 4096,
-      system: RECIPE_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
-            { type: "text", text: "Extract this recipe as JSON." },
-          ]
-        },
-      ]
-    });
-  } catch (e) {
-    const err = e as { status?: number; message?: string };
-    if (err.status === 401) throw new ReceiptError("Your Anthropic API key was rejected. Check it in Settings.");
-    if (err.status === 429) throw new ReceiptError("Rate limited by the API. Wait a moment and try again.");
-    throw new ReceiptError(err.message || "Couldn't reach the API. Check your connection and key.");
-  }
-  if (resp.stop_reason === "refusal") throw new ReceiptError("That image couldn't be processed. Please use a photo of a recipe.");
-  const textBlock = resp.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") throw new ReceiptError("The recipe couldn't be read. Try a clearer photo.");
-  return parseRecipe(textBlock.text);
+  const text = await askClaude(
+    apiKey,
+    RECIPE_SYSTEM_PROMPT,
+    "Extract this recipe as JSON.",
+    { media_type: mediaType, data: base64 },
+    "Add your Anthropic API key in Settings to scan a photo.",
+  );
+  return parseRecipe(text);
 }
 
 /** Build a recipe from pasted text via Claude. */
 export async function buildRecipeFromText(apiKey: string, text: string): Promise<ScannedRecipe> {
   const prompt = `Here is the recipe text:\n\n${text}\n\nBuild it into a recipe as JSON.`;
-  const served = await viaServer(TEXT_SYSTEM_PROMPT, prompt);
-  if (served) return parseRecipe(served);
-
-  if (!apiKey) throw new ReceiptError("Add your Anthropic API key in Settings to use AI parsing.");
-  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-  let resp;
-  try {
-    resp = await client.messages.create({
-      model: MODEL,
-      max_tokens: 4096,
-      system: TEXT_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: `Here is the recipe text:\n\n${text}\n\nBuild it into a recipe as JSON.` }]
-    });
-  } catch (e) {
-    const err = e as { status?: number; message?: string };
-    if (err.status === 401) throw new ReceiptError("Your Anthropic API key was rejected. Check it in Settings.");
-    if (err.status === 429) throw new ReceiptError("Rate limited by the API. Wait a moment and try again.");
-    throw new ReceiptError(err.message || "Couldn't reach the API. Check your connection and key.");
-  }
-  if (resp.stop_reason === "refusal") throw new ReceiptError("That text couldn't be processed into a recipe.");
-  const textBlock = resp.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") throw new ReceiptError("Couldn't read a recipe from that text.");
-  return parseRecipe(textBlock.text);
+  const out = await askClaude(apiKey, TEXT_SYSTEM_PROMPT, prompt, undefined, "Add your Anthropic API key in Settings to use AI parsing.");
+  return parseRecipe(out);
 }
 
 // ---- Build a new recipe from a food request (no source to read) ----
@@ -286,29 +203,8 @@ Target per serving: about ${Math.round(ask.targetCalories)} calories, ${Math.rou
 
 Return the recipe as JSON.`;
 
-  const served = await viaServer(GENERATE_SYSTEM_PROMPT, prompt);
-  if (served) return parseRecipe(served);
-
-  if (!apiKey) throw new ReceiptError("Add your Anthropic API key in Settings to build a recipe with AI.");
-  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-  let resp;
-  try {
-    resp = await client.messages.create({
-      model: MODEL,
-      max_tokens: 4096,
-      system: GENERATE_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: prompt }]
-    });
-  } catch (e) {
-    const err = e as { status?: number; message?: string };
-    if (err.status === 401) throw new ReceiptError("Your Anthropic API key was rejected. Check it in Settings.");
-    if (err.status === 429) throw new ReceiptError("Rate limited by the API. Wait a moment and try again.");
-    throw new ReceiptError(err.message || "Couldn't reach the API. Check your connection and key.");
-  }
-  if (resp.stop_reason === "refusal") throw new ReceiptError("That request couldn't be turned into a recipe. Try describing the food differently.");
-  const textBlock = resp.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") throw new ReceiptError("Couldn't build a recipe from that. Try again.");
-  return parseRecipe(textBlock.text);
+  const out = await askClaude(apiKey, GENERATE_SYSTEM_PROMPT, prompt, undefined, "Add your Anthropic API key in Settings to build a recipe with AI.");
+  return parseRecipe(out);
 }
 
 // ---- No-key local text parser (best effort) ----
@@ -443,6 +339,35 @@ export function parseTextLocally(text: string): ScannedRecipe {
     .filter((i): i is ScannedRecipeIngredient => i !== null);
 
   return { name, servings: servings && servings > 0 ? servings : 1, meal: "dinner", ingredients, steps: [] };
+}
+
+// ---- CSV export (works with no API key at all) ----
+
+const RECIPE_CSV_HEADER = ["Food", "Quantity", "Unit", "Category", "Calories per Unit", "Protein", "Carbs", "Fat", "Note"];
+
+/**
+ * A recipe's ingredients as CSV, ready for `download()`. Uses the same column
+ * names `parseFoodTable` already reads (Food / Quantity / Unit / Calories per
+ * Unit / Protein / Carbs / Fat), so pasting this file's contents back into
+ * "Paste a recipe" reconstructs the same ingredient list — a scan is never a
+ * dead end even when the on-screen review table isn't the right editor for it.
+ */
+export function recipeIngredientsToCsv(recipe: Pick<ScannedRecipe, "ingredients">): string {
+  const rows: string[][] = [RECIPE_CSV_HEADER];
+  for (const ing of recipe.ingredients) {
+    rows.push([
+      ing.food,
+      String(ing.quantity),
+      ing.unit,
+      ing.category,
+      ing.caloriesPerUnit != null ? String(ing.caloriesPerUnit) : "",
+      ing.protein != null ? String(ing.protein) : "",
+      ing.carbs != null ? String(ing.carbs) : "",
+      ing.fat != null ? String(ing.fat) : "",
+      ing.note ?? "",
+    ]);
+  }
+  return stringifyCsv(rows);
 }
 
 export function demoScanRecipe(): Promise<ScannedRecipe> {
