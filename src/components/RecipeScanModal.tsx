@@ -1,15 +1,16 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { X, Camera, Upload, Trash2, Sparkles, Check, Wand2 } from "lucide-react";
+import { X, Camera, Upload, Trash2, Sparkles, Check, Wand2, FileSpreadsheet, Download } from "lucide-react";
 import { useApp, newId } from "@/lib/store";
-import { scanRecipe, demoScanRecipe, buildRecipeFromText, generateRecipe, parseTextLocally, SERVER_AI, type ScannedRecipe } from "@/lib/recipescan";
+import { scanRecipe, demoScanRecipe, buildRecipeFromText, generateRecipe, parseTextLocally, recipeIngredientsToCsv, SERVER_AI, type ScannedRecipe } from "@/lib/recipescan";
 import { normalizeName, mapCategory, ReceiptError } from "@/lib/receipt";
 import { convertUnits } from "@/lib/foodtable";
 import { UNITS, fmtQty } from "@/lib/units";
 import { MEAL_ORDER, MEAL_LABEL, MEAL_CALORIE_SHARE } from "@/lib/week";
 import { householdSize } from "@/lib/household";
 import { useApiKey, readImageFile } from "@/lib/apikey";
+import { download, exportName } from "@/lib/exportfile";
 import { ApiKeyBox, ScanLoading, ScanError } from "./ScanSteps";
 import type { Food, MealType, Unit } from "@/lib/types";
 
@@ -31,6 +32,7 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
   const [aiMeal, setAiMeal] = useState<MealType>("dinner");
   const [aiServings, setAiServings] = useState(() => householdSize({ householdMode, members }));
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const csvRef = useRef<HTMLInputElement | null>(null);
 
   // The server proxy handles AI when this build has one; otherwise we need the
   // user's own key, and failing that we fall back to the local parser (text
@@ -93,6 +95,22 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
       },
       (message) => { setError(message); setStep("error"); },
     );
+  };
+
+  /** Load a CSV/spreadsheet export straight into the paste box — the same
+   *  table parser that reads a pasted table reads the file's text, so this
+   *  works with no API key and no network. */
+  const onCsvFile = (file: File | undefined) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setText(String(reader.result ?? ""));
+    reader.onerror = () => { setError("Couldn't read that file. Try again."); setStep("error"); };
+    reader.readAsText(file);
+  };
+
+  const exportCsv = () => {
+    if (!recipe) return;
+    download(exportName(`recipe-${recipe.name || "ingredients"}`, new Date(), "csv"), "text/csv", recipeIngredientsToCsv(recipe));
   };
 
   const patch = (p: Partial<ScannedRecipe>) => setRecipe((r) => (r ? { ...r, ...p } : r));
@@ -173,6 +191,19 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
                   <button onClick={buildFromText} className="w-full rounded-xl bg-gradient-to-b from-accent to-accent-deep py-2.5 text-sm font-medium text-on-accent shadow-lg hover:brightness-110">
                     Build recipe {aiAvailable ? "with Claude" : "(basic, no key)"}
                   </button>
+                  <button
+                    onClick={() => csvRef.current?.click()}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line-2 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-3"
+                  >
+                    <FileSpreadsheet size={15} className="text-accent-soft" /> Load a CSV file instead
+                  </button>
+                  <input
+                    ref={csvRef}
+                    type="file"
+                    accept=".csv,text/csv"
+                    className="hidden"
+                    onChange={(e) => { onCsvFile(e.target.files?.[0]); e.target.value = ""; }}
+                  />
                 </>
               ) : mode === "ai" ? (
                 <>
@@ -255,7 +286,15 @@ export function RecipeScanModal({ onClose, mode = "photo" }: { onClose: () => vo
               </div>
 
               <div>
-                <div className="mb-2 text-sm font-medium text-muted">Ingredients</div>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-muted">Ingredients</span>
+                  <button
+                    onClick={exportCsv}
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-surface-3"
+                  >
+                    <Download size={12} /> Export CSV
+                  </button>
+                </div>
                 <div className="space-y-1.5">
                   {recipe.ingredients.map((ing, i) => (
                     <div key={i} className="flex flex-wrap items-center gap-1.5 rounded-lg border border-line p-1.5">

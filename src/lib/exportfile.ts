@@ -12,6 +12,7 @@ import { fmtQty, pluralUnit } from "./units";
 import { fmtMoney } from "./cost";
 import { MEAL_LABEL } from "./week";
 import { MEAL_TIME } from "./mealtime";
+import { stringifyCsv } from "./csv";
 
 const LOCATION_LABEL = { fridge: "Fridge", freezer: "Freezer", pantry: "Pantry" } as const;
 
@@ -198,16 +199,10 @@ const pad = (n: number) => String(n).padStart(2, "0");
 /** Escape the characters iCalendar treats as structure. */
 const ics = (s: string) => s.replace(/([,;\\])/g, "\\$1").replace(/\n/g, "\\n");
 
-/** Quote a cell only when it needs it, so the file stays readable. */
-function toCsv(rows: string[][]): string {
-  return rows
-    .map((r) =>
-      r
-        .map((cell) => (/[",\n]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell))
-        .join(","),
-    )
-    .join("\n");
-}
+/** Rows of cells → CSV text — the same RFC4180 writer every CSV export in
+ *  the app uses, so a grocery list, a meal plan, and a scanned receipt or
+ *  recipe all round-trip through one set of escaping rules. */
+const toCsv = stringifyCsv;
 
 /** Hand the file to the browser. */
 export function download(filename: string, mime: string, content: string) {

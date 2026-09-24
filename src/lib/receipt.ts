@@ -1,9 +1,10 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { askClaude, parseJsonLoose, ReceiptError } from "./aiclient";
+import { parseCsv, stringifyCsv, csvToRecords } from "./csv";
+import { parseQuantity } from "./foodtable";
 import { classifyByName } from "./foodclass";
 import type { FoodCategory, Location, ScanResult, ScannedItem, Unit } from "./types";
 
-/** Vision model used for receipt OCR + extraction. */
-const MODEL = "claude-opus-5";
+export { ReceiptError } from "./aiclient";
 
 export const RECEIPT_SYSTEM_PROMPT = `You are a receipt-scanning assistant for a fridge and pantry inventory tracker. You will be given a photo of a grocery store receipt. Extract every food item and classify each into one of four categories: Protein (meat, poultry, fish, eggs, tofu), Fruit (fresh or dried fruit), Veggie (fresh vegetables, salad greens, herbs), or Pantry (grains, dairy, sauces, condiments, beverages, tortillas, and other shelf-stable/packaged items). Use general, human-readable food names rather than receipt abbreviations, and normalize variants to a common title (e.g., "Ground Beef 80/20" and "Organic Ground Beef" both become "Ground Beef"), storing any specific detail like fat ratio or "organic" in a separate variant field. Convert quantities into US standard units (lb, oz, each, dozen, head). If a package's exact size isn't printed on the receipt, estimate using a typical size for that item and mark it as estimated. Exclude non-food line items (bag fees, coupons) and list them separately with a brief reason. Return only the JSON described below — no other commentary.
 
@@ -18,20 +19,9 @@ JSON schema:
 const VALID_CATEGORIES = ["Protein", "Fruit", "Veggie", "Pantry"];
 const VALID_UNITS = ["lb", "oz", "each", "dozen", "head"];
 
-export class ReceiptError extends Error {}
-
-/** Strip markdown fences and parse the model's JSON, validating the shape. */
+/** Parse and validate the model's JSON into a ScanResult. */
 function parseScan(text: string): ScanResult {
-  const cleaned = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
-  let data: unknown;
-  try {
-    data = JSON.parse(cleaned);
-  } catch {
-    // Best-effort: pull the first {...} block.
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    if (!match) throw new ReceiptError("The receipt couldn't be read. Try a clearer, straight-on photo.");
-    data = JSON.parse(match[0]);
-  }
+  const data = parseJsonLoose(text, "The receipt couldn't be read. Try a clearer, straight-on photo.");
   const obj = data as Partial<ScanResult>;
   const items = Array.isArray(obj.items) ? obj.items : [];
   const excluded = Array.isArray(obj.excluded_items) ? obj.excluded_items : [];
@@ -59,37 +49,18 @@ export async function scanReceipt(
   base64: string,
   mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp",
 ): Promise<ScanResult> {
-  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-  let resp;
-  try {
-    resp = await client.messages.create({
-      model: MODEL,
-      max_tokens: 4096,
-      system: RECEIPT_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
-            { type: "text", text: "Extract the food items from this receipt as JSON." },
-          ]
-        },
-      ]
-    });
-  } catch (e) {
-    const err = e as { status?: number; message?: string };
-    if (err.status === 401) throw new ReceiptError("Your Anthropic API key was rejected. Check it in Settings.");
-    if (err.status === 429) throw new ReceiptError("Rate limited by the API. Wait a moment and try again.");
-    throw new ReceiptError(err.message || "Couldn't reach the API. Check your connection and key.");
-  }
-  if (resp.stop_reason === "refusal") {
-    throw new ReceiptError("The image couldn't be processed. Please use a photo of a grocery receipt.");
-  }
-  const textBlock = resp.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new ReceiptError("The receipt couldn't be read. Try a clearer photo.");
-  }
-  return parseScan(textBlock.text);
+  const text = await askClaude(
+    apiKey,
+    RECEIPT_SYSTEM_PROMPT,
+    "Extract the food items from this receipt as JSON.",
+    {
+      image: { media_type: mediaType, data: base64 },
+      noKeyMessage: "Add your Anthropic API key in Settings to scan a real photo — or try a sample.",
+      refusalMessage: "The image couldn't be processed. Please use a photo of a grocery receipt.",
+      serverErrorMessage: "The receipt service failed. Try again.",
+    },
+  );
+  return parseScan(text);
 }
 
 /** A realistic sample scan, so the whole flow works without an API key. */
@@ -174,4 +145,95 @@ export function convertToUnit(qty: number, from: ScannedItem["unit"], to: Unit):
   if (to === "each") return from in EACH_PER ? qty * EACH_PER[from] : null;
   // cup / tbsp / tsp — no clean conversion from weight/count receipt units.
   return null;
+}
+
+// ---- CSV round trip (works with no API key at all) ----
+//
+// A scan is reviewed as a table already; CSV just gives that table a life
+// outside the app — edited in a spreadsheet, merged with another list, kept
+// as a record — and a way back in that never needed the AI to begin with.
+// Import and export share one column set, so a file this app wrote is always
+// a file this app can read back exactly.
+
+const RECEIPT_CSV_HEADER = ["Category", "Food", "Variant", "Quantity", "Unit", "Estimated"];
+
+/** Scanned/reviewed items → CSV text, ready for `download()`. */
+export function scannedItemsToCsv(items: ScannedItem[]): string {
+  const rows: string[][] = [RECEIPT_CSV_HEADER];
+  for (const it of items) {
+    rows.push([it.category, it.food, it.variant ?? "", String(it.quantity), it.unit, it.estimated ? "yes" : ""]);
+  }
+  return stringifyCsv(rows);
+}
+
+/** The result of a CSV import: what could be read, and what couldn't. */
+export interface CsvImportResult<T> {
+  items: T[];
+  /** 1-based row numbers, counting the header as row 1, so they line up with
+   *  what a person sees in a spreadsheet. */
+  errors: { row: number; message: string }[];
+}
+
+const RECEIPT_HEADER_ALIASES = {
+  category: ["category", "type", "foodtype", "cat"],
+  food: ["food", "item", "name", "product", "description"],
+  variant: ["variant", "detail", "notes", "note"],
+  quantity: ["quantity", "qty", "amount"],
+  unit: ["unit", "units", "uom"],
+  estimated: ["estimated", "est"],
+} as const;
+
+/**
+ * Parse a CSV export (or a hand-built one with the same headers) back into
+ * ScannedItems — tolerant of reordered columns, header casing/punctuation, a
+ * missing optional column, and blank rows. A row that can't be read is
+ * reported and skipped rather than aborting the whole file or silently
+ * dropping it, so a person editing the export finds out exactly which line
+ * needs fixing.
+ */
+export function csvToScannedItems(text: string): CsvImportResult<ScannedItem> {
+  const rows = parseCsv(text);
+  const { header, records } = csvToRecords(rows, RECEIPT_HEADER_ALIASES);
+  const errors: { row: number; message: string }[] = [];
+
+  if (rows.length === 0) {
+    return { items: [], errors: [{ row: 0, message: "That file is empty." }] };
+  }
+  if (header.food === undefined) {
+    return {
+      items: [],
+      errors: [{ row: 1, message: 'No "Food" column found. Expected a header row with Food, Quantity, Unit, Category.' }],
+    };
+  }
+
+  const items: ScannedItem[] = [];
+  records.forEach((rec, i) => {
+    const row = i + 2; // header is row 1, so the first data row is row 2
+    const food = rec.food.trim();
+    if (!food) { errors.push({ row, message: "Missing a food name." }); return; }
+
+    const qty = parseQuantity(rec.quantity);
+    if (qty === null || qty <= 0) {
+      errors.push({ row, message: rec.quantity ? `Couldn't read the quantity "${rec.quantity}".` : "Missing a quantity." });
+      return;
+    }
+
+    const category = (VALID_CATEGORIES.find((c) => c.toLowerCase() === rec.category.trim().toLowerCase()) ??
+      "Pantry") as ScannedItem["category"];
+    const unit = (VALID_UNITS.find((u) => u === rec.unit.trim().toLowerCase()) ?? "each") as ScannedItem["unit"];
+
+    items.push({
+      category,
+      food,
+      variant: rec.variant.trim(),
+      quantity: qty,
+      unit,
+      estimated: /^(y|yes|true|1|est)/i.test(rec.estimated.trim()),
+    });
+  });
+
+  if (items.length === 0 && errors.length === 0) {
+    errors.push({ row: 1, message: "No data rows were found below the header." });
+  }
+  return { items, errors };
 }

@@ -12,6 +12,7 @@
 // header to known roles, converts units, and does the serving-size calorie math
 // (a "Calories per Unit" column is calories per *serving size*, not per app unit).
 
+import { parseCsv } from "./csv";
 import type { Unit } from "./types";
 
 /** One ingredient row lifted out of a pasted table. */
@@ -200,25 +201,10 @@ type Delim = "\t" | "|" | "," | "spaces";
 function splitLine(line: string, delim: Delim): string[] {
   if (delim === "spaces") return line.trim().split(/\s{2}/).map((c) => c.trim());
   if (delim === "|") return line.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((c) => c.trim());
-  if (delim === ",") return splitCsv(line);
+  // Comma split that respects "quoted, cells" (spreadsheet CSV export) —
+  // shares the same RFC4180 rules every CSV import/export in the app uses.
+  if (delim === ",") return (parseCsv(line)[0] ?? []).map((c) => c.trim());
   return line.split("\t").map((c) => c.trim());
-}
-
-/** Comma split that respects "quoted, cells" (spreadsheet CSV export). */
-function splitCsv(line: string): string[] {
-  const out: string[] = [];
-  let cur = "";
-  let quoted = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (quoted && line[i + 1] === '"') { cur += '"'; i++; }
-      else quoted = !quoted;
-    } else if (ch === "," && !quoted) { out.push(cur.trim()); cur = ""; }
-    else cur += ch;
-  }
-  out.push(cur.trim());
-  return out;
 }
 
 /** A markdown table's "|---|---|" rule row. */

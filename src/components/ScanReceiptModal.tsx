@@ -1,10 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { X, Camera, Upload, Trash2, Sparkles, Check } from "lucide-react";
+import { X, Camera, Upload, Trash2, Sparkles, Check, FileSpreadsheet, Download, TriangleAlert } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { scanReceipt, demoScan, ReceiptError } from "@/lib/receipt";
+import { scanReceipt, demoScan, scannedItemsToCsv, csvToScannedItems, ReceiptError } from "@/lib/receipt";
+import { SERVER_AI } from "@/lib/aiclient";
 import { useApiKey, readImageFile } from "@/lib/apikey";
+import { download, exportName } from "@/lib/exportfile";
 import { ApiKeyBox, ScanLoading, ScanError } from "./ScanSteps";
 import type { ScannedItem, ScanResult } from "@/lib/types";
 
@@ -17,9 +19,15 @@ export function ScanReceiptModal({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState("");
   const [items, setItems] = useState<ScannedItem[]>([]);
   const [excluded, setExcluded] = useState<ScanResult["excluded_items"]>([]);
+  const [csvErrors, setCsvErrors] = useState<{ row: number; message: string }[]>([]);
   const [summary, setSummary] = useState({ merged: 0, added: 0, skipped: 0 });
   const [apiKey, setApiKey] = useApiKey();
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const csvRef = useRef<HTMLInputElement | null>(null);
+
+  // The server proxy handles AI when this build has one; otherwise a photo
+  // scan needs the user's own key. Matches RecipeScanModal's `aiAvailable`.
+  const aiAvailable = SERVER_AI || apiKey.trim() !== "";
 
   const runScan = async (result: Promise<ScanResult>) => {
     setStep("loading");
@@ -27,6 +35,7 @@ export function ScanReceiptModal({ onClose }: { onClose: () => void }) {
       const r = await result;
       setItems(r.items);
       setExcluded(r.excluded_items);
+      setCsvErrors([]);
       setStep("review");
     } catch (e) {
       setError(e instanceof ReceiptError ? e.message : "Something went wrong reading the receipt. Please try again.");
@@ -39,7 +48,7 @@ export function ScanReceiptModal({ onClose }: { onClose: () => void }) {
     readImageFile(
       file,
       (base64, type) => {
-        if (!apiKey.trim()) {
+        if (!aiAvailable) {
           setError("Add your Anthropic API key in Settings to scan a real photo — or tap “Try a sample” to see how it works.");
           setStep("error");
           return;
@@ -49,6 +58,32 @@ export function ScanReceiptModal({ onClose }: { onClose: () => void }) {
       (message) => { setError(message); setStep("error"); },
     );
   };
+
+  /**
+   * Import a CSV — either one this app exported, or one built by hand in a
+   * spreadsheet with the same headers. Works with no API key and no network:
+   * this is the independent path in and out of the review table.
+   */
+  const onCsvFile = (file: File | undefined) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const { items: parsed, errors } = csvToScannedItems(String(reader.result ?? ""));
+      if (parsed.length === 0) {
+        setError(errors[0]?.message ?? "That CSV had no readable rows.");
+        setStep("error");
+        return;
+      }
+      setItems(parsed);
+      setExcluded([]);
+      setCsvErrors(errors);
+      setStep("review");
+    };
+    reader.onerror = () => { setError("Couldn't read that file. Try again."); setStep("error"); };
+    reader.readAsText(file);
+  };
+
+  const exportCsv = () => download(exportName("receipt", new Date(), "csv"), "text/csv", scannedItemsToCsv(items));
 
   const updateItem = (i: number, patch: Partial<ScannedItem>) =>
     setItems((arr) => arr.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
@@ -101,6 +136,29 @@ export function ScanReceiptModal({ onClose }: { onClose: () => void }) {
                 Try a sample receipt (no key needed)
               </button>
 
+              <div className="flex items-center gap-2 text-xs text-muted">
+                <span className="h-px flex-1 bg-line" />
+                or
+                <span className="h-px flex-1 bg-line" />
+              </div>
+
+              <button
+                onClick={() => csvRef.current?.click()}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-line-2 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-3"
+              >
+                <FileSpreadsheet size={16} className="text-accent-soft" /> Import from CSV
+              </button>
+              <input
+                ref={csvRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => { onCsvFile(e.target.files?.[0]); e.target.value = ""; }}
+              />
+              <p className="-mt-3 text-[11px] text-muted">
+                A spreadsheet with Category, Food, Quantity and Unit columns — works with no key and no network. Exported from a previous scan, or built by hand.
+              </p>
+
               <ApiKeyBox
                 apiKey={apiKey}
                 onChange={setApiKey}
@@ -115,9 +173,32 @@ export function ScanReceiptModal({ onClose }: { onClose: () => void }) {
 
           {step === "review" && (
             <div className="space-y-4">
-              <p className="text-sm text-muted">
-                Found <span className="font-medium text-ink">{items.length}</span> item{items.length === 1 ? "" : "s"}. Fix anything, delete non-food rows, then add to your kitchen.
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-muted">
+                  Found <span className="font-medium text-ink">{items.length}</span> item{items.length === 1 ? "" : "s"}. Fix anything, delete non-food rows, then add to your kitchen.
+                </p>
+                <button
+                  onClick={exportCsv}
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-3"
+                >
+                  <Download size={13} /> Export CSV
+                </button>
+              </div>
+
+              {csvErrors.length > 0 && (
+                <div className="rounded-xl border border-warn/40 bg-warn/10 px-3 py-2.5 text-[11px] leading-4 text-warn-soft">
+                  <p className="flex items-start gap-2 font-medium">
+                    <TriangleAlert size={13} className="mt-px shrink-0" />
+                    {csvErrors.length} row{csvErrors.length === 1 ? "" : "s"} in that file couldn&apos;t be read and {csvErrors.length === 1 ? "was" : "were"} skipped:
+                  </p>
+                  <ul className="mt-1.5 space-y-0.5 font-mono text-[10px] text-muted">
+                    {csvErrors.slice(0, 8).map((e, i) => (
+                      <li key={i}>row {e.row}: {e.message}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[560px] text-sm">
                   <thead>
