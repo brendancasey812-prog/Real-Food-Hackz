@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, ScanLine, Menu, Calculator, Sparkles, BookMarked, ClipboardList } from "lucide-react";
+import { useRef, useState } from "react";
+import { Plus, ScanLine, Menu, Calculator, Sparkles, BookMarked, ClipboardList, Download, Upload } from "lucide-react";
+import { useApp } from "@/lib/store";
 import { AddFoodModal } from "./AddFoodModal";
 import { ScanReceiptModal } from "./ScanReceiptModal";
 import { ReceiptTextModal } from "./ReceiptTextModal";
 import { ConversionsModal } from "./ConversionsModal";
 import { NutritionScanModal } from "./NutritionScanModal";
 import { UsdaFillModal } from "./UsdaFillModal";
+import { FoodsCsvImportModal } from "./FoodsCsvImportModal";
+import { foodsToCsv } from "@/lib/foodsio";
+import { download, exportName } from "@/lib/exportfile";
 import type { Location } from "@/lib/types";
 
 /**
@@ -20,6 +24,7 @@ import type { Location } from "@/lib/types";
  * it means something you already have.
  */
 export function KitchenMenu({ context }: { context: "kitchen" | "grocery" }) {
+  const { foods, inventory } = useApp();
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState<Location | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -27,6 +32,11 @@ export function KitchenMenu({ context }: { context: "kitchen" | "grocery" }) {
   const [convOpen, setConvOpen] = useState(false);
   const [labelOpen, setLabelOpen] = useState(false);
   const [usdaOpen, setUsdaOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const csvFileRef = useRef<HTMLInputElement | null>(null);
+
+  const exportFoodsCsv = () =>
+    download(exportName("foods", new Date(), "csv"), "text/csv", foodsToCsv(foods, inventory));
 
   const items = [
     { label: context === "grocery" ? "Add item to buy" : "Add food", icon: Plus, run: () => setAdding("fridge") },
@@ -34,6 +44,7 @@ export function KitchenMenu({ context }: { context: "kitchen" | "grocery" }) {
     { label: "Scan receipt (photo)", icon: ScanLine, run: () => setScanning(true) },
     { label: "Scan nutrition label", icon: Sparkles, run: () => setLabelOpen(true) },
     { label: "Fill macros from USDA", icon: BookMarked, run: () => setUsdaOpen(true) },
+    { label: "Export foods (CSV)", icon: Download, run: exportFoodsCsv },
     { label: "Conversions chart", icon: Calculator, run: () => setConvOpen(true) },
   ];
 
@@ -59,6 +70,12 @@ export function KitchenMenu({ context }: { context: "kitchen" | "grocery" }) {
                   <it.icon size={16} className="text-accent-soft" /> {it.label}
                 </button>
               ))}
+              <button
+                onClick={() => { csvFileRef.current?.click(); setOpen(false); }}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm text-ink hover:bg-accent-wash"
+              >
+                <Upload size={16} className="text-accent-soft" /> Import foods (CSV)
+              </button>
             </div>
           </>
         )}
@@ -76,6 +93,19 @@ export function KitchenMenu({ context }: { context: "kitchen" | "grocery" }) {
       {convOpen && <ConversionsModal onClose={() => setConvOpen(false)} />}
       {labelOpen && <NutritionScanModal onClose={() => setLabelOpen(false)} />}
       {usdaOpen && <UsdaFillModal onClose={() => setUsdaOpen(false)} />}
+
+      <input
+        ref={csvFileRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) setImportFile(file);
+          e.target.value = "";
+        }}
+      />
+      {importFile && <FoodsCsvImportModal file={importFile} onClose={() => setImportFile(null)} />}
     </>
   );
 }
