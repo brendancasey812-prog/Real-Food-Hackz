@@ -8,6 +8,7 @@
 
 import type { Food, FoodCategory, Location, Unit } from "./types";
 import { classifyByName } from "./foodclass";
+import { askClaude, jsonFrom } from "./ai";
 
 /** One item read off a pasted receipt. */
 export interface ReceiptTextLine {
@@ -529,4 +530,92 @@ export function rankFoods(
     .filter((s) => s.score > 0.2)
     .sort((a, b) => b.score - a.score || a.food.name.length - b.food.name.length)
     .slice(0, limit);
+}
+
+// ---- Reading a receipt with the model, when the rules aren't enough ----
+
+const RECEIPT_TEXT_PROMPT = `You read the text of a grocery receipt and return its food items as JSON.
+
+Return ONLY a JSON object of this shape, no prose:
+{"items":[{"label":"WHOLE MILK GAL","food":"milk","total":4.99,"quantity":1,"grams":null,"perLb":null,"taxable":false,"section":"DAIRY"}]}
+
+Rules:
+- label: the line as printed, tidied of item numbers and column padding.
+- food: the food behind the brand and the packaging, lowercase, 1-3 words.
+  "Dannon Oikos Triple Zero Plain Tub 32oz" is "yogurt". "Onions Red" is "red onions".
+- total: dollars paid for that line, as a number. Never null. A line with no
+  price is not an item.
+- quantity: how many were bought when the receipt counts them; 1 when it weighs them.
+- grams: the weight of the line when it was sold by weight, in grams; null otherwise.
+  1 lb = 453.59237 g, 1 oz = 28.349523 g.
+- perLb: the printed price per pound, as a number; null when there wasn't one.
+- taxable: true only when the receipt marks the line taxed (a T flag, usually).
+- section: the receipt's own heading for it (PRODUCE, DAIRY, MEAT...), or null.
+
+Leave out anything that is not something bought: totals, subtotals, tax,
+savings, coupons, the card or cash it was paid with, change, store and clerk
+details, loyalty points. Include every food item, including taxed ones —
+taxable says so rather than dropping them.`;
+
+/** One line as the model reported it, before it is trusted. */
+interface AiItem {
+  label?: unknown; food?: unknown; total?: unknown; quantity?: unknown;
+  grams?: unknown; perLb?: unknown; taxable?: unknown; section?: unknown;
+}
+
+const num = (v: unknown): number | undefined => {
+  const n = typeof v === "string" ? Number(v.replace(/[$,]/g, "")) : Number(v);
+  return Number.isFinite(n) ? n : undefined;
+};
+
+/**
+ * Read a pasted receipt with Claude, for the ones the rules can't take apart.
+ *
+ * `parseReceiptText` handles the shapes receipts are usually printed in, and
+ * costs nothing to run, so it goes first and this is the fallback. What comes
+ * back is the same `ReceiptTextLine` the rules produce — so the review screen,
+ * the matching and the import are the one path either way, and the only thing
+ * that differs is who read the paper.
+ */
+export async function readReceiptWithAi(
+  text: string,
+  apiKey: string,
+): Promise<ReceiptTextLine[]> {
+  const reply = await askClaude({ system: RECEIPT_TEXT_PROMPT, text, apiKey });
+  const parsed = jsonFrom(reply) as { items?: unknown };
+  const items = Array.isArray(parsed?.items) ? (parsed.items as AiItem[]) : [];
+
+  const out: ReceiptTextLine[] = [];
+  for (const it of items) {
+    const total = num(it.total);
+    const label = typeof it.label === "string" ? it.label.trim() : "";
+    const food = typeof it.food === "string" && it.food.trim()
+      ? it.food.trim().toLowerCase()
+      : foodFromLabel(label);
+    // A line with no name or no price is not something that was bought.
+    if (!food || total == null || total <= 0) continue;
+
+    const section = typeof it.section === "string" && it.section.trim()
+      ? it.section.trim().toUpperCase()
+      : undefined;
+    const grams = num(it.grams);
+    // Where it belongs is worked out here rather than asked for: the same
+    // classifier the rules use, so a food lands on the same shelf either way.
+    const placed = classifyByName(food) ?? classifyByName(label);
+
+    out.push({
+      raw: label || food,
+      label: label || food,
+      food,
+      total,
+      quantity: Math.max(1, num(it.quantity) ?? 1),
+      grams: grams != null && grams > 0 ? grams : undefined,
+      perLb: num(it.perLb),
+      section,
+      taxable: typeof it.taxable === "boolean" ? it.taxable : undefined,
+      category: placed?.category ?? "condiment",
+      location: placed?.location ?? sectionLocation(section),
+    });
+  }
+  return out;
 }
