@@ -13,7 +13,8 @@
     "test:csv-stress": "tsc scripts/csv-stress.test.ts src/lib/csv.ts src/lib/receipt.ts --outDir .test-out --module commonjs --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck && node .test-out/scripts/csv-stress.test.js",
     "test:foodtable-stress": "tsc scripts/foodtable-stress.test.ts src/lib/foodtable.ts src/lib/recipescan.ts --outDir .test-out --module commonjs --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck && node .test-out/scripts/foodtable-stress.test.js",
     "test:aiclient": "tsc scripts/aiclient.test.ts src/lib/aiclient.ts --outDir .test-out --module commonjs --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck && node .test-out/scripts/aiclient.test.js",
-    "test": "npm run test:cost && npm run test:receipt && npm run test:csv && npm run test:csv-stress && npm run test:foodtable-stress && npm run test:aiclient"
+    "test:csvio": "tsc scripts/csvio.test.ts src/lib/foodsio.ts src/lib/pricesio.ts --outDir .test-out --module commonjs --target es2020 --moduleResolution node --esModuleInterop --skipLibCheck && node .test-out/scripts/csvio.test.js",
+    "test": "npm run test:cost && npm run test:receipt && npm run test:csv && npm run test:csv-stress && npm run test:foodtable-stress && npm run test:aiclient && npm run test:csvio"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { DollarSign, Store as StoreIcon, Copy, TriangleAlert } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { DollarSign, Store as StoreIcon, Copy, TriangleAlert, Download, Upload } from "lucide-react";
 import Link from "next/link";
 import { useApp } from "@/lib/store";
 import {
@@ -21,6 +21,8 @@ import { KitchenMenu } from "@/components/KitchenMenu";
 import { FoodShelves } from "@/components/FoodShelves";
 import { pricePerBuyUnit } from "@/lib/units";
 import { gramsForFood } from "@/lib/usda";
+import { pricesToCsv, csvToPrices } from "@/lib/pricesio";
+import { download, exportName } from "@/lib/exportfile";
 
 /** A money figure that says out loud when it is missing prices. */
 function Money({ t, className = "" }: { t: CostTotals; className?: string }) {
@@ -43,10 +45,12 @@ function Money({ t, className = "" }: { t: CostTotals; className?: string }) {
 export default function Costs() {
   const {
     foods, recipes, inventory, prices, stores, selectedStoreId,
-    selectStore, seedStorePricesFromBase
+    selectStore, seedStorePricesFromBase, setPrice
   } = useApp();
 
   const [copied, setCopied] = useState<number | null>(null);
+  const priceFileRef = useRef<HTMLInputElement | null>(null);
+  const [priceImportMsg, setPriceImportMsg] = useState<string | null>(null);
 
   const storeName =
     selectedStoreId === BEST_STORE_ID
@@ -54,6 +58,33 @@ export default function Costs() {
       : selectedStoreId === BASE_STORE_ID
         ? "Base prices"
         : (stores.find((s) => s.id === selectedStoreId)?.name ?? "Base prices");
+
+  // "Best price" isn't a real shop — there's nothing to file a price sheet
+  // against until a real store (or the base-price row) is selected.
+  const canPriceCsv = selectedStoreId !== BEST_STORE_ID;
+
+  const exportPricesCsv = () => {
+    const csv = pricesToCsv(
+      foods,
+      (foodId) => prices.find((p) => p.storeId === selectedStoreId && p.foodId === foodId)?.pricePerUnit ?? null,
+    );
+    download(exportName(`prices-${storeName}`, new Date(), "csv"), "text/csv", csv);
+  };
+
+  const onImportPricesFile = (file: File | undefined) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const { items, errors } = csvToPrices(String(reader.result ?? ""), foods);
+      for (const it of items) setPrice(selectedStoreId, it.food.id, it.pricePerUnit);
+      setPriceImportMsg(
+        `${items.length} price${items.length === 1 ? "" : "s"} updated at ${storeName}` +
+          (errors.length ? ` · ${errors.length} row${errors.length === 1 ? "" : "s"} skipped` : ""),
+      );
+      setTimeout(() => setPriceImportMsg(null), 6000);
+    };
+    reader.readAsText(file);
+  };
 
   const kitchenValue = inventoryValue(inventory, prices, selectedStoreId);
 
@@ -131,10 +162,41 @@ export default function Costs() {
               ))}
             </select>
           </label>
+          {canPriceCsv && (
+            <>
+              <button
+                onClick={exportPricesCsv}
+                title={`Export ${storeName} prices as CSV`}
+                className="flex h-10 items-center gap-2 rounded-xl border border-line bg-surface px-3 text-sm text-ink-2 hover:bg-surface-3 md:h-11"
+              >
+                <Download size={15} /> <span className="hidden sm:inline">Prices CSV</span>
+              </button>
+              <button
+                onClick={() => priceFileRef.current?.click()}
+                title={`Import prices for ${storeName} from CSV`}
+                className="flex h-10 items-center gap-2 rounded-xl border border-line bg-surface px-3 text-sm text-ink-2 hover:bg-surface-3 md:h-11"
+              >
+                <Upload size={15} />
+              </button>
+              <input
+                ref={priceFileRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => { onImportPricesFile(e.target.files?.[0]); e.target.value = ""; }}
+              />
+            </>
+          )}
           <KitchenMenu context="kitchen" />
           <SettingsButton className="hidden md:flex" />
         </div>
       </header>
+
+      {priceImportMsg && (
+        <p className="mb-4 rounded-xl border border-accent/30 bg-accent-wash px-3 py-2 text-sm text-accent-soft">
+          {priceImportMsg}
+        </p>
+      )}
 
       {/* Roll-ups: the same numbers the other tabs will show. */}
       <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
